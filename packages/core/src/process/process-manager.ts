@@ -48,9 +48,9 @@ export interface ProcessInfo {
 }
 
 /**
- * プロセス管理を行うクラス
+ * プロセス管理を行うオブジェクト
  */
-export class ProcessManager {
+export const ProcessManager = {
   /**
    * プロセスを起動する
    *
@@ -60,7 +60,7 @@ export class ProcessManager {
    * @param options 起動オプション
    * @throws ProcessStartError 起動に失敗した場合
    */
-  static async startProcess(
+  async startProcess(
     workspace: string,
     processName: string,
     command: string,
@@ -147,7 +147,7 @@ export class ProcessManager {
       startedAt: new Date().toISOString(),
     };
     StateManager.writeState(workspace, processName, state);
-  }
+  },
 
   /**
    * プロセスを停止する
@@ -157,7 +157,7 @@ export class ProcessManager {
    * @param timeout タイムアウト時間（ミリ秒、デフォルト: 10000）
    * @throws ProcessStopError 停止に失敗した場合
    */
-  static async stopProcess(workspace: string, processName: string, timeout = 10000): Promise<void> {
+  async stopProcess(workspace: string, processName: string, timeout = 10000): Promise<void> {
     const state = StateManager.readState(workspace, processName);
 
     if (!state) {
@@ -233,14 +233,14 @@ export class ProcessManager {
     } else {
       throw new ProcessStopError(`プロセス "${processName}" (PID: ${String(pid)}) の停止に失敗しました`);
     }
-  }
+  },
 
   /**
    * すべてのプロセスの状態一覧を取得する
    *
    * @returns プロセス情報の配列
    */
-  static listProcesses(): ProcessInfo[] {
+  listProcesses(): ProcessInfo[] {
     const states = StateManager.listAllStates();
     const processes: ProcessInfo[] = [];
 
@@ -271,5 +271,5 @@ export class ProcessManager {
     }
 
     return processes;
-  }
-}
+  },
+};

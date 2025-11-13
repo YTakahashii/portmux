@@ -11,16 +11,16 @@ export class PortInUseError extends Error {
 }
 
 /**
- * ポート管理を行うクラス
+ * ポート管理を行うオブジェクト
  */
-export class PortManager {
+export const PortManager = {
   /**
    * ポートの使用可能性をチェックする
    *
    * @param ports チェックするポート番号の配列
    * @throws PortInUseError 使用中のポートがある場合
    */
-  static async checkPortAvailability(ports: number[]): Promise<void> {
+  async checkPortAvailability(ports: number[]): Promise<void> {
     const unavailablePorts: number[] = [];
 
     for (const port of ports) {
@@ -36,5 +36,5 @@ export class PortManager {
         throw new PortInUseError(firstPort);
       }
     }
-  }
-}
+  },
+};

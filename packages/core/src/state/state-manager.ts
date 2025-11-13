@@ -57,9 +57,9 @@ function ensureStateDir(): void {
 }
 
 /**
- * プロセス状態を管理するクラス
+ * プロセス状態を管理するオブジェクト
  */
-export class StateManager {
+export const StateManager = {
   /**
    * 状態を読み込む
    *
@@ -67,7 +67,7 @@ export class StateManager {
    * @param process プロセス名
    * @returns プロセス状態（存在しない場合は null）
    */
-  static readState(workspace: string, process: string): ProcessState | null {
+  readState(workspace: string, process: string): ProcessState | null {
     const filePath = getStateFilePath(workspace, process);
 
     if (!existsSync(filePath)) {
@@ -81,7 +81,7 @@ export class StateManager {
       // ファイルが破損している場合は null を返す
       return null;
     }
-  }
+  },
 
   /**
    * 状態を書き込む
@@ -90,13 +90,13 @@ export class StateManager {
    * @param process プロセス名
    * @param state プロセス状態
    */
-  static writeState(workspace: string, process: string, state: ProcessState): void {
+  writeState(workspace: string, process: string, state: ProcessState): void {
     ensureStateDir();
 
     const filePath = getStateFilePath(workspace, process);
     const content = JSON.stringify(state, null, 2);
     writeFileSync(filePath, content, 'utf-8');
-  }
+  },
 
   /**
    * 状態を削除する
@@ -104,20 +104,20 @@ export class StateManager {
    * @param workspace ワークスペース名
    * @param process プロセス名
    */
-  static deleteState(workspace: string, process: string): void {
+  deleteState(workspace: string, process: string): void {
     const filePath = getStateFilePath(workspace, process);
 
     if (existsSync(filePath)) {
       unlinkSync(filePath);
     }
-  }
+  },
 
   /**
    * すべての状態ファイルを読み込む
    *
    * @returns すべてのプロセス状態の配列
    */
-  static listAllStates(): ProcessState[] {
+  listAllStates(): ProcessState[] {
     ensureStateDir();
 
     const states: ProcessState[] = [];
@@ -150,5 +150,5 @@ export class StateManager {
     }
 
     return states;
-  }
-}
+  },
+};

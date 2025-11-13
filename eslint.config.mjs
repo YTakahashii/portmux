@@ -35,10 +35,5 @@ export default defineConfig(
   },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
-  {
-    rules: {
-      '@typescript-eslint/no-extraneous-class': 'off',
-    },
-  }
+  ...tseslint.configs.stylisticTypeChecked
 );

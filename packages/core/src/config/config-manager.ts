@@ -34,9 +34,9 @@ export class ConfigValidationError extends Error {
 }
 
 /**
- * 設定ファイルを管理するクラス
+ * 設定ファイルを管理するオブジェクト
  */
-export class ConfigManager {
+export const ConfigManager = {
   /**
    * カレントディレクトリから親ディレクトリを遡って portmux.config.json を探す
    *
@@ -44,7 +44,7 @@ export class ConfigManager {
    * @returns 設定ファイルのパス
    * @throws ConfigNotFoundError 設定ファイルが見つからない場合
    */
-  static findConfigFile(startDir: string = process.cwd()): string {
+  findConfigFile(startDir: string = process.cwd()): string {
     let currentDir = resolve(startDir);
     const root = resolve('/');
 
@@ -57,7 +57,7 @@ export class ConfigManager {
     }
 
     throw new ConfigNotFoundError('portmux.config.json');
-  }
+  },
 
   /**
    * 設定ファイルを読み込んでバリデーションを行う
@@ -68,7 +68,7 @@ export class ConfigManager {
    * @throws ConfigParseError JSONパースに失敗した場合
    * @throws ConfigValidationError スキーマバリデーションに失敗した場合
    */
-  static loadConfig(configPath?: string): PortMuxConfig {
+  loadConfig(configPath?: string): PortMuxConfig {
     const path = configPath ?? this.findConfigFile();
 
     // ファイルの存在確認
@@ -102,5 +102,5 @@ export class ConfigManager {
     }
 
     return result.data;
-  }
-}
+  },
+};
