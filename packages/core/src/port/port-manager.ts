@@ -5,7 +5,7 @@ import { check as checkPortUsed } from 'tcp-port-used';
  */
 export class PortInUseError extends Error {
   constructor(port: number) {
-    super(`ポート ${port} は既に使用されています`);
+    super(`ポート ${String(port)} は既に使用されています`);
     this.name = 'PortInUseError';
   }
 }
@@ -31,7 +31,10 @@ export class PortManager {
     }
 
     if (unavailablePorts.length > 0) {
-      throw new PortInUseError(unavailablePorts[0]!);
+      const firstPort = unavailablePorts[0];
+      if (firstPort !== undefined) {
+        throw new PortInUseError(firstPort);
+      }
     }
   }
 }

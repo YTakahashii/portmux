@@ -12,7 +12,7 @@ export function isPidAlive(pid: number): boolean {
     // プロセスが存在しない場合はエラーが発生する
     kill(pid, 0);
     return true;
-  } catch (error) {
+  } catch {
     // ESRCH (No such process) エラーの場合はプロセスが存在しない
     return false;
   }

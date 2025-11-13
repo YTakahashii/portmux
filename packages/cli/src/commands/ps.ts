@@ -19,7 +19,7 @@ function createPsCommand(): Command {
         Workspace: p.workspace,
         Process: p.process,
         Status: p.status,
-        PID: p.pid || '-',
+        PID: p.pid ?? '-',
       }));
 
       console.table(tableData);
@@ -27,7 +27,8 @@ function createPsCommand(): Command {
       // ステータスに色を付けて表示（console.table の後に補足表示）
       processes.forEach((p) => {
         if (p.status === 'Running') {
-          console.log(chalk.green(`  ✓ ${p.workspace}/${p.process} (PID: ${p.pid})`));
+          const pidText = p.pid !== undefined ? String(p.pid) : 'unknown';
+          console.log(chalk.green(`  ✓ ${p.workspace}/${p.process} (PID: ${pidText})`));
         } else if (p.status === 'Error') {
           console.log(chalk.red(`  ✗ ${p.workspace}/${p.process}`));
         }

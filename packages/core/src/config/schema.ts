@@ -15,7 +15,7 @@ import { z } from 'zod';
 /**
  * コマンド定義のスキーマ
  */
-const CommandSchema: z.ZodType = z.object({
+export const CommandSchema = z.object({
   name: z.string().min(1, 'プロセス名は必須です'),
   command: z.string().min(1, 'コマンドは必須です'),
   ports: z.array(z.number().int().positive()).optional(),
@@ -26,7 +26,7 @@ const CommandSchema: z.ZodType = z.object({
 /**
  * ワークスペース定義のスキーマ
  */
-const WorkspaceSchema: z.ZodType = z.object({
+export const WorkspaceSchema = z.object({
   description: z.string(),
   commands: z.array(CommandSchema).min(1, 'コマンドは1つ以上必要です'),
 });
@@ -34,7 +34,7 @@ const WorkspaceSchema: z.ZodType = z.object({
 /**
  * Runner設定のスキーマ
  */
-const RunnerSchema: z.ZodType = z.object({
+export const RunnerSchema = z.object({
   mode: z.literal('background', {
     errorMap: () => ({
       message: 'runner.mode は "background" のみサポートされています',
@@ -45,7 +45,7 @@ const RunnerSchema: z.ZodType = z.object({
 /**
  * PortMux設定ファイル全体のスキーマ
  */
-export const PortMuxConfigSchema: z.ZodType = z
+export const PortMuxConfigSchema = z
   .object({
     version: z.string().min(1, 'version は必須です'),
     runner: RunnerSchema,

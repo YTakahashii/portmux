@@ -6,7 +6,7 @@
     "moduleDetection": "force",
     "lib": ["ES2022"],
     "declaration": true,
-    "isolatedDeclarations": true,
+    "isolatedDeclarations": false,
     "outDir": "./dist",
     "rootDir": "./src",
     "verbatimModuleSyntax": true,

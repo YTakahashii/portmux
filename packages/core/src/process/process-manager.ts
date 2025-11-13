@@ -68,9 +68,11 @@ export class ProcessManager {
   ): Promise<void> {
     // 既存のプロセスをチェック
     const existingState = StateManager.readState(workspace, processName);
-    if (existingState && existingState.status === 'Running') {
+    if (existingState?.status === 'Running') {
       if (existingState.pid && isPidAlive(existingState.pid)) {
-        throw new ProcessStartError(`プロセス "${processName}" は既に起動しています (PID: ${existingState.pid})`);
+        throw new ProcessStartError(
+          `プロセス "${processName}" は既に起動しています (PID: ${String(existingState.pid)})`
+        );
       } else {
         // PID が死んでいる場合は状態をクリア
         StateManager.deleteState(workspace, processName);
@@ -133,7 +135,7 @@ export class ProcessManager {
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     if (!isPidAlive(pid)) {
-      throw new ProcessStartError(`プロセスが起動直後に終了しました (PID: ${pid})`);
+      throw new ProcessStartError(`プロセスが起動直後に終了しました (PID: ${String(pid)})`);
     }
 
     // 状態を保存
@@ -155,7 +157,7 @@ export class ProcessManager {
    * @param timeout タイムアウト時間（ミリ秒、デフォルト: 10000）
    * @throws ProcessStopError 停止に失敗した場合
    */
-  static async stopProcess(workspace: string, processName: string, timeout: number = 10000): Promise<void> {
+  static async stopProcess(workspace: string, processName: string, timeout = 10000): Promise<void> {
     const state = StateManager.readState(workspace, processName);
 
     if (!state) {
@@ -190,8 +192,8 @@ export class ProcessManager {
     // SIGTERM を送信
     try {
       kill(pid, 'SIGTERM');
-    } catch (error) {
-      throw new ProcessStopError(`プロセス "${processName}" (PID: ${pid}) に SIGTERM を送信できませんでした`);
+    } catch {
+      throw new ProcessStopError(`プロセス "${processName}" (PID: ${String(pid)}) に SIGTERM を送信できませんでした`);
     }
 
     // プロセスが停止するまで待機（最大 timeout ミリ秒）
@@ -215,7 +217,7 @@ export class ProcessManager {
     // タイムアウトした場合は SIGKILL を送信
     try {
       kill(pid, 'SIGKILL');
-    } catch (error) {
+    } catch {
       // SIGKILL が失敗しても、プロセスが既に終了している可能性がある
     }
 
@@ -229,7 +231,7 @@ export class ProcessManager {
       StateManager.writeState(workspace, processName, stoppedState);
       StateManager.deleteState(workspace, processName);
     } else {
-      throw new ProcessStopError(`プロセス "${processName}" (PID: ${pid}) の停止に失敗しました`);
+      throw new ProcessStopError(`プロセス "${processName}" (PID: ${String(pid)}) の停止に失敗しました`);
     }
   }
 

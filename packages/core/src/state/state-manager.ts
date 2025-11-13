@@ -1,6 +1,7 @@
-import { mkdirSync, writeFileSync, readFileSync, unlinkSync, existsSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
+
 import { homedir } from 'os';
+import { join } from 'path';
 
 /**
  * プロセスの状態
@@ -76,7 +77,7 @@ export class StateManager {
     try {
       const content = readFileSync(filePath, 'utf-8');
       return JSON.parse(content) as ProcessState;
-    } catch (error) {
+    } catch {
       // ファイルが破損している場合は null を返す
       return null;
     }
@@ -138,12 +139,12 @@ export class StateManager {
           const content = readFileSync(filePath, 'utf-8');
           const state = JSON.parse(content) as ProcessState;
           states.push(state);
-        } catch (error) {
+        } catch {
           // 破損したファイルはスキップ
           continue;
         }
       }
-    } catch (error) {
+    } catch {
       // ディレクトリが読めない場合は空配列を返す
       return states;
     }

@@ -43,7 +43,7 @@ function createStopCommand(): Command {
             chalk.yellow(
               processName
                 ? `プロセス "${processName}" は実行中ではありません`
-                : `ワークスペース "${workspaceName}" に実行中のプロセスがありません`
+                : `ワークスペース "${workspaceName ?? 'unknown'}" に実行中のプロセスがありません`
             )
           );
           return;

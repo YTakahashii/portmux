@@ -1,8 +1,14 @@
+import {
+  ConfigManager,
+  ConfigNotFoundError,
+  PortInUseError,
+  PortManager,
+  ProcessManager,
+  ProcessStartError,
+} from '@portmux/core';
+
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { ConfigManager, ConfigNotFoundError, type Command as CommandType } from '@portmux/core';
-import { ProcessManager, ProcessStartError } from '@portmux/core';
-import { PortManager, PortInUseError } from '@portmux/core';
 import { resolve } from 'path';
 
 export const startCommand: ReturnType<typeof createStartCommand> = createStartCommand();
@@ -21,7 +27,8 @@ function createStartCommand(): Command {
 
         // ワークスペース名が指定されていない場合は、設定ファイルから最初のワークスペースを使用
         // 最小実装では、設定ファイル内のワークスペース名をそのまま使用
-        const targetWorkspace = workspaceName || Object.keys(config.workspaces)[0];
+        const workspaceKeys = Object.keys(config.workspaces);
+        const targetWorkspace = workspaceName ?? workspaceKeys[0];
 
         if (!targetWorkspace) {
           console.error(chalk.red('エラー: ワークスペースが見つかりません'));
@@ -36,7 +43,7 @@ function createStartCommand(): Command {
 
         // 起動するプロセスを決定
         const processesToStart = processName
-          ? workspace.commands.filter((cmd: CommandType) => cmd.name === processName)
+          ? workspace.commands.filter((cmd) => cmd.name === processName)
           : workspace.commands;
 
         if (processesToStart.length === 0) {
@@ -68,8 +75,8 @@ function createStartCommand(): Command {
 
             // プロセスを起動
             await ProcessManager.startProcess(targetWorkspace, cmd.name, cmd.command, {
-              cwd: cmd.cwd,
-              env: cmd.env,
+              ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
+              ...(cmd.env !== undefined && { env: cmd.env }),
               projectRoot,
             });
 

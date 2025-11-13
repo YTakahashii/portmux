@@ -69,7 +69,7 @@ export class ConfigManager {
    * @throws ConfigValidationError スキーマバリデーションに失敗した場合
    */
   static loadConfig(configPath?: string): PortMuxConfig {
-    const path = configPath || this.findConfigFile();
+    const path = configPath ?? this.findConfigFile();
 
     // ファイルの存在確認
     if (!existsSync(path)) {
@@ -96,7 +96,7 @@ export class ConfigManager {
     const result = PortMuxConfigSchema.safeParse(jsonData);
     if (!result.success) {
       const details = result.error.errors
-        .map((err: { path: Array<string | number>; message: string }) => `${err.path.join('.')}: ${err.message}`)
+        .map((err: { path: (string | number)[]; message: string }) => `${err.path.join('.')}: ${err.message}`)
         .join('\n');
       throw new ConfigValidationError(path, details);
     }
