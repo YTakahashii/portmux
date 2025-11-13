@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "runner": {
+    "mode": "background"
+  },
+  "workspaces": {
+    "default": {
+      "description": "Test workspace",
+      "commands": [
+        {
+          "name": "sleep",
+          "command": "sleep 100"
+        },
+        {
+          "name": "node-test",
+          "command": "node -e \"setTimeout(() => {}, 100000)\""
+        }
+      ]
+    }
+  }
+}
