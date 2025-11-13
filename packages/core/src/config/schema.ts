@@ -35,13 +35,11 @@ export const WorkspaceSchema = z.object({
  * Runner設定のスキーマ
  */
 export const RunnerSchema = z.object({
-  mode: z.literal('background', {
-    errorMap: () => ({ message: 'runner.mode は background のみサポートされています' }),
-  }),
+  mode: z.literal('background'),
 });
 
 /**
- * PortMux設定ファイル全体のスキーマ
+ * PortMux設定ファイル全体のスキーマ（プロジェクト設定）
  */
 export const PortMuxConfigSchema = z
   .object({
@@ -54,8 +52,26 @@ export const PortMuxConfigSchema = z
   });
 
 /**
+ * グローバル設定のワークスペース参照スキーマ
+ */
+export const GlobalWorkspaceSchema = z.object({
+  path: z.string().min(1, 'path は必須です'),
+  workspace: z.string().min(1, 'workspace は必須です'),
+});
+
+/**
+ * グローバル設定ファイルのスキーマ
+ */
+export const GlobalConfigSchema = z.object({
+  version: z.string().min(1, 'version は必須です'),
+  workspaces: z.record(z.string(), GlobalWorkspaceSchema),
+});
+
+/**
  * 設定ファイルの型定義
  */
 export type PortMuxConfig = z.infer<typeof PortMuxConfigSchema>;
 export type Workspace = z.infer<typeof WorkspaceSchema>;
 export type Command = z.infer<typeof CommandSchema>;
+export type GlobalConfig = z.infer<typeof GlobalConfigSchema>;
+export type GlobalWorkspace = z.infer<typeof GlobalWorkspaceSchema>;

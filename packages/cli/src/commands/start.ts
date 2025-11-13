@@ -1,10 +1,14 @@
 import {
   ConfigManager,
   ConfigNotFoundError,
+  LockManager,
+  LockTimeoutError,
   PortInUseError,
-  PortManager,
   ProcessManager,
   ProcessStartError,
+  WorkspaceManager,
+  WorkspaceResolutionError,
+  type ResolvedWorkspace,
 } from '@portmux/core';
 
 import { Command } from 'commander';
@@ -20,22 +24,53 @@ function createStartCommand(): Command {
     .argument('[process-name]', 'プロセス名（省略時はワークスペースの全プロセスを起動）')
     .action(async (workspaceName?: string, processName?: string) => {
       try {
-        // 設定ファイルを読み込む
-        const configPath = ConfigManager.findConfigFile();
-        const config = ConfigManager.loadConfig(configPath);
-        const projectRoot = resolve(configPath, '..');
+        // ワークスペースを解決
+        let resolvedWorkspace: ResolvedWorkspace;
+        try {
+          if (workspaceName) {
+            // ワークスペース名が指定されている場合はグローバル設定から検索
+            resolvedWorkspace = WorkspaceManager.resolveWorkspaceByName(workspaceName);
+          } else {
+            // 指定されていない場合は自動解決
+            resolvedWorkspace = WorkspaceManager.resolveWorkspaceAuto();
+          }
+        } catch (error) {
+          if (error instanceof WorkspaceResolutionError) {
+            // WorkspaceManager で解決できない場合は従来の方法でフォールバック
+            const configPath = ConfigManager.findConfigFile();
+            const config = ConfigManager.loadConfig(configPath);
+            const projectRoot = resolve(configPath, '..');
 
-        // ワークスペース名が指定されていない場合は、設定ファイルから最初のワークスペースを使用
-        // 最小実装では、設定ファイル内のワークスペース名をそのまま使用
-        const workspaceKeys = Object.keys(config.workspaces);
-        const targetWorkspace = workspaceName ?? workspaceKeys[0];
+            const workspaceKeys = Object.keys(config.workspaces);
+            const targetWorkspace = workspaceName ?? workspaceKeys[0];
 
-        if (!targetWorkspace) {
-          console.error(chalk.red('エラー: ワークスペースが見つかりません'));
-          process.exit(1);
+            if (!targetWorkspace) {
+              console.error(chalk.red('エラー: ワークスペースが見つかりません'));
+              process.exit(1);
+            }
+
+            const workspace = config.workspaces[targetWorkspace];
+            if (!workspace) {
+              console.error(chalk.red(`エラー: ワークスペース "${targetWorkspace}" が見つかりません`));
+              process.exit(1);
+            }
+
+            resolvedWorkspace = {
+              name: targetWorkspace,
+              path: projectRoot,
+              projectConfig: config,
+              projectConfigPath: configPath,
+              workspaceDefinitionName: targetWorkspace,
+            };
+          } else {
+            throw error;
+          }
         }
 
-        const workspace = config.workspaces[targetWorkspace];
+        const targetWorkspace = resolvedWorkspace.workspaceDefinitionName;
+        const workspace = resolvedWorkspace.projectConfig.workspaces[targetWorkspace];
+        const projectRoot = resolvedWorkspace.path;
+
         if (!workspace) {
           console.error(chalk.red(`エラー: ワークスペース "${targetWorkspace}" が見つかりません`));
           process.exit(1);
@@ -57,40 +92,37 @@ function createStartCommand(): Command {
           process.exit(1);
         }
 
-        // 各プロセスを起動
-        for (const cmd of processesToStart) {
-          try {
-            // ポートチェック
-            if (cmd.ports && cmd.ports.length > 0) {
-              try {
-                await PortManager.checkPortAvailability(cmd.ports);
-              } catch (error) {
-                if (error instanceof PortInUseError) {
-                  console.error(chalk.red(`エラー: プロセス "${cmd.name}" の起動に失敗しました: ${error.message}`));
-                  continue;
-                }
+        // ロックを取得して各プロセスを起動
+        await LockManager.withLock('workspace', resolvedWorkspace.name, async () => {
+          for (const cmd of processesToStart) {
+            try {
+              // 環境変数を解決
+              const resolvedEnv = cmd.env ? ConfigManager.resolveEnvObject(cmd.env) : {};
+              const resolvedCommand = ConfigManager.resolveCommandEnv(cmd.command, cmd.env);
+
+              // プロセスを起動（PortManager の予約 API は ProcessManager 内で使用される）
+              await ProcessManager.startProcess(targetWorkspace, cmd.name, resolvedCommand, {
+                ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
+                env: resolvedEnv,
+                projectRoot,
+                ...(cmd.ports !== undefined && { ports: cmd.ports }),
+              });
+
+              console.log(chalk.green(`✓ プロセス "${cmd.name}" を起動しました`));
+            } catch (error) {
+              if (error instanceof ProcessStartError || error instanceof PortInUseError) {
+                console.error(chalk.red(`エラー: プロセス "${cmd.name}" の起動に失敗しました: ${error.message}`));
+              } else {
                 throw error;
               }
             }
-
-            // プロセスを起動
-            await ProcessManager.startProcess(targetWorkspace, cmd.name, cmd.command, {
-              ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
-              ...(cmd.env !== undefined && { env: cmd.env }),
-              projectRoot,
-            });
-
-            console.log(chalk.green(`✓ プロセス "${cmd.name}" を起動しました`));
-          } catch (error) {
-            if (error instanceof ProcessStartError) {
-              console.error(chalk.red(`エラー: プロセス "${cmd.name}" の起動に失敗しました: ${error.message}`));
-            } else {
-              throw error;
-            }
           }
-        }
+        });
       } catch (error) {
         if (error instanceof ConfigNotFoundError) {
+          console.error(chalk.red(`エラー: ${error.message}`));
+          process.exit(1);
+        } else if (error instanceof LockTimeoutError) {
           console.error(chalk.red(`エラー: ${error.message}`));
           process.exit(1);
         } else {

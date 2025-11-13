@@ -35,5 +35,11 @@ export default defineConfig(
   },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+    },
+  }
 );

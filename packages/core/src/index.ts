@@ -11,6 +11,9 @@ export * from './errors.js';
 export * from './config/schema.js';
 export * from './config/config-manager.js';
 
+// Workspace
+export * from './workspace/workspace-manager.js';
+
 // State
 export * from './state/state-manager.js';
 export * from './state/pid-checker.js';
@@ -20,3 +23,6 @@ export * from './port/port-manager.js';
 
 // Process
 export * from './process/process-manager.js';
+
+// Lock
+export * from './lock/lock-manager.js';

@@ -19,12 +19,18 @@ export interface ProcessState {
   error?: string;
   startedAt?: string; // ISO 8601形式の日時文字列
   stoppedAt?: string; // ISO 8601形式の日時文字列
+  logPath?: string; // ログファイルのパス
 }
 
 /**
  * 状態ファイルのベースディレクトリ
  */
 const STATE_DIR = join(homedir(), '.config', 'portmux', 'state');
+
+/**
+ * ログファイルのベースディレクトリ
+ */
+const LOG_DIR = join(homedir(), '.config', 'portmux', 'logs');
 
 /**
  * 文字列をスラッグ化（ファイル名として安全な形式に変換）
@@ -57,9 +63,46 @@ function ensureStateDir(): void {
 }
 
 /**
+ * ログディレクトリを確保（存在しない場合は作成）
+ */
+function ensureLogDir(): void {
+  if (!existsSync(LOG_DIR)) {
+    mkdirSync(LOG_DIR, { recursive: true });
+  }
+}
+
+/**
+ * ログファイルのパスを生成
+ * ファイル名: <workspace-slug>-<process-slug>-<hash>.log
+ */
+function generateLogPath(workspace: string, process: string): string {
+  ensureLogDir();
+
+  const workspaceSlug = slugify(workspace);
+  const processSlug = slugify(process);
+
+  // ハッシュを付与（同一名でも衝突を避ける）
+  const hash = Date.now().toString(36);
+  const filename = `${workspaceSlug}-${processSlug}-${hash}.log`;
+
+  return join(LOG_DIR, filename);
+}
+
+/**
  * プロセス状態を管理するオブジェクト
  */
 export const StateManager = {
+  /**
+   * ログファイルのパスを生成
+   *
+   * @param workspace ワークスペース名
+   * @param process プロセス名
+   * @returns ログファイルのパス
+   */
+  generateLogPath(workspace: string, process: string): string {
+    return generateLogPath(workspace, process);
+  },
+
   /**
    * 状態を読み込む
    *

@@ -1,7 +1,6 @@
-import { ProcessManager, ProcessStopError } from '@portmux/core';
+import { LockManager, LockTimeoutError, ProcessManager, ProcessStopError, StateManager } from '@portmux/core';
 
 import { Command } from 'commander';
-import { StateManager } from '@portmux/core';
 import chalk from 'chalk';
 
 export const stopCommand: ReturnType<typeof createStopCommand> = createStopCommand();
@@ -49,23 +48,30 @@ function createStopCommand(): Command {
           return;
         }
 
-        // 各プロセスを停止
-        for (const state of processesToStop) {
-          try {
-            await ProcessManager.stopProcess(state.workspace, state.process);
+        // ロックを取得して各プロセスを停止
+        await LockManager.withLock('workspace', workspaceName ?? null, async () => {
+          for (const state of processesToStop) {
+            try {
+              await ProcessManager.stopProcess(state.workspace, state.process);
 
-            console.log(chalk.green(`✓ プロセス "${state.process}" を停止しました`));
-          } catch (error) {
-            if (error instanceof ProcessStopError) {
-              console.error(chalk.red(`エラー: プロセス "${state.process}" の停止に失敗しました: ${error.message}`));
-            } else {
-              throw error;
+              console.log(chalk.green(`✓ プロセス "${state.process}" を停止しました`));
+            } catch (error) {
+              if (error instanceof ProcessStopError) {
+                console.error(chalk.red(`エラー: プロセス "${state.process}" の停止に失敗しました: ${error.message}`));
+              } else {
+                throw error;
+              }
             }
           }
-        }
+        });
       } catch (error) {
-        console.error(chalk.red(`エラー: ${error instanceof Error ? error.message : String(error)}`));
-        process.exit(1);
+        if (error instanceof LockTimeoutError) {
+          console.error(chalk.red(`エラー: ${error.message}`));
+          process.exit(1);
+        } else {
+          console.error(chalk.red(`エラー: ${error instanceof Error ? error.message : String(error)}`));
+          process.exit(1);
+        }
       }
     });
 }
