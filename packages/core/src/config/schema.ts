@@ -20,7 +20,7 @@ export const CommandSchema = z.object({
   command: z.string().min(1, 'コマンドは必須です'),
   ports: z.array(z.number().int().positive()).optional(),
   cwd: z.string().optional(),
-  env: z.record(z.string()).optional(), // 後回しだがパススルー用に定義
+  env: z.record(z.string(), z.string()).optional(), // 後回しだがパススルー用に定義
 });
 
 /**
@@ -36,9 +36,7 @@ export const WorkspaceSchema = z.object({
  */
 export const RunnerSchema = z.object({
   mode: z.literal('background', {
-    errorMap: () => ({
-      message: 'runner.mode は "background" のみサポートされています',
-    }),
+    errorMap: () => ({ message: 'runner.mode は background のみサポートされています' }),
   }),
 });
 

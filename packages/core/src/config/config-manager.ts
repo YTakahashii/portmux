@@ -95,9 +95,7 @@ export const ConfigManager = {
     // Zodバリデーション
     const result = PortMuxConfigSchema.safeParse(jsonData);
     if (!result.success) {
-      const details = result.error.errors
-        .map((err: { path: (string | number)[]; message: string }) => `${err.path.join('.')}: ${err.message}`)
-        .join('\n');
+      const details = result.error.issues.map((err) => `${err.path.map(String).join('.')}: ${err.message}`).join('\n');
       throw new ConfigValidationError(path, details);
     }
 
