@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest"
   },
   "keywords": [],
   "author": "YTakahashii",
@@ -26,6 +26,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/proper-lockfile": "^4.1.4",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

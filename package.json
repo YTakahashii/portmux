@@ -4,7 +4,7 @@
   "description": "",
   "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "pnpm -r test",
     "build": "pnpm -r build",
     "dev:cli": "pnpm --filter @portmux/cli dev",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
