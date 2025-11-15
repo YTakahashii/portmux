@@ -1,7 +1,8 @@
-import { lock } from 'proper-lockfile';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+
 import { homedir } from 'os';
 import { join } from 'path';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { lock } from 'proper-lockfile';
 
 /**
  * ロックタイムアウトエラー
@@ -37,14 +38,21 @@ export type LockType = 'global' | 'workspace';
  * ロック管理の設定
  */
 const LOCK_TIMEOUT = 30000; // 30秒
-const LOCK_BASE_DIR = join(homedir(), '.config', 'portmux', 'locks');
+
+/**
+ * ロックベースディレクトリのパスを取得
+ */
+function getLockBaseDir(): string {
+  return join(homedir(), '.config', 'portmux', 'locks');
+}
 
 /**
  * ロックディレクトリを確保（存在しない場合は作成）
  */
 function ensureLockDir(): void {
-  if (!existsSync(LOCK_BASE_DIR)) {
-    mkdirSync(LOCK_BASE_DIR, { recursive: true });
+  const lockBaseDir = getLockBaseDir();
+  if (!existsSync(lockBaseDir)) {
+    mkdirSync(lockBaseDir, { recursive: true });
   }
 }
 
@@ -53,7 +61,7 @@ function ensureLockDir(): void {
  */
 function getGlobalLockPath(): string {
   ensureLockDir();
-  const lockPath = join(LOCK_BASE_DIR, 'global.lock');
+  const lockPath = join(getLockBaseDir(), 'global.lock');
 
   // ロックファイルが存在しない場合は作成
   if (!existsSync(lockPath)) {
@@ -75,7 +83,7 @@ function getWorkspaceLockPath(workspace: string): string {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 
-  const lockPath = join(LOCK_BASE_DIR, `${slug}.lock`);
+  const lockPath = join(getLockBaseDir(), `${slug}.lock`);
 
   // ロックファイルが存在しない場合は作成
   if (!existsSync(lockPath)) {
@@ -166,11 +174,7 @@ export const LockManager = {
    * @param fn 実行する処理
    * @returns 処理の結果
    */
-  async withLock<T>(
-    lockType: LockType,
-    workspace: string | null,
-    fn: () => Promise<T>
-  ): Promise<T> {
+  async withLock<T>(lockType: LockType, workspace: string | null, fn: () => Promise<T>): Promise<T> {
     let releaseLock: ReleaseLockFn;
 
     if (lockType === 'global') {
@@ -189,4 +193,3 @@ export const LockManager = {
     }
   },
 };
-
