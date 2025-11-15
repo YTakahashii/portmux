@@ -1,0 +1,507 @@
+import type { GlobalConfig, PortMuxConfig } from '../config/schema.js';
+import { WorkspaceManager, WorkspaceResolutionError } from './workspace-manager.js';
+import { existsSync as actualExistsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'fs';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { join } from 'path';
+import { tmpdir as systemTmpdir } from 'node:os';
+
+const testHomeDir = mkdtempSync(join(systemTmpdir(), 'portmux-workspace-home-'));
+
+vi.mock('os', async () => {
+  const actual = await vi.importActual<typeof import('os')>('os');
+  return {
+    ...actual,
+    homedir: () => testHomeDir,
+  };
+});
+
+// child_process と fs のモック用変数（vi.mock の外で定義）
+// vi.mock はホイスティングされるため、モジュールスコープで定義
+let actualFsExistsSync: typeof actualExistsSync;
+const mockStore: {
+  execSync: ReturnType<typeof vi.fn>;
+  existsSync: ReturnType<typeof vi.fn>;
+} = {
+  execSync: vi.fn(),
+  existsSync: vi.fn(),
+};
+
+// globalThis に型を追加
+declare global {
+  var __portmuxMockStore:
+    | {
+        execSync: ReturnType<typeof vi.fn>;
+        existsSync: ReturnType<typeof vi.fn>;
+        actualExistsSync: typeof actualExistsSync;
+      }
+    | undefined;
+}
+
+vi.mock('child_process', () => {
+  const mock = vi.fn();
+  if (typeof globalThis.__portmuxMockStore === 'undefined') {
+    globalThis.__portmuxMockStore = {
+      execSync: mock,
+      existsSync: vi.fn(),
+      actualExistsSync: actualExistsSync,
+    };
+  } else {
+    globalThis.__portmuxMockStore.execSync = mock;
+  }
+  return {
+    execSync: mock,
+  };
+});
+
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs');
+  const mock = vi.fn();
+  if (typeof globalThis.__portmuxMockStore === 'undefined') {
+    globalThis.__portmuxMockStore = {
+      execSync: vi.fn(),
+      existsSync: mock,
+      actualExistsSync: actual.existsSync,
+    };
+  } else {
+    globalThis.__portmuxMockStore.existsSync = mock;
+    globalThis.__portmuxMockStore.actualExistsSync = actual.existsSync;
+  }
+  return {
+    ...actual,
+    existsSync: mock,
+  };
+});
+
+// モックストアを初期化
+if (typeof globalThis.__portmuxMockStore !== 'undefined') {
+  mockStore.execSync = globalThis.__portmuxMockStore.execSync;
+  mockStore.existsSync = globalThis.__portmuxMockStore.existsSync;
+  actualFsExistsSync = globalThis.__portmuxMockStore.actualExistsSync;
+}
+
+const globalConfigPath = join(testHomeDir, '.config', 'portmux', 'config.json');
+
+const baseProjectConfig: PortMuxConfig = {
+  version: '1.0.0',
+  runner: { mode: 'background' },
+  workspaces: {
+    default: {
+      description: 'Default workspace',
+      commands: [
+        {
+          name: 'api',
+          command: 'pnpm dev',
+          ports: [3000],
+        },
+      ],
+    },
+    dev: {
+      description: 'Dev workspace',
+      commands: [
+        {
+          name: 'api',
+          command: 'pnpm dev',
+          ports: [3001],
+        },
+      ],
+    },
+  },
+};
+
+const baseGlobalConfig: GlobalConfig = {
+  version: '1.0.0',
+  workspaces: {
+    'workspace-1': {
+      path: '/tmp/workspace-1',
+      workspace: 'default',
+    },
+    'workspace-2': {
+      path: '/tmp/workspace-2',
+      workspace: 'dev',
+    },
+  },
+};
+
+function createTempProject(config: PortMuxConfig = baseProjectConfig): {
+  root: string;
+  configPath: string;
+} {
+  const tempRoot = mkdtempSync(join(systemTmpdir(), 'portmux-workspace-'));
+  const configPath = join(tempRoot, 'portmux.config.json');
+  writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+  return { root: tempRoot, configPath };
+}
+
+function createGlobalConfig(config: GlobalConfig = baseGlobalConfig): void {
+  const configDir = join(testHomeDir, '.config', 'portmux');
+  mkdirSync(configDir, { recursive: true });
+  writeFileSync(globalConfigPath, JSON.stringify(config, null, 2), 'utf-8');
+}
+
+function cleanupTempDir(dir: string): void {
+  rmSync(dir, { recursive: true, force: true });
+}
+
+describe('WorkspaceManager', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockStore.execSync.mockClear();
+    mockStore.existsSync.mockClear();
+    // デフォルトでは実際の existsSync を使う
+    mockStore.existsSync.mockImplementation((path: string) => actualFsExistsSync(path));
+    rmSync(join(testHomeDir, '.config'), { recursive: true, force: true });
+  });
+
+  afterAll(() => {
+    rmSync(testHomeDir, { recursive: true, force: true });
+  });
+
+  describe('resolveWorkspaceByName', () => {
+    it('ワークスペース名から設定を解決できる', () => {
+      const { root, configPath } = createTempProject();
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        workspaces: {
+          'test-workspace': {
+            path: root,
+            workspace: 'default',
+          },
+        },
+      };
+      createGlobalConfig(globalConfig);
+
+      const resolved = WorkspaceManager.resolveWorkspaceByName('test-workspace');
+
+      expect(resolved.name).toBe('test-workspace');
+      expect(resolved.path).toBe(realpathSync(root));
+      expect(resolved.projectConfigPath).toBe(configPath);
+      expect(resolved.workspaceDefinitionName).toBe('default');
+      expect(resolved.projectConfig).toEqual(baseProjectConfig);
+
+      cleanupTempDir(root);
+    });
+
+    it('グローバル設定ファイルが存在しない場合にエラーを投げる', () => {
+      expect(() => {
+        WorkspaceManager.resolveWorkspaceByName('test-workspace');
+      }).toThrow(WorkspaceResolutionError);
+    });
+
+    it('ワークスペースがグローバル設定に見つからない場合にエラーを投げる', () => {
+      createGlobalConfig();
+
+      expect(() => {
+        WorkspaceManager.resolveWorkspaceByName('non-existent');
+      }).toThrow(WorkspaceResolutionError);
+    });
+
+    it('プロジェクト設定ファイルが見つからない場合にエラーを投げる', () => {
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        workspaces: {
+          'test-workspace': {
+            path: '/non-existent-path',
+            workspace: 'default',
+          },
+        },
+      };
+      createGlobalConfig(globalConfig);
+
+      expect(() => {
+        WorkspaceManager.resolveWorkspaceByName('test-workspace');
+      }).toThrow(WorkspaceResolutionError);
+    });
+
+    it('プロジェクト設定内にワークスペース定義が見つからない場合にエラーを投げる', () => {
+      const { root } = createTempProject();
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        workspaces: {
+          'test-workspace': {
+            path: root,
+            workspace: 'non-existent',
+          },
+        },
+      };
+      createGlobalConfig(globalConfig);
+
+      expect(() => {
+        WorkspaceManager.resolveWorkspaceByName('test-workspace');
+      }).toThrow(WorkspaceResolutionError);
+
+      cleanupTempDir(root);
+    });
+  });
+
+  describe('resolveWorkspaceAuto', () => {
+    it('Git worktree からワークスペースを解決できる', () => {
+      const { root, configPath } = createTempProject();
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        workspaces: {
+          'test-workspace': {
+            path: root,
+            workspace: 'default',
+          },
+        },
+      };
+      createGlobalConfig(globalConfig);
+
+      // execSync をモック（encoding: 'utf-8' の場合は文字列を返す）
+      mockStore.execSync.mockImplementation((_command: string, options?: { encoding?: string }) => {
+        if (options?.encoding === 'utf-8') {
+          return `worktree ${root}\nHEAD abc123\nbranch refs/heads/main\n\n`;
+        }
+        return Buffer.from(`worktree ${root}\nHEAD abc123\nbranch refs/heads/main\n\n`);
+      });
+
+      // findGitRoot が root を返すようにモック
+      mockStore.existsSync.mockImplementation((path: string) => {
+        if (typeof path === 'string' && path.includes('.git')) {
+          return path === join(root, '.git');
+        }
+        return actualFsExistsSync(path);
+      });
+
+      const resolved = WorkspaceManager.resolveWorkspaceAuto(root);
+
+      expect(resolved.name).toBe('test-workspace');
+      expect(resolved.path).toBe(realpathSync(root));
+      expect(resolved.projectConfigPath).toBe(configPath);
+      expect(resolved.workspaceDefinitionName).toBe('default');
+
+      cleanupTempDir(root);
+    });
+
+    it('グローバル設定がない場合はフォールバックモードで最初のワークスペースを使用', () => {
+      const { root, configPath } = createTempProject();
+
+      const resolved = WorkspaceManager.resolveWorkspaceAuto(root);
+
+      expect(resolved.name).toBe('default');
+      expect(resolved.path).toBe(realpathSync(root));
+      expect(resolved.projectConfigPath).toBe(configPath);
+      expect(resolved.workspaceDefinitionName).toBe('default');
+
+      cleanupTempDir(root);
+    });
+
+    it('プロジェクト設定ファイルが見つからない場合にエラーを投げる', () => {
+      const tempRoot = mkdtempSync(join(systemTmpdir(), 'portmux-workspace-'));
+
+      expect(() => {
+        WorkspaceManager.resolveWorkspaceAuto(tempRoot);
+      }).toThrow(WorkspaceResolutionError);
+
+      cleanupTempDir(tempRoot);
+    });
+
+    it('Git 環境ではない場合はパスマッチでワークスペースを解決', () => {
+      const { root, configPath } = createTempProject();
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        workspaces: {
+          'test-workspace': {
+            path: root,
+            workspace: 'default',
+          },
+        },
+      };
+      createGlobalConfig(globalConfig);
+
+      // findGitRoot が null を返すようにモック
+      mockStore.existsSync.mockImplementation((path: string) => {
+        if (typeof path === 'string' && path.includes('.git')) {
+          return false;
+        }
+        return actualFsExistsSync(path);
+      });
+
+      const resolved = WorkspaceManager.resolveWorkspaceAuto(root);
+
+      expect(resolved.name).toBe('test-workspace');
+      expect(resolved.path).toBe(realpathSync(root));
+      expect(resolved.projectConfigPath).toBe(configPath);
+      expect(resolved.workspaceDefinitionName).toBe('default');
+
+      cleanupTempDir(root);
+    });
+
+    it('Git 環境ではない場合、マッチしない場合は最初のワークスペースを使用して警告を出す', () => {
+      const { root, configPath } = createTempProject();
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        workspaces: {
+          'test-workspace': {
+            path: '/different-path',
+            workspace: 'default',
+          },
+        },
+      };
+      createGlobalConfig(globalConfig);
+
+      // findGitRoot が null を返すようにモック
+      mockStore.existsSync.mockImplementation((path: string) => {
+        if (typeof path === 'string' && path.includes('.git')) {
+          return false;
+        }
+        return actualFsExistsSync(path);
+      });
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      const resolved = WorkspaceManager.resolveWorkspaceAuto(root);
+
+      expect(resolved.name).toBe('default');
+      expect(resolved.path).toBe(realpathSync(root));
+      expect(resolved.projectConfigPath).toBe(configPath);
+      expect(resolved.workspaceDefinitionName).toBe('default');
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('警告'));
+
+      warnSpy.mockRestore();
+      cleanupTempDir(root);
+    });
+
+    it('git worktree が見つからない場合にエラーを投げる', () => {
+      const { root } = createTempProject();
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        workspaces: {
+          'test-workspace': {
+            path: root,
+            workspace: 'default',
+          },
+        },
+      };
+      createGlobalConfig(globalConfig);
+
+      // findGitRoot が root を返すようにモック
+      mockStore.existsSync.mockImplementation((path: string) => {
+        if (typeof path === 'string' && path.includes('.git')) {
+          return path === join(root, '.git');
+        }
+        return actualFsExistsSync(path);
+      });
+
+      // execSync が空の結果を返すようにモック
+      mockStore.execSync.mockImplementation((_command: string, options?: { encoding?: string }) => {
+        if (options?.encoding === 'utf-8') {
+          return '';
+        }
+        return Buffer.from('');
+      });
+
+      expect(() => {
+        WorkspaceManager.resolveWorkspaceAuto(root);
+      }).toThrow(WorkspaceResolutionError);
+
+      cleanupTempDir(root);
+    });
+
+    it('git worktree に対応するワークスペースがグローバル設定に見つからない場合にエラーを投げる', () => {
+      const { root } = createTempProject();
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        workspaces: {
+          'test-workspace': {
+            path: '/different-path',
+            workspace: 'default',
+          },
+        },
+      };
+      createGlobalConfig(globalConfig);
+
+      // findGitRoot が root を返すようにモック
+      mockStore.existsSync.mockImplementation((path: string) => {
+        if (typeof path === 'string' && path.includes('.git')) {
+          return path === join(root, '.git');
+        }
+        return actualFsExistsSync(path);
+      });
+
+      // execSync をモック（encoding: 'utf-8' の場合は文字列を返す）
+      mockStore.execSync.mockImplementation((_command: string, options?: { encoding?: string }) => {
+        if (options?.encoding === 'utf-8') {
+          return `worktree ${root}\nHEAD abc123\nbranch refs/heads/main\n\n`;
+        }
+        return Buffer.from(`worktree ${root}\nHEAD abc123\nbranch refs/heads/main\n\n`);
+      });
+
+      expect(() => {
+        WorkspaceManager.resolveWorkspaceAuto(root);
+      }).toThrow(WorkspaceResolutionError);
+
+      cleanupTempDir(root);
+    });
+  });
+
+  describe('listAllWorkspaces', () => {
+    it('すべてのワークスペースを列挙できる', () => {
+      const { root: root1 } = createTempProject();
+      const devWorkspace = baseProjectConfig.workspaces.dev;
+      if (!devWorkspace) {
+        throw new Error('dev workspace is not defined');
+      }
+      const { root: root2 } = createTempProject({
+        ...baseProjectConfig,
+        workspaces: {
+          dev: devWorkspace,
+        },
+      });
+
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        workspaces: {
+          'workspace-1': {
+            path: root1,
+            workspace: 'default',
+          },
+          'workspace-2': {
+            path: root2,
+            workspace: 'dev',
+          },
+        },
+      };
+      createGlobalConfig(globalConfig);
+
+      const workspaces = WorkspaceManager.listAllWorkspaces();
+
+      expect(workspaces).toHaveLength(2);
+      expect(workspaces.map((w) => w.name)).toEqual(expect.arrayContaining(['workspace-1', 'workspace-2']));
+
+      cleanupTempDir(root1);
+      cleanupTempDir(root2);
+    });
+
+    it('グローバル設定が存在しない場合は空配列を返す', () => {
+      const workspaces = WorkspaceManager.listAllWorkspaces();
+      expect(workspaces).toEqual([]);
+    });
+
+    it('エラーが発生したワークスペースはスキップされる', () => {
+      const { root } = createTempProject();
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        workspaces: {
+          'valid-workspace': {
+            path: root,
+            workspace: 'default',
+          },
+          'invalid-workspace': {
+            path: '/non-existent-path',
+            workspace: 'default',
+          },
+        },
+      };
+      createGlobalConfig(globalConfig);
+
+      const workspaces = WorkspaceManager.listAllWorkspaces();
+
+      expect(workspaces).toHaveLength(1);
+      expect(workspaces[0]?.name).toBe('valid-workspace');
+
+      cleanupTempDir(root);
+    });
+  });
+});
