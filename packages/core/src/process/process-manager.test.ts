@@ -592,7 +592,7 @@ describe('ProcessManager', () => {
       expect(kill).not.toHaveBeenCalled();
     });
 
-    it('PID が記録されていない場合はエラーを投げる', async () => {
+    it('PID が記録されていない場合は状態を削除する', async () => {
       const state: ProcessState = {
         workspace: 'workspace-1',
         process: 'api',
@@ -601,7 +601,11 @@ describe('ProcessManager', () => {
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
 
-      await expect(ProcessManager.stopProcess('workspace-1', 'api')).rejects.toThrow(ProcessStopError);
+      await ProcessManager.stopProcess('workspace-1', 'api');
+
+      expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalled();
+      expect(kill).not.toHaveBeenCalled();
     });
 
     it('プロセスが既に死んでいる場合は状態を更新して終了する', async () => {

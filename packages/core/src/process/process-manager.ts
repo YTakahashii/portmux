@@ -289,7 +289,11 @@ export const ProcessManager = {
     }
 
     if (!state.pid) {
-      throw new ProcessStopError(`プロセス "${processName}" の PID が記録されていません`);
+      // PID が記録されていない場合は状態を削除して終了
+      StateManager.deleteState(workspace, processName);
+      // ポート予約を解放
+      PortManager.releaseReservationByProcess();
+      return;
     }
 
     const pid = state.pid;
