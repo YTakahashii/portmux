@@ -1,7 +1,7 @@
 import type { GlobalConfig, PortMuxConfig } from '../config/schema.js';
 import { WorkspaceManager, WorkspaceResolutionError } from './workspace-manager.js';
-import { existsSync as actualExistsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'fs';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'fs';
 
 import { join } from 'path';
 import { tmpdir as systemTmpdir } from 'node:os';
@@ -17,68 +17,42 @@ vi.mock('os', async () => {
 });
 
 // child_process と fs のモック用変数（vi.mock の外で定義）
-// vi.mock はホイスティングされるため、モジュールスコープで定義
-let actualFsExistsSync: typeof actualExistsSync;
+// vi.mock はホイスティングされるため、vi.hoisted で初期化
 const mockStore: {
   execSync: ReturnType<typeof vi.fn>;
   existsSync: ReturnType<typeof vi.fn>;
-} = {
+} = vi.hoisted(() => ({
   execSync: vi.fn(),
   existsSync: vi.fn(),
+}));
+
+const actualExistsSyncStore: {
+  existsSync: undefined | typeof import('fs').existsSync;
+} = vi.hoisted(() => ({
+  existsSync: undefined,
+}));
+
+const getActualExistsSync = (): typeof import('fs').existsSync => {
+  if (typeof actualExistsSyncStore.existsSync !== 'function') {
+    throw new Error('actual existsSync is not initialized');
+  }
+  return actualExistsSyncStore.existsSync;
 };
 
-// globalThis に型を追加
-declare global {
-  var __portmuxMockStore:
-    | {
-        execSync: ReturnType<typeof vi.fn>;
-        existsSync: ReturnType<typeof vi.fn>;
-        actualExistsSync: typeof actualExistsSync;
-      }
-    | undefined;
-}
+const callActualExistsSync = (path: string): ReturnType<typeof import('fs').existsSync> => getActualExistsSync()(path);
 
-vi.mock('child_process', () => {
-  const mock = vi.fn();
-  if (typeof globalThis.__portmuxMockStore === 'undefined') {
-    globalThis.__portmuxMockStore = {
-      execSync: mock,
-      existsSync: vi.fn(),
-      actualExistsSync: actualExistsSync,
-    };
-  } else {
-    globalThis.__portmuxMockStore.execSync = mock;
-  }
-  return {
-    execSync: mock,
-  };
-});
+vi.mock('child_process', () => ({
+  execSync: mockStore.execSync,
+}));
 
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof import('fs')>('fs');
-  const mock = vi.fn();
-  if (typeof globalThis.__portmuxMockStore === 'undefined') {
-    globalThis.__portmuxMockStore = {
-      execSync: vi.fn(),
-      existsSync: mock,
-      actualExistsSync: actual.existsSync,
-    };
-  } else {
-    globalThis.__portmuxMockStore.existsSync = mock;
-    globalThis.__portmuxMockStore.actualExistsSync = actual.existsSync;
-  }
+  actualExistsSyncStore.existsSync = actual.existsSync;
   return {
     ...actual,
-    existsSync: mock,
+    existsSync: mockStore.existsSync,
   };
 });
-
-// モックストアを初期化
-if (typeof globalThis.__portmuxMockStore !== 'undefined') {
-  mockStore.execSync = globalThis.__portmuxMockStore.execSync;
-  mockStore.existsSync = globalThis.__portmuxMockStore.existsSync;
-  actualFsExistsSync = globalThis.__portmuxMockStore.actualExistsSync;
-}
 
 const globalConfigPath = join(testHomeDir, '.config', 'portmux', 'config.json');
 
@@ -149,7 +123,7 @@ describe('WorkspaceManager', () => {
     mockStore.execSync.mockClear();
     mockStore.existsSync.mockClear();
     // デフォルトでは実際の existsSync を使う
-    mockStore.existsSync.mockImplementation((path: string) => actualFsExistsSync(path));
+    mockStore.existsSync.mockImplementation(callActualExistsSync);
     rmSync(join(testHomeDir, '.config'), { recursive: true, force: true });
   });
 
@@ -261,7 +235,7 @@ describe('WorkspaceManager', () => {
         if (typeof path === 'string' && path.includes('.git')) {
           return path === join(root, '.git');
         }
-        return actualFsExistsSync(path);
+        return callActualExistsSync(path);
       });
 
       const resolved = WorkspaceManager.resolveWorkspaceAuto(root);
@@ -315,7 +289,7 @@ describe('WorkspaceManager', () => {
         if (typeof path === 'string' && path.includes('.git')) {
           return false;
         }
-        return actualFsExistsSync(path);
+        return callActualExistsSync(path);
       });
 
       const resolved = WorkspaceManager.resolveWorkspaceAuto(root);
@@ -346,7 +320,7 @@ describe('WorkspaceManager', () => {
         if (typeof path === 'string' && path.includes('.git')) {
           return false;
         }
-        return actualFsExistsSync(path);
+        return callActualExistsSync(path);
       });
 
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -381,7 +355,7 @@ describe('WorkspaceManager', () => {
         if (typeof path === 'string' && path.includes('.git')) {
           return path === join(root, '.git');
         }
-        return actualFsExistsSync(path);
+        return callActualExistsSync(path);
       });
 
       // execSync が空の結果を返すようにモック
@@ -417,7 +391,7 @@ describe('WorkspaceManager', () => {
         if (typeof path === 'string' && path.includes('.git')) {
           return path === join(root, '.git');
         }
-        return actualFsExistsSync(path);
+        return callActualExistsSync(path);
       });
 
       // execSync をモック（encoding: 'utf-8' の場合は文字列を返す）
