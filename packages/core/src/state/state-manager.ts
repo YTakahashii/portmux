@@ -22,15 +22,23 @@ export interface ProcessState {
   logPath?: string; // ログファイルのパス
 }
 
+function getPortmuxDir(): string {
+  return join(homedir(), '.config', 'portmux');
+}
+
 /**
  * 状態ファイルのベースディレクトリ
  */
-const STATE_DIR = join(homedir(), '.config', 'portmux', 'state');
+export function getStateDir(): string {
+  return join(getPortmuxDir(), 'state');
+}
 
 /**
  * ログファイルのベースディレクトリ
  */
-const LOG_DIR = join(homedir(), '.config', 'portmux', 'logs');
+export function getLogDir(): string {
+  return join(getPortmuxDir(), 'logs');
+}
 
 /**
  * 文字列をスラッグ化（ファイル名として安全な形式に変換）
@@ -50,15 +58,16 @@ function getStateFilePath(workspace: string, process: string): string {
   const workspaceSlug = slugify(workspace);
   const processSlug = slugify(process);
   const filename = `${workspaceSlug}-${processSlug}.json`;
-  return join(STATE_DIR, filename);
+  return join(getStateDir(), filename);
 }
 
 /**
  * 状態ディレクトリを確保（存在しない場合は作成）
  */
 function ensureStateDir(): void {
-  if (!existsSync(STATE_DIR)) {
-    mkdirSync(STATE_DIR, { recursive: true });
+  const stateDir = getStateDir();
+  if (!existsSync(stateDir)) {
+    mkdirSync(stateDir, { recursive: true });
   }
 }
 
@@ -66,8 +75,9 @@ function ensureStateDir(): void {
  * ログディレクトリを確保（存在しない場合は作成）
  */
 function ensureLogDir(): void {
-  if (!existsSync(LOG_DIR)) {
-    mkdirSync(LOG_DIR, { recursive: true });
+  const logDir = getLogDir();
+  if (!existsSync(logDir)) {
+    mkdirSync(logDir, { recursive: true });
   }
 }
 
@@ -85,7 +95,7 @@ function generateLogPath(workspace: string, process: string): string {
   const hash = Date.now().toString(36);
   const filename = `${workspaceSlug}-${processSlug}-${hash}.log`;
 
-  return join(LOG_DIR, filename);
+  return join(getLogDir(), filename);
 }
 
 /**
@@ -164,20 +174,21 @@ export const StateManager = {
     ensureStateDir();
 
     const states: ProcessState[] = [];
+    const stateDir = getStateDir();
 
-    if (!existsSync(STATE_DIR)) {
+    if (!existsSync(stateDir)) {
       return states;
     }
 
     try {
-      const files = readdirSync(STATE_DIR);
+      const files = readdirSync(stateDir);
 
       for (const file of files) {
         if (!file.endsWith('.json')) {
           continue;
         }
 
-        const filePath = join(STATE_DIR, file);
+        const filePath = join(stateDir, file);
         try {
           const content = readFileSync(filePath, 'utf-8');
           const state = JSON.parse(content) as ProcessState;

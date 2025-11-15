@@ -1,9 +1,8 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
-
-import type { ProcessState } from './state-manager.js';
 import { join } from 'path';
 import { tmpdir as systemTmpdir } from 'node:os';
+import { StateManager, type ProcessState } from './state-manager.js';
 
 const testHomeDir = mkdtempSync(join(systemTmpdir(), 'portmux-state-home-'));
 
@@ -15,24 +14,18 @@ vi.mock('os', async () => {
   };
 });
 
-let StateManager: typeof import('./state-manager.js').StateManager;
-
-beforeAll(async () => {
-  ({ StateManager } = await import('./state-manager.js'));
-});
-
 const portmuxDir = join(testHomeDir, '.config', 'portmux');
 const stateDir = join(portmuxDir, 'state');
 
-beforeEach(() => {
-  rmSync(portmuxDir, { recursive: true, force: true });
-});
-
-afterAll(() => {
-  rmSync(testHomeDir, { recursive: true, force: true });
-});
-
 describe('StateManager', () => {
+  beforeEach(() => {
+    rmSync(portmuxDir, { recursive: true, force: true });
+  });
+
+  afterAll(() => {
+    rmSync(testHomeDir, { recursive: true, force: true });
+  });
+
   it('writeState と readState で状態を永続化できる', () => {
     const state: ProcessState = {
       workspace: 'App',
