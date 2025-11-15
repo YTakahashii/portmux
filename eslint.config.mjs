@@ -40,6 +40,7 @@ export default defineConfig(
     files: ['**/*.ts', '**/*.tsx'],
     rules: {
       '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/unbound-method': 'off',
     },
   }
 );
