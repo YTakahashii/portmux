@@ -52,34 +52,30 @@ export class VersionMismatchError extends Error {
   }
 }
 
-/**
- * ワークスペース名重複エラー
- */
-export class DuplicateWorkspaceNameError extends Error {
+/** Duplicate repository name error. */
+export class DuplicateRepositoryNameError extends Error {
   constructor(workspaceName: string) {
     super(
-      `ワークスペース名が重複しています: ${workspaceName}\nグローバル設定のワークスペース名は一意である必要があります。`
+      `リポジトリ名が重複しています: ${workspaceName}\nグローバル設定のリポジトリ名は一意である必要があります。`
     );
-    this.name = 'DuplicateWorkspaceNameError';
+    this.name = 'DuplicateRepositoryNameError';
   }
 }
 
-/**
- * 無効なワークスペース参照エラー
- */
-export class InvalidWorkspaceReferenceError extends Error {
+/** Invalid repository reference error. */
+export class InvalidRepositoryReferenceError extends Error {
   constructor(
     public readonly workspaceName: string,
     public readonly referencedWorkspace: string,
     public readonly projectConfigPath: string
   ) {
     super(
-      `無効なワークスペース参照です。\n` +
-        `グローバル設定のワークスペース "${workspaceName}" が参照している ` +
+      `無効なリポジトリ参照です。\n` +
+        `グローバル設定のリポジトリ "${workspaceName}" が参照している ` +
         `プロジェクト設定内のワークスペース "${referencedWorkspace}" が見つかりません。\n` +
         `プロジェクト設定: ${projectConfigPath}`
     );
-    this.name = 'InvalidWorkspaceReferenceError';
+    this.name = 'InvalidRepositoryReferenceError';
   }
 }
 
@@ -271,28 +267,28 @@ export const ConfigManager = {
   },
 
   /**
-   * グローバル設定とプロジェクト設定の整合性を検証
+   * Validate consistency between global and project configurations.
    *
-   * @param globalConfig グローバル設定
-   * @param projectConfig プロジェクト設定
-   * @param projectConfigPath プロジェクト設定のパス（エラーメッセージ用）
-   * @throws DuplicateWorkspaceNameError ワークスペース名が重複している場合
-   * @throws InvalidWorkspaceReferenceError 無効なワークスペース参照がある場合
+   * @param globalConfig Global configuration
+   * @param projectConfig Project configuration
+   * @param projectConfigPath Path to the project configuration (used in error messages)
+   * @throws DuplicateRepositoryNameError When repository names are duplicated
+   * @throws InvalidRepositoryReferenceError When a repository points to a missing workspace definition
    */
   validateGlobalConfig(globalConfig: GlobalConfig, projectConfig: PortMuxConfig, projectConfigPath: string): void {
-    // ワークスペース名の一意性チェック
-    const workspaceNames = new Set<string>();
-    for (const name of Object.keys(globalConfig.workspaces)) {
-      if (workspaceNames.has(name)) {
-        throw new DuplicateWorkspaceNameError(name);
+    // リポジトリ名の一意性チェック
+    const repositoryNames = new Set<string>();
+    for (const name of Object.keys(globalConfig.repositories)) {
+      if (repositoryNames.has(name)) {
+        throw new DuplicateRepositoryNameError(name);
       }
-      workspaceNames.add(name);
+      repositoryNames.add(name);
     }
 
     // 外部参照の整合性チェック
-    for (const [workspaceName, workspace] of Object.entries(globalConfig.workspaces)) {
-      if (!projectConfig.workspaces[workspace.workspace]) {
-        throw new InvalidWorkspaceReferenceError(workspaceName, workspace.workspace, projectConfigPath);
+    for (const [repositoryName, repository] of Object.entries(globalConfig.repositories)) {
+      if (!projectConfig.workspaces[repository.workspace]) {
+        throw new InvalidRepositoryReferenceError(repositoryName, repository.workspace, projectConfigPath);
       }
     }
   },

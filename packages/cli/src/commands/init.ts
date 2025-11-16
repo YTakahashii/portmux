@@ -127,8 +127,7 @@ async function promptCommandDefinition(): Promise<CommandAnswers> {
 async function promptEnvVariables(): Promise<Record<string, string>> {
   const env: Record<string, string> = {};
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
+  for (;;) {
     const { addEnv } = await inquirer.prompt<{ addEnv: boolean }>([
       {
         type: 'confirm',
@@ -167,8 +166,7 @@ async function buildWorkspaceConfig(): Promise<{ name: string; workspace: Worksp
   const workspaceAnswers = await promptWorkspaceDefinition();
   const commands: Workspace['commands'] = [];
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
+  for (;;) {
     const commandAnswers = await promptCommandDefinition();
     const env = await promptEnvVariables();
     const ports = parsePorts(commandAnswers.ports);
@@ -270,7 +268,7 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
     writeJsonFile(projectConfigPath, projectConfig);
     console.log(chalk.green(`✓ プロジェクト設定を生成しました: ${projectConfigPath}`));
 
-    const globalWorkspace = {
+    const globalRepository = {
       globalName: workspaceName,
       projectPath: projectRoot,
       workspaceRef: workspaceName,
@@ -278,7 +276,7 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
 
     let globalConfig: GlobalConfig = {
       version: '1.0.0',
-      workspaces: {},
+      repositories: {},
     };
     let hasExistingGlobal = false;
 
@@ -293,18 +291,18 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
       process.exit(1);
     }
 
-    if (hasExistingGlobal && globalConfig.workspaces[globalWorkspace.globalName] && !options.force) {
+    if (hasExistingGlobal && globalConfig.repositories[globalRepository.globalName] && !options.force) {
       console.log(
         chalk.yellow(
-          `グローバル設定に "${globalWorkspace.globalName}" が既に存在するため追加をスキップしました。--force で上書きできます。`
+          `グローバル設定に "${globalRepository.globalName}" が既に存在するため追加をスキップしました。--force で上書きできます。`
         )
       );
       return;
     }
 
-    globalConfig.workspaces[globalWorkspace.globalName] = {
-      path: globalWorkspace.projectPath,
-      workspace: globalWorkspace.workspaceRef,
+    globalConfig.repositories[globalRepository.globalName] = {
+      path: globalRepository.projectPath,
+      workspace: globalRepository.workspaceRef,
     };
 
     const globalValidation = GlobalConfigSchema.safeParse(globalConfig);

@@ -15,7 +15,7 @@ export interface ProcessStartOptions {
   env?: Record<string, string>;
   projectRoot?: string; // portmux.config.json が存在するディレクトリ
   ports?: number[]; // 使用するポート番号の配列
-  workspaceKey?: string; // Global config workspace key if available
+  workspaceKey?: string; // Repository path (from global config) for display
 }
 
 /**

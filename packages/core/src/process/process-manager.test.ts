@@ -192,7 +192,7 @@ describe('ProcessManager', () => {
 
       await ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
         projectRoot: testProjectRoot,
-        workspaceKey: 'global-workspace',
+        workspaceKey: '/repo/path/global',
       });
 
       expect(StateManager.writeState).toHaveBeenCalledWith(
@@ -200,7 +200,7 @@ describe('ProcessManager', () => {
         'api',
         expect.objectContaining({
           workspace: 'workspace-1',
-          workspaceKey: 'global-workspace',
+          workspaceKey: '/repo/path/global',
           process: 'api',
           status: 'Running',
           pid: 1234,
@@ -733,7 +733,7 @@ describe('ProcessManager', () => {
       const states: ProcessState[] = [
         {
           workspace: 'workspace-1',
-          workspaceKey: 'global-workspace-1',
+          workspaceKey: '/repo/path/one',
           process: 'api',
           status: 'Running',
           pid: 1234,
@@ -742,7 +742,7 @@ describe('ProcessManager', () => {
         },
         {
           workspace: 'workspace-2',
-          workspaceKey: 'global-workspace-2',
+          workspaceKey: '/repo/path/two',
           process: 'worker',
           status: 'Running',
           pid: 5678,
@@ -759,7 +759,7 @@ describe('ProcessManager', () => {
       expect(processes).toHaveLength(2);
       expect(processes[0]).toEqual({
         workspace: 'workspace-1',
-        workspaceKey: 'global-workspace-1',
+        workspaceKey: '/repo/path/one',
         process: 'api',
         status: 'Running',
         pid: 1234,
@@ -767,7 +767,7 @@ describe('ProcessManager', () => {
       });
       expect(processes[1]).toEqual({
         workspace: 'workspace-2',
-        workspaceKey: 'global-workspace-2',
+        workspaceKey: '/repo/path/two',
         process: 'worker',
         status: 'Running',
         pid: 5678,

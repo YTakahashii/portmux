@@ -38,9 +38,9 @@ function buildChoices(selections: WorkspaceSelection[]): ChoiceCollection<Worksp
 
     const runningLabel = selection.isRunning ? '[Running] ' : '';
     choices.push({
-      name: `${runningLabel}${selection.workspaceName} (${selection.path})`,
-      value: selection.workspaceName,
-      short: selection.workspaceName,
+      name: `${runningLabel}${selection.repositoryName} (${selection.path})`,
+      value: selection.repositoryName,
+      short: selection.repositoryName,
     });
   }
 

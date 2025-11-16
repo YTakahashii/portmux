@@ -95,7 +95,7 @@ export async function runStartCommand(workspaceName?: string, processName?: stri
           await ProcessManager.startProcess(targetWorkspace, cmd.name, resolvedCommand, {
             ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
             env: resolvedEnv,
-            workspaceKey: resolvedWorkspace.name,
+            workspaceKey: resolvedWorkspace.path,
             projectRoot,
             ...(cmd.ports !== undefined && { ports: cmd.ports }),
           });

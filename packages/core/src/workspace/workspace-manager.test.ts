@@ -85,7 +85,7 @@ const baseProjectConfig: PortMuxConfig = {
 
 const baseGlobalConfig: GlobalConfig = {
   version: '1.0.0',
-  workspaces: {
+  repositories: {
     'workspace-1': {
       path: '/tmp/workspace-1',
       workspace: 'default',
@@ -136,7 +136,7 @@ describe('WorkspaceManager', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
-        workspaces: {
+        repositories: {
           'test-workspace': {
             path: root,
             workspace: 'default',
@@ -173,7 +173,7 @@ describe('WorkspaceManager', () => {
     it('プロジェクト設定ファイルが見つからない場合にエラーを投げる', () => {
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
-        workspaces: {
+        repositories: {
           'test-workspace': {
             path: '/non-existent-path',
             workspace: 'default',
@@ -191,7 +191,7 @@ describe('WorkspaceManager', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
-        workspaces: {
+        repositories: {
           'test-workspace': {
             path: root,
             workspace: 'non-existent',
@@ -213,7 +213,7 @@ describe('WorkspaceManager', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
-        workspaces: {
+        repositories: {
           'test-workspace': {
             path: root,
             workspace: 'default',
@@ -275,7 +275,7 @@ describe('WorkspaceManager', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
-        workspaces: {
+        repositories: {
           'test-workspace': {
             path: root,
             workspace: 'default',
@@ -306,7 +306,7 @@ describe('WorkspaceManager', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
-        workspaces: {
+        repositories: {
           'test-workspace': {
             path: '/different-path',
             workspace: 'default',
@@ -341,7 +341,7 @@ describe('WorkspaceManager', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
-        workspaces: {
+        repositories: {
           'test-workspace': {
             path: root,
             workspace: 'default',
@@ -377,7 +377,7 @@ describe('WorkspaceManager', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
-        workspaces: {
+        repositories: {
           'test-workspace': {
             path: '/different-path',
             workspace: 'default',
@@ -426,7 +426,7 @@ describe('WorkspaceManager', () => {
 
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
-        workspaces: {
+        repositories: {
           'workspace-1': {
             path: root1,
             workspace: 'default',
@@ -457,7 +457,7 @@ describe('WorkspaceManager', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
-        workspaces: {
+        repositories: {
           'valid-workspace': {
             path: root,
             workspace: 'default',
