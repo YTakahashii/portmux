@@ -1,8 +1,9 @@
 import { ConfigManager } from '../config/config-manager.js';
 import type { PortMuxConfig } from '../config/schema.js';
 import { existsSync, realpathSync } from 'fs';
-import { dirname, join, resolve } from 'path';
+import { basename, dirname, join, resolve } from 'path';
 import { execSync } from 'child_process';
+import { StateManager } from '../state/state-manager.js';
 
 /**
  * ワークスペース解決エラー
@@ -28,10 +29,18 @@ export interface ResolvedWorkspace {
 /**
  * Git worktree 情報
  */
-interface GitWorktreeInfo {
+export interface GitWorktreeInfo {
   path: string;
   head: string;
   branch: string;
+}
+
+export interface WorkspaceSelection {
+  workspaceName: string;
+  projectName: string;
+  path: string;
+  workspaceDefinitionName: string;
+  isRunning: boolean;
 }
 
 /**
@@ -62,33 +71,40 @@ function getGitWorktrees(gitRoot: string): GitWorktreeInfo[] {
       encoding: 'utf-8',
     });
 
-    const worktrees: GitWorktreeInfo[] = [];
-    const lines = output.split('\n');
-    let currentWorktree: Partial<GitWorktreeInfo> = {};
-
-    for (const line of lines) {
-      if (line.startsWith('worktree ')) {
-        currentWorktree.path = line.substring('worktree '.length);
-      } else if (line.startsWith('HEAD ')) {
-        currentWorktree.head = line.substring('HEAD '.length);
-      } else if (line.startsWith('branch ')) {
-        currentWorktree.branch = line.substring('branch '.length);
-      } else if (line === '') {
-        if (currentWorktree.path) {
-          worktrees.push({
-            path: currentWorktree.path,
-            head: currentWorktree.head ?? '',
-            branch: currentWorktree.branch ?? '',
-          });
-        }
-        currentWorktree = {};
-      }
-    }
-
-    return worktrees;
+    return parseGitWorktreeList(output);
   } catch {
     return [];
   }
+}
+
+/**
+ * git worktree list --porcelain の出力をパース
+ */
+export function parseGitWorktreeList(output: string): GitWorktreeInfo[] {
+  const worktrees: GitWorktreeInfo[] = [];
+  const lines = output.split('\n');
+  let currentWorktree: Partial<GitWorktreeInfo> = {};
+
+  for (const line of lines) {
+    if (line.startsWith('worktree ')) {
+      currentWorktree.path = line.substring('worktree '.length);
+    } else if (line.startsWith('HEAD ')) {
+      currentWorktree.head = line.substring('HEAD '.length);
+    } else if (line.startsWith('branch ')) {
+      currentWorktree.branch = line.substring('branch '.length);
+    } else if (line === '') {
+      if (currentWorktree.path) {
+        worktrees.push({
+          path: currentWorktree.path,
+          head: currentWorktree.head ?? '',
+          branch: currentWorktree.branch ?? '',
+        });
+      }
+      currentWorktree = {};
+    }
+  }
+
+  return worktrees;
 }
 
 /**
@@ -100,6 +116,23 @@ function normalizePath(path: string): string {
   } catch {
     return resolve(path);
   }
+}
+
+/**
+ * 実行中ワークスペースの集合を返す
+ */
+function getRunningWorkspaceNames(): Set<string> {
+  const states = StateManager.listAllStates();
+  const running = states.filter((state) => state.status === 'Running').map((state) => state.workspace);
+  return new Set(running);
+}
+
+/**
+ * プロジェクト名をパスから導出
+ */
+function getProjectName(path: string): string {
+  const name = basename(path);
+  return name || path;
 }
 
 /**
@@ -304,5 +337,54 @@ export const WorkspaceManager = {
 
     return workspaces;
   },
-};
 
+  /**
+   * 対話選択用のワークスペース一覧を生成
+   *
+   * @param worktrees git worktree list の結果
+   * @param options includeAll が true の場合は worktree に含まれないワークスペースも表示
+   * @returns 選択肢に利用できるワークスペース情報
+   */
+  buildSelectableWorkspaces(
+    worktrees: GitWorktreeInfo[],
+    options?: {
+      includeAll?: boolean;
+    }
+  ): WorkspaceSelection[] {
+    const globalConfig = ConfigManager.loadGlobalConfig();
+    if (!globalConfig) {
+      return [];
+    }
+
+    const includeAll = options?.includeAll ?? false;
+    const normalizedWorktreePaths = new Set(worktrees.map((worktree) => normalizePath(worktree.path)));
+    const runningWorkspaces = getRunningWorkspaceNames();
+    const selections: WorkspaceSelection[] = [];
+
+    for (const [workspaceName, workspace] of Object.entries(globalConfig.workspaces)) {
+      const normalizedPath = normalizePath(workspace.path);
+
+      if (!includeAll && normalizedWorktreePaths.size > 0 && !normalizedWorktreePaths.has(normalizedPath)) {
+        continue;
+      }
+
+      selections.push({
+        workspaceName,
+        projectName: getProjectName(normalizedPath),
+        path: normalizedPath,
+        workspaceDefinitionName: workspace.workspace,
+        isRunning: runningWorkspaces.has(workspaceName),
+      });
+    }
+
+    selections.sort((a, b) => {
+      const projectCompare = a.projectName.localeCompare(b.projectName);
+      if (projectCompare !== 0) {
+        return projectCompare;
+      }
+      return a.workspaceName.localeCompare(b.workspaceName);
+    });
+
+    return selections;
+  },
+};

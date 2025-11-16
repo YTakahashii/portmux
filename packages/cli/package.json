@@ -25,9 +25,11 @@
     "@portmux/core": "workspace:*",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
+    "inquirer": "^9.3.7",
     "tcp-port-used": "^1.0.2"
   },
   "devDependencies": {
+    "@types/inquirer": "^9.0.8",
     "@types/node": "catalog:",
     "typescript": "catalog:"
   }

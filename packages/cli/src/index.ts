@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import { psCommand } from './commands/ps.js';
 import { startCommand } from './commands/start.js';
 import { stopCommand } from './commands/stop.js';
+import { selectCommand } from './commands/select.js';
 
 const program = new Command();
 
@@ -13,6 +14,7 @@ program.name('portmux').description('PortMux - Process management tool').version
 program.addCommand(startCommand);
 program.addCommand(stopCommand);
 program.addCommand(psCommand);
+program.addCommand(selectCommand);
 
 // グローバルエラーハンドラー
 process.on('uncaughtException', (error) => {
