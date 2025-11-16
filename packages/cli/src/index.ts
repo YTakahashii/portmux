@@ -6,11 +6,13 @@ import { psCommand } from './commands/ps.js';
 import { startCommand } from './commands/start.js';
 import { stopCommand } from './commands/stop.js';
 import { selectCommand } from './commands/select.js';
+import { initCommand } from './commands/init.js';
 
 const program = new Command();
 
 program.name('portmux').description('PortMux - Process management tool').version('1.0.0');
 
+program.addCommand(initCommand);
 program.addCommand(startCommand);
 program.addCommand(stopCommand);
 program.addCommand(psCommand);
