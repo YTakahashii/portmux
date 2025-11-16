@@ -166,10 +166,44 @@ describe('ProcessManager', () => {
         'api',
         expect.objectContaining({
           workspace: 'workspace-1',
+          workspaceKey: 'workspace-1',
           process: 'api',
           status: 'Running',
           pid: 1234,
           logPath: join(testHomeDir, 'test.log'),
+        })
+      );
+    });
+
+    it('workspaceKey が指定されている場合は状態に含める', async () => {
+      const mockChildProcess = {
+        pid: 1234,
+        unref: vi.fn(),
+      } as unknown as ChildProcess;
+
+      vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
+      vi.mocked(StateManager.readState).mockReturnValue(null);
+      vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
+      vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
+      vi.mocked(existsSync).mockReturnValue(false);
+      vi.mocked(openSync).mockReturnValue(1);
+      vi.mocked(spawn).mockReturnValue(mockChildProcess);
+      vi.mocked(isPidAlive).mockReturnValue(true);
+
+      await ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+        projectRoot: testProjectRoot,
+        workspaceKey: 'global-workspace',
+      });
+
+      expect(StateManager.writeState).toHaveBeenCalledWith(
+        'workspace-1',
+        'api',
+        expect.objectContaining({
+          workspace: 'workspace-1',
+          workspaceKey: 'global-workspace',
+          process: 'api',
+          status: 'Running',
+          pid: 1234,
         })
       );
     });
@@ -699,6 +733,7 @@ describe('ProcessManager', () => {
       const states: ProcessState[] = [
         {
           workspace: 'workspace-1',
+          workspaceKey: 'global-workspace-1',
           process: 'api',
           status: 'Running',
           pid: 1234,
@@ -707,6 +742,7 @@ describe('ProcessManager', () => {
         },
         {
           workspace: 'workspace-2',
+          workspaceKey: 'global-workspace-2',
           process: 'worker',
           status: 'Running',
           pid: 5678,
@@ -723,6 +759,7 @@ describe('ProcessManager', () => {
       expect(processes).toHaveLength(2);
       expect(processes[0]).toEqual({
         workspace: 'workspace-1',
+        workspaceKey: 'global-workspace-1',
         process: 'api',
         status: 'Running',
         pid: 1234,
@@ -730,6 +767,7 @@ describe('ProcessManager', () => {
       });
       expect(processes[1]).toEqual({
         workspace: 'workspace-2',
+        workspaceKey: 'global-workspace-2',
         process: 'worker',
         status: 'Running',
         pid: 5678,

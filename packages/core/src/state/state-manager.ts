@@ -13,6 +13,7 @@ export type ProcessStatus = 'Running' | 'Stopped' | 'Error';
  */
 export interface ProcessState {
   workspace: string;
+  workspaceKey?: string;
   process: string;
   status: ProcessStatus;
   pid?: number;

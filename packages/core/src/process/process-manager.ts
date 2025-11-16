@@ -15,6 +15,7 @@ export interface ProcessStartOptions {
   env?: Record<string, string>;
   projectRoot?: string; // portmux.config.json が存在するディレクトリ
   ports?: number[]; // 使用するポート番号の配列
+  workspaceKey?: string; // Global config workspace key if available
 }
 
 /**
@@ -45,6 +46,7 @@ export class ProcessStopError extends Error {
  */
 export interface ProcessInfo {
   workspace: string;
+  workspaceKey?: string;
   process: string;
   status: ProcessStatus;
   pid?: number;
@@ -256,6 +258,7 @@ export const ProcessManager = {
     // 状態を保存
     const state: ProcessState = {
       workspace,
+      workspaceKey: options.workspaceKey ?? workspace,
       process: processName,
       status: 'Running',
       pid,
@@ -392,6 +395,7 @@ export const ProcessManager = {
 
       processes.push({
         workspace: state.workspace,
+        ...(state.workspaceKey !== undefined && { workspaceKey: state.workspaceKey }),
         process: state.process,
         status,
         ...(state.pid !== undefined && { pid: state.pid }),
