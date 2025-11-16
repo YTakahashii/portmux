@@ -21,6 +21,7 @@ export interface ProcessState {
   startedAt?: string; // ISO 8601形式の日時文字列
   stoppedAt?: string; // ISO 8601形式の日時文字列
   logPath?: string; // ログファイルのパス
+  ports?: number[]; // 使用しているポート番号
 }
 
 function getPortmuxDir(): string {

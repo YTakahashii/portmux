@@ -91,6 +91,7 @@ describe('PortManager', () => {
           status: 'Running',
           pid: 1234,
           startedAt: '2024-01-01T00:00:00.000Z',
+          ports: [3000],
         },
         {
           workspace: 'workspace-2',
@@ -98,6 +99,7 @@ describe('PortManager', () => {
           status: 'Running',
           pid: 5678,
           startedAt: '2024-01-01T01:00:00.000Z',
+          ports: [4000, 4001],
         },
         {
           workspace: 'workspace-3',
@@ -114,7 +116,7 @@ describe('PortManager', () => {
       expect(reservations.get('workspace-1:api')).toEqual({
         workspace: 'workspace-1',
         process: 'api',
-        ports: [],
+        ports: [3000],
         pid: 1234,
         reservedAt: '2024-01-01T00:00:00.000Z',
         startedAt: '2024-01-01T00:00:00.000Z',
@@ -122,7 +124,7 @@ describe('PortManager', () => {
       expect(reservations.get('workspace-2:worker')).toEqual({
         workspace: 'workspace-2',
         process: 'worker',
-        ports: [],
+        ports: [4000, 4001],
         pid: 5678,
         reservedAt: '2024-01-01T01:00:00.000Z',
         startedAt: '2024-01-01T01:00:00.000Z',
@@ -369,10 +371,22 @@ describe('PortManager', () => {
   });
 
   describe('releaseReservationByProcess', () => {
-    it('実装が空であることを確認', () => {
+    it('対象の予約を解放し、状態を削除する', async () => {
+      vi.mocked(checkPortUsed).mockResolvedValue(false);
+      vi.mocked(StateManager.listAllStates).mockReturnValue([]);
+
+      const plan = await PortManager.planReservation({
+        workspace: 'workspace-1',
+        process: 'api',
+        ports: [3000],
+      });
+
+      PortManager.releaseReservationByProcess('workspace-1', 'api');
+
       expect(() => {
-        PortManager.releaseReservationByProcess();
-      }).not.toThrow();
+        PortManager.commitReservation(plan.reservationToken);
+      }).toThrow('無効な予約トークンです');
+      expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
     });
   });
 

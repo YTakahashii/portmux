@@ -264,6 +264,7 @@ export const ProcessManager = {
       pid,
       startedAt,
       logPath,
+      ...(options.ports !== undefined && { ports: options.ports }),
     };
     StateManager.writeState(workspace, processName, state);
   },
@@ -287,7 +288,7 @@ export const ProcessManager = {
       // 既に停止している場合は状態を削除
       StateManager.deleteState(workspace, processName);
       // ポート予約を解放
-      PortManager.releaseReservationByProcess();
+      PortManager.releaseReservationByProcess(workspace, processName);
       return;
     }
 
@@ -295,7 +296,7 @@ export const ProcessManager = {
       // PID が記録されていない場合は状態を削除して終了
       StateManager.deleteState(workspace, processName);
       // ポート予約を解放
-      PortManager.releaseReservationByProcess();
+      PortManager.releaseReservationByProcess(workspace, processName);
       return;
     }
 
@@ -312,7 +313,7 @@ export const ProcessManager = {
       // 状態ファイルを削除（停止済みは保持しない）
       StateManager.deleteState(workspace, processName);
       // ポート予約を解放
-      PortManager.releaseReservationByProcess();
+      PortManager.releaseReservationByProcess(workspace, processName);
       return;
     }
 
@@ -337,7 +338,7 @@ export const ProcessManager = {
         // 状態ファイルを削除
         StateManager.deleteState(workspace, processName);
         // ポート予約を解放
-        PortManager.releaseReservationByProcess();
+        PortManager.releaseReservationByProcess(workspace, processName);
         return;
       }
       await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms 待機
@@ -360,7 +361,7 @@ export const ProcessManager = {
       StateManager.writeState(workspace, processName, stoppedState);
       StateManager.deleteState(workspace, processName);
       // ポート予約を解放
-      PortManager.releaseReservationByProcess();
+      PortManager.releaseReservationByProcess(workspace, processName);
     } else {
       throw new ProcessStopError(`プロセス "${processName}" (PID: ${String(pid)}) の停止に失敗しました`);
     }

@@ -84,6 +84,18 @@ export const PortManager = {
   },
 
   /**
+   * 状態ストアの予約とリクエストが競合しないかの確認
+   */
+  checkReservationConflicts(existing: Map<string, PortReservation>, request: PortReservationRequest): void {
+    for (const reservation of existing.values()) {
+      const conflictPort = reservation.ports.find((port) => request.ports.includes(port));
+      if (conflictPort !== undefined) {
+        throw new PortInUseError(conflictPort);
+      }
+    }
+  },
+
+  /**
    * 状態ストアからポート予約情報を読み込む
    */
   loadReservationsFromState(): Map<string, PortReservation> {
@@ -92,9 +104,7 @@ export const PortManager = {
 
     for (const state of states) {
       if (state.status === 'Running' && state.pid) {
-        // 状態ファイルにポート情報がある場合は読み込む（将来拡張用）
-        // 現在は空の配列として扱う
-        const ports: number[] = [];
+        const ports: number[] = state.ports ?? [];
         const reservation: PortReservation = {
           workspace: state.workspace,
           process: state.process,
@@ -149,6 +159,9 @@ export const PortManager = {
       );
     }
 
+    // 既存予約とのポート競合を確認（状態ストアベース）
+    this.checkReservationConflicts(existingReservations, request);
+
     // 予約トークンを生成
     const reservationToken = randomBytes(16).toString('hex');
 
@@ -200,8 +213,15 @@ export const PortManager = {
   /**
    * ワークスペース・プロセス名でポート予約を解放
    */
-  releaseReservationByProcess(): void {
-    // 状態ストアから削除（現在は StateManager が処理）
-    // 将来的にはポート予約情報を削除する
+  releaseReservationByProcess(workspace: string, process: string): void {
+    // 保留中の予約を削除
+    for (const [token, reservation] of pendingReservations.entries()) {
+      if (reservation.workspace === workspace && reservation.process === process) {
+        pendingReservations.delete(token);
+      }
+    }
+
+    // 状態ストアから削除（StateManager も保持しているためクリアしておく）
+    StateManager.deleteState(workspace, process);
   },
 };

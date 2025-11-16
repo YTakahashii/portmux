@@ -601,7 +601,7 @@ describe('ProcessManager', () => {
         })
       );
       expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
-      expect(PortManager.releaseReservationByProcess).toHaveBeenCalled();
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
     });
 
     it('状態が見つからない場合はエラーを投げる', async () => {
@@ -622,7 +622,7 @@ describe('ProcessManager', () => {
       await ProcessManager.stopProcess('workspace-1', 'api');
 
       expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
-      expect(PortManager.releaseReservationByProcess).toHaveBeenCalled();
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
       expect(kill).not.toHaveBeenCalled();
     });
 
@@ -638,7 +638,7 @@ describe('ProcessManager', () => {
       await ProcessManager.stopProcess('workspace-1', 'api');
 
       expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
-      expect(PortManager.releaseReservationByProcess).toHaveBeenCalled();
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
       expect(kill).not.toHaveBeenCalled();
     });
 
@@ -665,7 +665,7 @@ describe('ProcessManager', () => {
         })
       );
       expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
-      expect(PortManager.releaseReservationByProcess).toHaveBeenCalled();
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
       expect(kill).not.toHaveBeenCalled();
     });
 
