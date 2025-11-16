@@ -16,7 +16,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "node ./dist/index.js"
+    "dev": "node ./dist/index.js",
+    "test": "vitest"
   },
   "keywords": [],
   "author": "YTakahashii",
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@types/inquirer": "^9.0.8",
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
