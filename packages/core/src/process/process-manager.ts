@@ -279,91 +279,101 @@ export const ProcessManager = {
    */
   async stopProcess(workspace: string, processName: string, timeout = 10000): Promise<void> {
     const state = StateManager.readState(workspace, processName);
+    let cleaned = false;
+    const cleanup = (): void => {
+      if (cleaned) {
+        return;
+      }
+      PortManager.releaseReservationByProcess(workspace, processName);
+      cleaned = true;
+    };
 
     if (!state) {
       throw new ProcessStopError(`プロセス "${processName}" の状態が見つかりません`);
     }
 
-    if (state.status === 'Stopped') {
-      // 既に停止している場合は状態を削除
-      StateManager.deleteState(workspace, processName);
-      // ポート予約を解放
-      PortManager.releaseReservationByProcess(workspace, processName);
-      return;
-    }
-
-    if (!state.pid) {
-      // PID が記録されていない場合は状態を削除して終了
-      StateManager.deleteState(workspace, processName);
-      // ポート予約を解放
-      PortManager.releaseReservationByProcess(workspace, processName);
-      return;
-    }
-
-    const pid = state.pid;
-
-    // プロセスが既に死んでいる場合は状態を更新して終了
-    if (!isPidAlive(pid)) {
-      const stoppedState: ProcessState = {
-        ...state,
-        status: 'Stopped',
-        stoppedAt: new Date().toISOString(),
-      };
-      StateManager.writeState(workspace, processName, stoppedState);
-      // 状態ファイルを削除（停止済みは保持しない）
-      StateManager.deleteState(workspace, processName);
-      // ポート予約を解放
-      PortManager.releaseReservationByProcess(workspace, processName);
-      return;
-    }
-
-    // SIGTERM を送信
     try {
-      kill(pid, 'SIGTERM');
-    } catch {
-      throw new ProcessStopError(`プロセス "${processName}" (PID: ${String(pid)}) に SIGTERM を送信できませんでした`);
-    }
+      if (state.status === 'Stopped') {
+        // 既に停止している場合は状態を削除
+        StateManager.deleteState(workspace, processName);
+        cleanup();
+        return;
+      }
 
-    // プロセスが停止するまで待機（最大 timeout ミリ秒）
-    const startTime = Date.now();
-    while (Date.now() - startTime < timeout) {
+      if (!state.pid) {
+        // PID が記録されていない場合は状態を削除して終了
+        StateManager.deleteState(workspace, processName);
+        cleanup();
+        return;
+      }
+
+      const pid = state.pid;
+
+      // プロセスが既に死んでいる場合は状態を更新して終了
       if (!isPidAlive(pid)) {
-        // 停止した
         const stoppedState: ProcessState = {
           ...state,
           status: 'Stopped',
           stoppedAt: new Date().toISOString(),
         };
         StateManager.writeState(workspace, processName, stoppedState);
-        // 状態ファイルを削除
+        // 状態ファイルを削除（停止済みは保持しない）
         StateManager.deleteState(workspace, processName);
-        // ポート予約を解放
-        PortManager.releaseReservationByProcess(workspace, processName);
+        cleanup();
         return;
       }
-      await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms 待機
-    }
 
-    // タイムアウトした場合は SIGKILL を送信
-    try {
-      kill(pid, 'SIGKILL');
-    } catch {
-      // SIGKILL が失敗しても、プロセスが既に終了している可能性がある
-    }
+      // SIGTERM を送信
+      try {
+        kill(pid, 'SIGTERM');
+      } catch {
+        throw new ProcessStopError(`プロセス "${processName}" (PID: ${String(pid)}) に SIGTERM を送信できませんでした`);
+      }
 
-    // 最終確認
-    if (!isPidAlive(pid)) {
-      const stoppedState: ProcessState = {
-        ...state,
-        status: 'Stopped',
-        stoppedAt: new Date().toISOString(),
-      };
-      StateManager.writeState(workspace, processName, stoppedState);
-      StateManager.deleteState(workspace, processName);
-      // ポート予約を解放
-      PortManager.releaseReservationByProcess(workspace, processName);
-    } else {
-      throw new ProcessStopError(`プロセス "${processName}" (PID: ${String(pid)}) の停止に失敗しました`);
+      // プロセスが停止するまで待機（最大 timeout ミリ秒）
+      const startTime = Date.now();
+      while (Date.now() - startTime < timeout) {
+        if (!isPidAlive(pid)) {
+          // 停止した
+          const stoppedState: ProcessState = {
+            ...state,
+            status: 'Stopped',
+            stoppedAt: new Date().toISOString(),
+          };
+          StateManager.writeState(workspace, processName, stoppedState);
+          // 状態ファイルを削除
+          StateManager.deleteState(workspace, processName);
+          cleanup();
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms 待機
+      }
+
+      // タイムアウトした場合は SIGKILL を送信
+      try {
+        kill(pid, 'SIGKILL');
+      } catch {
+        // SIGKILL が失敗しても、プロセスが既に終了している可能性がある
+      }
+
+      // 最終確認
+      if (!isPidAlive(pid)) {
+        const stoppedState: ProcessState = {
+          ...state,
+          status: 'Stopped',
+          stoppedAt: new Date().toISOString(),
+        };
+        StateManager.writeState(workspace, processName, stoppedState);
+        StateManager.deleteState(workspace, processName);
+        cleanup();
+      } else {
+        throw new ProcessStopError(
+          `プロセス "${processName}" (PID: ${String(pid)}) の停止に失敗しました。` +
+            'SIGKILL でも終了しませんでした。'
+        );
+      }
+    } finally {
+      cleanup();
     }
   },
 

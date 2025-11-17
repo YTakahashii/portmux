@@ -685,6 +685,7 @@ describe('ProcessManager', () => {
       });
 
       await expect(ProcessManager.stopProcess('workspace-1', 'api')).rejects.toThrow(ProcessStopError);
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
     });
 
     it('タイムアウトした場合は SIGKILL を送信する', async () => {
@@ -709,6 +710,7 @@ describe('ProcessManager', () => {
       expect(kill).toHaveBeenCalledWith(1234, 'SIGTERM');
       // SIGKILL も呼ばれるはず（タイムアウト後）
       expect(kill).toHaveBeenCalledWith(1234, 'SIGKILL');
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
     });
 
     it('SIGKILL 送信後もプロセスが生存している場合はエラーを投げる', async () => {
@@ -725,6 +727,7 @@ describe('ProcessManager', () => {
       vi.mocked(kill).mockReturnValue(true);
 
       await expect(ProcessManager.stopProcess('workspace-1', 'api', 100)).rejects.toThrow(ProcessStopError);
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
     });
   });
 
