@@ -42,6 +42,19 @@ export class ProcessStopError extends Error {
 }
 
 /**
+ * プロセス再起動エラー
+ */
+export class ProcessRestartError extends Error {
+  constructor(
+    message: string,
+    public override readonly cause?: unknown
+  ) {
+    super(message);
+    this.name = 'ProcessRestartError';
+  }
+}
+
+/**
  * プロセス状態情報
  */
 export interface ProcessInfo {
@@ -372,5 +385,49 @@ export const ProcessManager = {
     }
 
     return processes;
+  },
+
+  /**
+   * プロセスを再起動する
+   *
+   * @param workspace ワークスペース名
+   * @param processName プロセス名
+   * @param command 実行するコマンド
+   * @param options 起動オプション
+   * @throws ProcessRestartError 再起動に失敗した場合
+   */
+  async restartProcess(
+    workspace: string,
+    processName: string,
+    command: string,
+    options: ProcessStartOptions = {}
+  ): Promise<void> {
+    const restartPlan = {
+      previousState: StateManager.readState(workspace, processName),
+    };
+
+    try {
+      if (restartPlan.previousState) {
+        await this.stopProcess(workspace, processName);
+      }
+    } catch (error) {
+      throw new ProcessRestartError(`プロセス "${processName}" の停止に失敗しました`, error);
+    }
+
+    try {
+      await this.startProcess(workspace, processName, command, options);
+    } catch (error) {
+      const errorState: ProcessState = {
+        workspace,
+        workspaceKey: options.workspaceKey ?? restartPlan.previousState?.workspaceKey ?? workspace,
+        process: processName,
+        status: 'Error',
+        error: error instanceof Error ? error.message : String(error),
+        ...(restartPlan.previousState?.logPath !== undefined && { logPath: restartPlan.previousState.logPath }),
+        ...(restartPlan.previousState?.ports !== undefined && { ports: restartPlan.previousState.ports }),
+      };
+      StateManager.writeState(workspace, processName, errorState);
+      throw new ProcessRestartError(`プロセス "${processName}" の再起動に失敗しました`, error);
+    }
   },
 };

@@ -4,9 +4,7 @@ import {
   LockManager,
   LockTimeoutError,
   ProcessManager,
-  ProcessStartError,
-  ProcessStopError,
-  StateManager,
+  ProcessRestartError,
   WorkspaceManager,
 } from '@portmux/core';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
@@ -15,8 +13,7 @@ import { runRestartCommand } from './restart.js';
 vi.mock('@portmux/core', () => {
   class ConfigNotFoundError extends Error {}
   class WorkspaceResolutionError extends Error {}
-  class ProcessStopError extends Error {}
-  class ProcessStartError extends Error {}
+  class ProcessRestartError extends Error {}
   class PortInUseError extends Error {}
   class LockTimeoutError extends Error {}
 
@@ -35,16 +32,11 @@ vi.mock('@portmux/core', () => {
       withLock: vi.fn(),
     },
     ProcessManager: {
-      stopProcess: vi.fn(),
-      startProcess: vi.fn(),
-    },
-    StateManager: {
-      readState: vi.fn(),
+      restartProcess: vi.fn(),
     },
     ConfigNotFoundError,
     WorkspaceResolutionError,
-    ProcessStopError,
-    ProcessStartError,
+    ProcessRestartError,
     PortInUseError,
     LockTimeoutError,
   };
@@ -91,9 +83,7 @@ describe('runRestartCommand', () => {
     });
     vi.mocked(ConfigManager.resolveEnvObject).mockReturnValue({ RESOLVED: 'yes' });
     vi.mocked(ConfigManager.resolveCommandEnv).mockImplementation((cmd: string) => cmd);
-    vi.mocked(ProcessManager.stopProcess).mockResolvedValue();
-    vi.mocked(ProcessManager.startProcess).mockResolvedValue();
-    vi.mocked(StateManager.readState).mockReturnValue({ workspace: 'ws-one', process: 'api', status: 'Running' });
+    vi.mocked(ProcessManager.restartProcess).mockResolvedValue();
     vi.mocked(WorkspaceManager.resolveWorkspaceByName).mockReturnValue(resolvedWorkspace);
     vi.mocked(WorkspaceManager.resolveWorkspaceAuto).mockReturnValue(resolvedWorkspace);
   });
@@ -102,15 +92,11 @@ describe('runRestartCommand', () => {
     vi.clearAllMocks();
   });
 
-  it('stops and restarts processes in workspace', async () => {
-    vi.mocked(StateManager.readState).mockReturnValue({ workspace: 'ws-one', process: 'api', status: 'Running' });
-
+  it('再起動処理を各プロセスに委譲する', async () => {
     await runRestartCommand('ws-one');
 
     expect(LockManager.withLock).toHaveBeenCalledWith('workspace', 'ws-one', expect.any(Function));
-    expect(ProcessManager.stopProcess).toHaveBeenCalledWith('ws-one', 'api');
-    expect(ProcessManager.stopProcess).toHaveBeenCalledWith('ws-one', 'worker');
-    expect(ProcessManager.startProcess).toHaveBeenCalledWith(
+    expect(ProcessManager.restartProcess).toHaveBeenCalledWith(
       'ws-one',
       'api',
       'npm start',
@@ -122,49 +108,22 @@ describe('runRestartCommand', () => {
         ports: [3000],
       })
     );
-    expect(ProcessManager.startProcess).toHaveBeenCalledWith(
+    expect(ProcessManager.restartProcess).toHaveBeenCalledWith(
       'ws-one',
       'worker',
       'node worker.js',
       expect.objectContaining({ env: {}, workspaceKey: '/repo', projectRoot: '/repo' })
     );
-    expect(console.log).toHaveBeenCalledWith('● プロセス "api" を停止しました');
-    expect(console.log).toHaveBeenCalledWith('● プロセス "worker" を停止しました');
-    expect(console.log).toHaveBeenCalledWith('✓ プロセス "api" を起動しました');
-    expect(console.log).toHaveBeenCalledWith('✓ プロセス "worker" を起動しました');
+    expect(console.log).toHaveBeenCalledWith('✓ プロセス "api" を再起動しました');
+    expect(console.log).toHaveBeenCalledWith('✓ プロセス "worker" を再起動しました');
   });
 
-  it('skips stop when process is not running', async () => {
-    vi.mocked(StateManager.readState).mockReturnValueOnce(null).mockReturnValue(null);
-
-    await runRestartCommand('ws-one', 'worker');
-
-    expect(console.log).toHaveBeenCalledWith('● プロセス "worker" は実行中ではありません（停止スキップ）');
-    expect(ProcessManager.stopProcess).not.toHaveBeenCalled();
-    expect(ProcessManager.startProcess).toHaveBeenCalledWith(
-      'ws-one',
-      'worker',
-      'node worker.js',
-      expect.objectContaining({ env: {}, workspaceKey: '/repo', projectRoot: '/repo' })
-    );
-  });
-
-  it('handles ProcessStopError and continues', async () => {
-    vi.mocked(StateManager.readState).mockReturnValue({ workspace: 'ws-one', process: 'api', status: 'Running' });
-    vi.mocked(ProcessManager.stopProcess).mockRejectedValueOnce(new ProcessStopError('stop fail'));
+  it('ProcessRestartError を捕捉してログ出力する', async () => {
+    vi.mocked(ProcessManager.restartProcess).mockRejectedValueOnce(new ProcessRestartError('restart fail'));
 
     await runRestartCommand('ws-one', 'api');
 
-    expect(console.error).toHaveBeenCalledWith('エラー: プロセス "api" の停止に失敗しました: stop fail');
-    expect(ProcessManager.startProcess).not.toHaveBeenCalled();
-  });
-
-  it('reports start failures due to ProcessStartError and PortInUseError', async () => {
-    vi.mocked(ProcessManager.startProcess).mockRejectedValueOnce(new ProcessStartError('start fail'));
-
-    await runRestartCommand('ws-one', 'api');
-
-    expect(console.error).toHaveBeenCalledWith('エラー: プロセス "api" の起動に失敗しました: start fail');
+    expect(console.error).toHaveBeenCalledWith('エラー: プロセス "api" の再起動に失敗しました: restart fail');
   });
 
   it('exits when workspace resolution fails', async () => {

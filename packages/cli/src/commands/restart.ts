@@ -5,9 +5,8 @@ import {
   LockTimeoutError,
   PortInUseError,
   ProcessManager,
+  ProcessRestartError,
   ProcessStartError,
-  ProcessStopError,
-  StateManager,
   WorkspaceManager,
   WorkspaceResolutionError,
   type ResolvedWorkspace,
@@ -82,24 +81,10 @@ async function restartProcess(resolvedWorkspace: ResolvedWorkspace, processName?
       try {
         const resolvedEnv = cmd.env ? ConfigManager.resolveEnvObject(cmd.env) : {};
         const resolvedCommand = ConfigManager.resolveCommandEnv(cmd.command, cmd.env);
-        const existingState = StateManager.readState(targetWorkspace, cmd.name);
 
-        if (existingState) {
-          try {
-            await ProcessManager.stopProcess(targetWorkspace, cmd.name);
-            console.log(chalk.yellow(`● プロセス "${cmd.name}" を停止しました`));
-          } catch (error) {
-            if (error instanceof ProcessStopError) {
-              console.error(chalk.red(`エラー: プロセス "${cmd.name}" の停止に失敗しました: ${error.message}`));
-              continue;
-            }
-            throw error;
-          }
-        } else {
-          console.log(chalk.gray(`● プロセス "${cmd.name}" は実行中ではありません（停止スキップ）`));
-        }
+        console.log(chalk.yellow(`● プロセス "${cmd.name}" を再起動します`));
 
-        await ProcessManager.startProcess(targetWorkspace, cmd.name, resolvedCommand, {
+        await ProcessManager.restartProcess(targetWorkspace, cmd.name, resolvedCommand, {
           ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
           env: resolvedEnv,
           workspaceKey: resolvedWorkspace.path,
@@ -107,10 +92,14 @@ async function restartProcess(resolvedWorkspace: ResolvedWorkspace, processName?
           ...(cmd.ports !== undefined && { ports: cmd.ports }),
         });
 
-        console.log(chalk.green(`✓ プロセス "${cmd.name}" を起動しました`));
+        console.log(chalk.green(`✓ プロセス "${cmd.name}" を再起動しました`));
       } catch (error) {
-        if (error instanceof ProcessStartError || error instanceof PortInUseError) {
-          console.error(chalk.red(`エラー: プロセス "${cmd.name}" の起動に失敗しました: ${error.message}`));
+        if (
+          error instanceof ProcessRestartError ||
+          error instanceof ProcessStartError ||
+          error instanceof PortInUseError
+        ) {
+          console.error(chalk.red(`エラー: プロセス "${cmd.name}" の再起動に失敗しました: ${error.message}`));
         } else {
           throw error;
         }

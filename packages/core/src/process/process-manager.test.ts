@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir as systemTmpdir } from 'node:os';
-import { ProcessManager, ProcessStartError, ProcessStopError } from './process-manager.js';
+import { ProcessManager, ProcessRestartError, ProcessStartError, ProcessStopError } from './process-manager.js';
 import { spawn, type ChildProcess } from 'child_process';
 import { kill } from 'process';
 import { StateManager, type ProcessState } from '../state/state-manager.js';
@@ -815,6 +815,89 @@ describe('ProcessManager', () => {
       expect(processes).toHaveLength(1);
       expect(processes[0]?.status).toBe('Running');
       expect(isPidAlive).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('restartProcess', () => {
+    it('既存の状態があれば停止してから起動する', async () => {
+      vi.mocked(StateManager.readState).mockReturnValue({
+        workspace: 'workspace-1',
+        process: 'api',
+        status: 'Running',
+      });
+      const stopSpy = vi.spyOn(ProcessManager, 'stopProcess').mockResolvedValue();
+      const startSpy = vi.spyOn(ProcessManager, 'startProcess').mockResolvedValue();
+
+      await ProcessManager.restartProcess('workspace-1', 'api', 'npm start', {
+        projectRoot: testProjectRoot,
+      });
+
+      expect(stopSpy).toHaveBeenCalledWith('workspace-1', 'api');
+      expect(startSpy).toHaveBeenCalledWith(
+        'workspace-1',
+        'api',
+        'npm start',
+        expect.objectContaining({ projectRoot: testProjectRoot })
+      );
+    });
+
+    it('状態がなければ停止せずに起動する', async () => {
+      vi.mocked(StateManager.readState).mockReturnValue(null);
+      const stopSpy = vi.spyOn(ProcessManager, 'stopProcess').mockResolvedValue();
+      const startSpy = vi.spyOn(ProcessManager, 'startProcess').mockResolvedValue();
+
+      await ProcessManager.restartProcess('workspace-1', 'api', 'npm start', {
+        projectRoot: testProjectRoot,
+      });
+
+      expect(stopSpy).not.toHaveBeenCalled();
+      expect(startSpy).toHaveBeenCalledWith(
+        'workspace-1',
+        'api',
+        'npm start',
+        expect.objectContaining({ projectRoot: testProjectRoot })
+      );
+    });
+
+    it('停止に失敗した場合は ProcessRestartError を投げる', async () => {
+      vi.mocked(StateManager.readState).mockReturnValue({
+        workspace: 'workspace-1',
+        process: 'api',
+        status: 'Running',
+      });
+      vi.spyOn(ProcessManager, 'stopProcess').mockRejectedValue(new ProcessStopError('failed to stop'));
+      vi.spyOn(ProcessManager, 'startProcess').mockResolvedValue();
+
+      await expect(
+        ProcessManager.restartProcess('workspace-1', 'api', 'npm start', { projectRoot: testProjectRoot })
+      ).rejects.toBeInstanceOf(ProcessRestartError);
+      expect(StateManager.writeState).not.toHaveBeenCalled();
+    });
+
+    it('起動に失敗した場合は Error 状態を書き込み ProcessRestartError を投げる', async () => {
+      vi.mocked(StateManager.readState).mockReturnValue({
+        workspace: 'workspace-1',
+        process: 'api',
+        status: 'Running',
+        logPath: '/tmp/log.log',
+        ports: [3000],
+      });
+      vi.spyOn(ProcessManager, 'stopProcess').mockResolvedValue();
+      vi.spyOn(ProcessManager, 'startProcess').mockRejectedValue(new ProcessStartError('failed to start'));
+
+      await expect(
+        ProcessManager.restartProcess('workspace-1', 'api', 'npm start', { projectRoot: testProjectRoot })
+      ).rejects.toBeInstanceOf(ProcessRestartError);
+      expect(StateManager.writeState).toHaveBeenCalledWith(
+        'workspace-1',
+        'api',
+        expect.objectContaining({
+          status: 'Error',
+          error: 'failed to start',
+          logPath: '/tmp/log.log',
+          ports: [3000],
+        })
+      );
     });
   });
 });

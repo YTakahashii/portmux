@@ -66,16 +66,16 @@ describe('PortManager', () => {
     });
 
     it('ポートが使用中の場合は PortInUseError を投げる', async () => {
-      vi.mocked(checkPortUsed).mockImplementation((port: number) => {
-        return Promise.resolve(port === 3001);
+      vi.mocked(checkPortUsed).mockImplementation((port) => {
+        return Promise.resolve(typeof port === 'number' ? port === 3001 : false);
       });
 
       await expect(PortManager.checkPortAvailability([3000, 3001, 3002])).rejects.toThrow(PortInUseError);
     });
 
     it('複数のポートが使用中の場合、最初のポートでエラーを投げる', async () => {
-      vi.mocked(checkPortUsed).mockImplementation((port: number) => {
-        return Promise.resolve(port === 3000 || port === 3001);
+      vi.mocked(checkPortUsed).mockImplementation((port) => {
+        return Promise.resolve(typeof port === 'number' ? port === 3000 || port === 3001 : false);
       });
 
       await expect(PortManager.checkPortAvailability([3000, 3001, 3002])).rejects.toThrow(new PortInUseError(3000));
