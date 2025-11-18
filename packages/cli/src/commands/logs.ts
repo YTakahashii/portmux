@@ -60,14 +60,31 @@ function parseLineCount(value?: string): number {
   return parsed;
 }
 
-export async function runLogsCommand(
+function printAvailableProcesses(): void {
+  const states = StateManager.listAllStates();
+  if (states.length === 0) {
+    console.log(chalk.yellow('実行中のプロセスがありません'));
+    return;
+  }
+
+  console.log('利用可能なワークスペース/プロセス:');
+  for (const state of states) {
+    const repositoryLabel = state.workspaceKey ?? state.workspace;
+    const repositorySuffix =
+      state.workspaceKey && state.workspaceKey !== state.workspace ? ` (${state.workspace})` : '';
+    console.log(`  - ${repositoryLabel}${repositorySuffix}/${state.process}`);
+  }
+}
+
+export function runLogsCommand(
   workspaceName: string | undefined,
   processName: string | undefined,
   options: LogsOptions
-): Promise<void> {
+): void {
   try {
     if (!workspaceName || !processName) {
       console.error(chalk.red('エラー: ワークスペース名とプロセス名を指定してください'));
+      printAvailableProcesses();
       process.exit(1);
       return;
     }
@@ -83,7 +100,9 @@ export async function runLogsCommand(
 
     const state = StateManager.readState(workspaceName, processName);
     if (!state) {
-      console.error(chalk.red(`エラー: ワークスペース "${workspaceName}" のプロセス "${processName}" は実行中ではありません`));
+      console.error(
+        chalk.red(`エラー: ワークスペース "${workspaceName}" のプロセス "${processName}" は実行中ではありません`)
+      );
       process.exit(1);
       return;
     }
@@ -140,7 +159,7 @@ export async function runLogsCommand(
 
         let buffer = '';
         stream.on('data', (chunk) => {
-          buffer += chunk;
+          buffer += chunk.toString();
         });
 
         stream.on('end', () => {
@@ -157,12 +176,12 @@ export async function runLogsCommand(
         currentPosition = stats.size;
       } catch (error) {
         console.error(
-          chalk.red(`エラー: ログファイルの監視に失敗しました: ${error instanceof Error ? error.message : String(error)}`)
+          chalk.red(
+            `エラー: ログファイルの監視に失敗しました: ${error instanceof Error ? error.message : String(error)}`
+          )
         );
       }
     });
-
-    await new Promise(() => {});
   } catch (error) {
     console.error(chalk.red(`エラー: ${error instanceof Error ? error.message : String(error)}`));
     process.exit(1);
@@ -172,12 +191,12 @@ export async function runLogsCommand(
 function createLogsCommand(): Command {
   return new Command('logs')
     .description('プロセスのログを表示します')
-    .argument('<workspace-name>', 'ワークスペース名')
-    .argument('<process-name>', 'プロセス名')
+    .argument('[workspace-name]', 'ワークスペース名')
+    .argument('[process-name]', 'プロセス名')
     .option('-n, --lines <lines>', '末尾から表示する行数 (デフォルト: 50)', '50')
     .option('--no-follow', 'ログの追尾を無効にします')
     .option('-t, --timestamps', '各行にタイムスタンプを付与して表示します')
-    .action(async (workspaceName: string, processName: string, cmdOptions: LogsOptions) => {
-      await runLogsCommand(workspaceName, processName, cmdOptions);
+    .action((workspaceName: string, processName: string, cmdOptions: LogsOptions) => {
+      runLogsCommand(workspaceName, processName, cmdOptions);
     });
 }
