@@ -70,8 +70,20 @@ describe('selectCommand', () => {
 
   it('builds choices and starts selected workspace', async () => {
     buildSelectableWorkspaces.mockReturnValue([
-      { projectName: 'proj', repositoryName: 'repo1', path: '/path/repo1', isRunning: true },
-      { projectName: 'proj', repositoryName: 'repo2', path: '/path/repo2', isRunning: false },
+      {
+        projectName: 'proj',
+        repositoryName: 'repo1',
+        path: '/path/repo1',
+        isRunning: true,
+        workspaceDefinitionName: 'default',
+      },
+      {
+        projectName: 'proj',
+        repositoryName: 'repo2',
+        path: '/path/repo2',
+        isRunning: false,
+        workspaceDefinitionName: 'default',
+      },
     ]);
     promptMock.mockResolvedValue({ workspace: 'repo2' });
 
@@ -94,7 +106,13 @@ describe('selectCommand', () => {
 
   it('passes --all to include all workspaces', async () => {
     buildSelectableWorkspaces.mockReturnValue([
-      { projectName: 'proj', repositoryName: 'repo', path: '/path/repo', isRunning: false },
+      {
+        projectName: 'proj',
+        repositoryName: 'repo',
+        path: '/path/repo',
+        isRunning: false,
+        workspaceDefinitionName: 'default',
+      },
     ]);
     promptMock.mockResolvedValue({ workspace: 'repo' });
 
