@@ -5,7 +5,7 @@ import { StateManager, type ProcessState, type ProcessStatus } from '../state/st
 import { isPidAlive } from '../state/pid-checker.js';
 import { ConfigManager } from '../config/config-manager.js';
 import { PortManager } from '../port/port-manager.js';
-import { existsSync, openSync, closeSync } from 'fs';
+import { openSync, closeSync } from 'fs';
 
 /**
  * プロセス起動オプション
