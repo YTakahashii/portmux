@@ -1,0 +1,91 @@
+# PortMux
+
+PortMux is a CLI for running multiple workspace processes in the background while keeping port reservations, logs, and process state simple. You describe processes in a config file, then start, stop, or restart them together with consistent port handling.
+
+## Install
+
+- Global install (recommended): `pnpm add -g @portmux/cli` or `npm install -g @portmux/cli`, then use the `portmux` command.
+- From this repository:
+  1. `pnpm install`
+  2. `pnpm build`
+  3. `pnpm dev:cli -- --help` to run the built CLI
+
+## Quickstart
+
+1. Run `portmux init` in your project root to generate `portmux.config.json` and update the global config (use `--force` to overwrite).
+2. Edit the generated config or add commands. Example:
+   ```json
+   {
+     "$schema": "node_modules/@portmux/cli/schemas/portmux.config.schema.json",
+     "version": "1.0.0",
+     "workspaces": {
+       "app": {
+         "description": "Demo workspace",
+         "commands": [
+           {
+             "name": "web",
+             "command": "pnpm dev",
+             "ports": [3000],
+             "cwd": "./apps/web",
+             "env": {
+               "API_URL": "http://localhost:3000"
+             }
+           }
+         ]
+       }
+     }
+   }
+   ```
+3. Start processes with `portmux start` (target a single process by name if needed).
+4. Check running status with `portmux ps`, and tail logs with `portmux logs <workspace> <process>`.
+5. Stop with `portmux stop [workspace] [process]`, or restart with `portmux restart [workspace] [process]`.
+
+## Command Reference
+
+- `portmux init [--force]`  
+  Interactive generation of `portmux.config.json`, plus appending the repository entry to `~/.config/portmux/config.json`. Use `--force` to overwrite existing entries.
+- `portmux start [workspace-name] [process-name]`  
+  Starts processes in the target workspace (auto-resolves when omitted). Handles port reservations and environment variable substitution; starts all configured processes if no process is specified.
+- `portmux restart [workspace-name] [process-name]`  
+  Stops then restarts target processes, using the same workspace resolution rules as `start`.
+- `portmux stop [workspace-name] [process-name]`  
+  Stops processes. When the workspace is omitted, the running workspace is auto-selected; if multiple are running, an error prompts you to specify one.
+- `portmux ps`  
+  Lists current process states including workspace key, process name, status, and PID.
+- `portmux select [--all]`  
+  Lists selectable workspaces from the global config and runs `start` for the chosen entry. `--all` also shows non–Git worktree entries.
+- `portmux logs <workspace-name> <process-name> [-n <lines>] [--no-follow] [-t]`  
+  Shows logs for a process. Default tail is 50 lines; `--no-follow` disables streaming; `-t` prefixes lines with timestamps.
+
+## Configuration Reference
+
+### Project config: `portmux.config.json`
+
+- `$schema` (optional): Point to `node_modules/@portmux/cli/schemas/portmux.config.schema.json` for editor IntelliSense.
+- `version` (required): Currently supported version is `1.0.0`. A mismatched major version raises an error.
+- `runner.mode` (optional): Currently only `background` is supported.
+- `workspaces` (required): Object keyed by workspace name.
+  - `description`: Workspace description.
+  - `commands`: Array of processes to run.
+    - `name` / `command` (required): Process name and shell command.
+    - `ports` (optional): Array of port numbers to reserve. Startup fails if a port is already in use.
+    - `cwd` (optional): Working directory for the process. Defaults to the project root.
+    - `env` (optional): String map of environment variables. `${VAR}` expands using `env` first, then `process.env` (missing vars are warned and replaced with an empty string).
+
+### Global config: `~/.config/portmux/config.json`
+
+- `version`: Use the same `1.0.0` as the project config.
+- `repositories`: Map keyed by repository alias.
+  - `path`: Absolute path to the project root.
+  - `workspace`: Workspace name in `portmux.config.json`.
+- Running `portmux init` registers the current project. `start`/`restart`/`select` use this mapping to resolve workspaces by name.
+
+### Workspace Resolution
+
+- When `start`/`restart` omit the workspace, resolution checks the global config and Git worktree info first.
+- If auto-resolution fails, PortMux searches upward from the current directory for `portmux.config.json` and uses the first workspace definition in that file.
+
+### Logs and State
+
+- `stdout`/`stderr` are written to files under `~/.config/portmux/logs/`. Use `portmux logs` to view them.
+- Process states, PIDs, and reserved ports are stored in a persistent state store and read by `ps` and `logs`.
