@@ -8,6 +8,7 @@ import { stopCommand } from './commands/stop.js';
 import { selectCommand } from './commands/select.js';
 import { initCommand } from './commands/init.js';
 import { restartCommand } from './commands/restart.js';
+import { logsCommand } from './commands/logs.js';
 
 const program = new Command();
 
@@ -19,6 +20,7 @@ program.addCommand(stopCommand);
 program.addCommand(restartCommand);
 program.addCommand(psCommand);
 program.addCommand(selectCommand);
+program.addCommand(logsCommand);
 
 // グローバルエラーハンドラー
 process.on('uncaughtException', (error) => {
