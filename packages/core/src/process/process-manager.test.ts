@@ -9,7 +9,7 @@ import { StateManager, type ProcessState } from '../state/state-manager.js';
 import { isPidAlive } from '../state/pid-checker.js';
 import { ConfigManager } from '../config/config-manager.js';
 import { PortManager } from '../port/port-manager.js';
-import { existsSync, statSync, renameSync, unlinkSync, openSync, closeSync } from 'fs';
+import { existsSync, openSync, closeSync } from 'fs';
 
 const testHomeDir = mkdtempSync(join(systemTmpdir(), 'portmux-process-home-'));
 const testProjectRoot = mkdtempSync(join(systemTmpdir(), 'portmux-process-project-'));
@@ -92,9 +92,6 @@ vi.mock('fs', async () => {
   return {
     ...actual,
     existsSync: vi.fn(),
-    statSync: vi.fn(),
-    renameSync: vi.fn(),
-    unlinkSync: vi.fn(),
     openSync: vi.fn(),
     closeSync: vi.fn(),
   };
@@ -118,9 +115,6 @@ describe('ProcessManager', () => {
     vi.mocked(PortManager.releaseReservation).mockClear();
     vi.mocked(PortManager.releaseReservationByProcess).mockClear();
     vi.mocked(existsSync).mockClear();
-    vi.mocked(statSync).mockClear();
-    vi.mocked(renameSync).mockClear();
-    vi.mocked(unlinkSync).mockClear();
     vi.mocked(openSync).mockClear();
     vi.mocked(closeSync).mockClear();
   });
@@ -453,34 +447,6 @@ describe('ProcessManager', () => {
       ).rejects.toThrow(ProcessStartError);
 
       expect(PortManager.releaseReservation).toHaveBeenCalledWith('test-token');
-    });
-
-    it('ログローテーションを実行する', async () => {
-      const mockChildProcess = {
-        pid: 1234,
-        unref: vi.fn(),
-      } as unknown as ChildProcess;
-
-      const logPath = join(testHomeDir, 'test.log');
-      const mockStats = {
-        size: 11 * 1024 * 1024, // 11MB (MAX_SIZE を超える)
-      };
-
-      vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
-      vi.mocked(StateManager.readState).mockReturnValue(null);
-      vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
-      vi.mocked(StateManager.generateLogPath).mockReturnValue(logPath);
-      vi.mocked(existsSync).mockReturnValue(true);
-      vi.mocked(statSync).mockReturnValue(mockStats as ReturnType<typeof statSync>);
-      vi.mocked(openSync).mockReturnValue(1);
-      vi.mocked(spawn).mockReturnValue(mockChildProcess);
-      vi.mocked(isPidAlive).mockReturnValue(true);
-
-      await ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
-        projectRoot: testProjectRoot,
-      });
-
-      expect(renameSync).toHaveBeenCalled();
     });
 
     it('cwd が相対パスの場合は projectRoot 基準で解決する', async () => {

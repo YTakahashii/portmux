@@ -5,7 +5,7 @@ import { StateManager, type ProcessState, type ProcessStatus } from '../state/st
 import { isPidAlive } from '../state/pid-checker.js';
 import { ConfigManager } from '../config/config-manager.js';
 import { PortManager } from '../port/port-manager.js';
-import { existsSync, statSync, renameSync, unlinkSync, openSync, closeSync } from 'fs';
+import { existsSync, openSync, closeSync } from 'fs';
 
 /**
  * プロセス起動オプション
@@ -51,45 +51,6 @@ export interface ProcessInfo {
   status: ProcessStatus;
   pid?: number;
   logPath?: string;
-}
-
-/**
- * ログローテーションの設定
- */
-const LOG_MAX_SIZE = 10 * 1024 * 1024; // 10MB
-const LOG_MAX_ROTATIONS = 5; // 最大5世代
-
-/**
- * ログファイルのローテーション処理
- * 既存のログファイルが MAX_SIZE を超えている場合、ローリングする
- */
-function rotateLogFile(logPath: string): void {
-  if (!existsSync(logPath)) {
-    return;
-  }
-
-  const stats = statSync(logPath);
-  if (stats.size < LOG_MAX_SIZE) {
-    return;
-  }
-
-  // 既存のローテーションファイルをシフト
-  for (let i = LOG_MAX_ROTATIONS - 1; i >= 1; i--) {
-    const oldPath = `${logPath}.${String(i)}`;
-    const newPath = `${logPath}.${String(i + 1)}`;
-
-    if (existsSync(oldPath)) {
-      if (i === LOG_MAX_ROTATIONS - 1) {
-        // 最古のファイルは削除
-        unlinkSync(oldPath);
-      } else {
-        renameSync(oldPath, newPath);
-      }
-    }
-  }
-
-  // 現在のログファイルを .1 にリネーム
-  renameSync(logPath, `${logPath}.1`);
 }
 
 /**
@@ -186,9 +147,6 @@ export const ProcessManager = {
 
     // ログファイルの準備
     const logPath = StateManager.generateLogPath(workspace, processName);
-
-    // ログローテーション（既存ログが大きい場合）
-    rotateLogFile(logPath);
 
     // ログファイルのファイルディスクリプタを取得
     let logFd: number;
