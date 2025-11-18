@@ -55,10 +55,7 @@ function resolveWorkspaceOrFallback(workspaceName?: string): ResolvedWorkspace {
   }
 }
 
-async function restartProcess(
-  resolvedWorkspace: ResolvedWorkspace,
-  processName?: string
-): Promise<void> {
+async function restartProcess(resolvedWorkspace: ResolvedWorkspace, processName?: string): Promise<void> {
   const targetWorkspace = resolvedWorkspace.workspaceDefinitionName;
   const workspaceDef = resolvedWorkspace.projectConfig.workspaces[targetWorkspace];
 
@@ -74,9 +71,7 @@ async function restartProcess(
   if (processes.length === 0) {
     console.error(
       chalk.red(
-        processName
-          ? `エラー: プロセス "${processName}" が見つかりません`
-          : 'エラー: 再起動するプロセスがありません'
+        processName ? `エラー: プロセス "${processName}" が見つかりません` : 'エラー: 再起動するプロセスがありません'
       )
     );
     process.exit(1);

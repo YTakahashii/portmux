@@ -287,7 +287,11 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
         hasExistingGlobal = true;
       }
     } catch (error) {
-      console.error(chalk.red(`既存のグローバル設定を読み込めませんでした: ${error instanceof Error ? error.message : String(error)}`));
+      console.error(
+        chalk.red(
+          `既存のグローバル設定を読み込めませんでした: ${error instanceof Error ? error.message : String(error)}`
+        )
+      );
       process.exit(1);
     }
 

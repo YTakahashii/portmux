@@ -62,7 +62,9 @@ describe('selectCommand', () => {
 
     await runSelect();
 
-    expect(console.log).toHaveBeenCalledWith('選択可能なワークスペースがありません。グローバル設定を確認してください。');
+    expect(console.log).toHaveBeenCalledWith(
+      '選択可能なワークスペースがありません。グローバル設定を確認してください。'
+    );
     expect(runStartMock).not.toHaveBeenCalled();
   });
 
@@ -91,7 +93,9 @@ describe('selectCommand', () => {
   });
 
   it('passes --all to include all workspaces', async () => {
-    buildSelectableWorkspaces.mockReturnValue([{ projectName: 'proj', repositoryName: 'repo', path: '/path/repo', isRunning: false }]);
+    buildSelectableWorkspaces.mockReturnValue([
+      { projectName: 'proj', repositoryName: 'repo', path: '/path/repo', isRunning: false },
+    ]);
     promptMock.mockResolvedValue({ workspace: 'repo' });
 
     await runSelect(['--all']);

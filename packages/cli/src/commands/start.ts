@@ -72,7 +72,9 @@ export async function runStartCommand(workspaceName?: string, processName?: stri
     }
 
     // 起動するプロセスを決定
-    const processesToStart = processName ? workspace.commands.filter((cmd) => cmd.name === processName) : workspace.commands;
+    const processesToStart = processName
+      ? workspace.commands.filter((cmd) => cmd.name === processName)
+      : workspace.commands;
 
     if (processesToStart.length === 0) {
       console.error(

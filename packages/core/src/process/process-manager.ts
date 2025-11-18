@@ -368,8 +368,7 @@ export const ProcessManager = {
         cleanup();
       } else {
         throw new ProcessStopError(
-          `プロセス "${processName}" (PID: ${String(pid)}) の停止に失敗しました。` +
-            'SIGKILL でも終了しませんでした。'
+          `プロセス "${processName}" (PID: ${String(pid)}) の停止に失敗しました。` + 'SIGKILL でも終了しませんでした。'
         );
       }
     } finally {

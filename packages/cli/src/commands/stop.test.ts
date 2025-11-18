@@ -64,7 +64,9 @@ describe('stopCommand', () => {
 
     await runStopCommand();
 
-    expect(console.error).toHaveBeenCalledWith('エラー: 複数のワークスペースが実行中です。ワークスペース名を指定してください。');
+    expect(console.error).toHaveBeenCalledWith(
+      'エラー: 複数のワークスペースが実行中です。ワークスペース名を指定してください。'
+    );
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(ProcessManager.stopProcess).not.toHaveBeenCalled();
   });

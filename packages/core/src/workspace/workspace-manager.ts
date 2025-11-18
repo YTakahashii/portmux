@@ -205,8 +205,7 @@ export const WorkspaceManager = {
       projectConfigPath = ConfigManager.findConfigFile(startDir);
     } catch {
       throw new WorkspaceResolutionError(
-        `プロジェクト設定ファイル (portmux.config.json) が見つかりません。\n` +
-          `カレントディレクトリ: ${normalizedCwd}`
+        `プロジェクト設定ファイル (portmux.config.json) が見つかりません。\n` + `カレントディレクトリ: ${normalizedCwd}`
       );
     }
 

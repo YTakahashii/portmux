@@ -55,9 +55,7 @@ export class VersionMismatchError extends Error {
 /** Duplicate repository name error. */
 export class DuplicateRepositoryNameError extends Error {
   constructor(workspaceName: string) {
-    super(
-      `リポジトリ名が重複しています: ${workspaceName}\nグローバル設定のリポジトリ名は一意である必要があります。`
-    );
+    super(`リポジトリ名が重複しています: ${workspaceName}\nグローバル設定のリポジトリ名は一意である必要があります。`);
     this.name = 'DuplicateRepositoryNameError';
   }
 }
