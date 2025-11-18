@@ -6,6 +6,7 @@ import { isPidAlive } from '../state/pid-checker.js';
 import { ConfigManager } from '../config/config-manager.js';
 import { PortManager } from '../port/port-manager.js';
 import { openSync, closeSync } from 'fs';
+import { PortmuxError } from '../errors.js';
 
 /**
  * プロセス起動オプション
@@ -18,39 +19,30 @@ export interface ProcessStartOptions {
   workspaceKey?: string; // Repository path (from global config) for display
 }
 
-/**
- * プロセス起動エラー
- */
-export class ProcessStartError extends Error {
+/** プロセス起動エラー */
+export class ProcessStartError extends PortmuxError {
+  override readonly name = 'ProcessStartError';
   constructor(
     message: string,
     public override readonly cause?: unknown
   ) {
     super(message);
-    this.name = 'ProcessStartError';
   }
 }
 
-/**
- * プロセス停止エラー
- */
-export class ProcessStopError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ProcessStopError';
-  }
+/** プロセス停止エラー */
+export class ProcessStopError extends PortmuxError {
+  override readonly name = 'ProcessStopError';
 }
 
-/**
- * プロセス再起動エラー
- */
-export class ProcessRestartError extends Error {
+/** プロセス再起動エラー */
+export class ProcessRestartError extends PortmuxError {
+  override readonly name = 'ProcessRestartError';
   constructor(
     message: string,
     public override readonly cause?: unknown
   ) {
     super(message);
-    this.name = 'ProcessRestartError';
   }
 }
 

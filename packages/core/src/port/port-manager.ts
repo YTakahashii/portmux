@@ -2,14 +2,15 @@ import { StateManager } from '../state/state-manager.js';
 import { check as checkPortUsed } from 'tcp-port-used';
 import { isPidAlive } from '../state/pid-checker.js';
 import { randomBytes } from 'crypto';
+import { PortmuxError } from '../errors.js';
 
 /**
  * ポートが使用中の場合のエラー
  */
-export class PortInUseError extends Error {
+export class PortInUseError extends PortmuxError {
+  override readonly name = 'PortInUseError';
   constructor(port: number) {
     super(`ポート ${String(port)} は既に使用されています`);
-    this.name = 'PortInUseError';
   }
 }
 

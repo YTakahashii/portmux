@@ -2,42 +2,44 @@ import { type PortMuxConfig, PortMuxConfigSchema, type GlobalConfig, GlobalConfi
 import { dirname, join, resolve } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { homedir } from 'os';
+import { PortmuxError } from '../errors.js';
 
 /**
  * 設定ファイルが見つからない場合のエラー
  */
-export class ConfigNotFoundError extends Error {
+export class ConfigNotFoundError extends PortmuxError {
+  override readonly name = 'ConfigNotFoundError';
   constructor(path: string) {
     super(`設定ファイルが見つかりません: ${path}`);
-    this.name = 'ConfigNotFoundError';
   }
 }
 
 /**
  * 設定ファイルのJSONパースエラー
  */
-export class ConfigParseError extends Error {
+export class ConfigParseError extends PortmuxError {
+  override readonly name = 'ConfigParseError';
   constructor(path: string, cause: unknown) {
     const message = cause instanceof Error ? cause.message : String(cause);
     super(`設定ファイルのパースに失敗しました: ${path}\n${message}`);
-    this.name = 'ConfigParseError';
   }
 }
 
 /**
  * 設定ファイルのスキーマバリデーションエラー
  */
-export class ConfigValidationError extends Error {
+export class ConfigValidationError extends PortmuxError {
+  override readonly name = 'ConfigValidationError';
   constructor(path: string, details: string) {
     super(`設定ファイルのバリデーションに失敗しました: ${path}\n${details}`);
-    this.name = 'ConfigValidationError';
   }
 }
 
 /**
  * バージョン非互換エラー
  */
-export class VersionMismatchError extends Error {
+export class VersionMismatchError extends PortmuxError {
+  override readonly name = 'VersionMismatchError';
   constructor(
     public readonly configVersion: string,
     public readonly supportedVersion: string
@@ -48,20 +50,20 @@ export class VersionMismatchError extends Error {
         `サポートされているバージョン: ${supportedVersion}\n` +
         `設定ファイルを更新してください。`
     );
-    this.name = 'VersionMismatchError';
   }
 }
 
 /** Duplicate repository name error. */
-export class DuplicateRepositoryNameError extends Error {
+export class DuplicateRepositoryNameError extends PortmuxError {
+  override readonly name = 'DuplicateRepositoryNameError';
   constructor(workspaceName: string) {
     super(`リポジトリ名が重複しています: ${workspaceName}\nグローバル設定のリポジトリ名は一意である必要があります。`);
-    this.name = 'DuplicateRepositoryNameError';
   }
 }
 
 /** Invalid repository reference error. */
-export class InvalidRepositoryReferenceError extends Error {
+export class InvalidRepositoryReferenceError extends PortmuxError {
+  override readonly name = 'InvalidRepositoryReferenceError';
   constructor(
     public readonly workspaceName: string,
     public readonly referencedWorkspace: string,
@@ -73,7 +75,6 @@ export class InvalidRepositoryReferenceError extends Error {
         `プロジェクト設定内のワークスペース "${referencedWorkspace}" が見つかりません。\n` +
         `プロジェクト設定: ${projectConfigPath}`
     );
-    this.name = 'InvalidRepositoryReferenceError';
   }
 }
 

@@ -3,29 +3,30 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { lock } from 'proper-lockfile';
+import { PortmuxError } from '../errors.js';
 
 /**
  * ロックタイムアウトエラー
  */
-export class LockTimeoutError extends Error {
+export class LockTimeoutError extends PortmuxError {
+  override readonly name = 'LockTimeoutError';
   constructor(lockPath: string) {
     super(
       `ロックの取得がタイムアウトしました: ${lockPath}\n` +
         `他のプロセスがロックを保持している可能性があります。\n` +
         `しばらく待ってから再試行してください。`
     );
-    this.name = 'LockTimeoutError';
   }
 }
 
 /**
  * ロック解放エラー
  */
-export class LockReleaseError extends Error {
+export class LockReleaseError extends PortmuxError {
+  override readonly name = 'LockReleaseError';
   constructor(lockPath: string, cause: unknown) {
     const message = cause instanceof Error ? cause.message : String(cause);
     super(`ロックの解放に失敗しました: ${lockPath}\n${message}`);
-    this.name = 'LockReleaseError';
   }
 }
 

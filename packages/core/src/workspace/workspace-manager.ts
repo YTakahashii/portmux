@@ -4,15 +4,13 @@ import { existsSync, realpathSync } from 'fs';
 import { basename, dirname, join, resolve } from 'path';
 import { execSync } from 'child_process';
 import { StateManager } from '../state/state-manager.js';
+import { PortmuxError } from '../errors.js';
 
 /**
  * ワークスペース解決エラー
  */
-export class WorkspaceResolutionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'WorkspaceResolutionError';
-  }
+export class WorkspaceResolutionError extends PortmuxError {
+  override readonly name = 'WorkspaceResolutionError';
 }
 
 /**
