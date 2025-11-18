@@ -4,7 +4,7 @@ import {
   PortMuxConfigSchema,
   type GlobalConfig,
   type PortMuxConfig,
-  type Workspace,
+  type Group,
 } from '@portmux/core';
 import { Command } from 'commander';
 import chalk from 'chalk';
@@ -17,8 +17,8 @@ interface InitOptions {
   force?: boolean;
 }
 
-interface WorkspaceAnswers {
-  workspaceName: string;
+interface GroupAnswers {
+  groupName: string;
   description: string;
 }
 
@@ -76,19 +76,19 @@ function formatValidationErrors(errors: string[], header: string): void {
   }
 }
 
-async function promptWorkspaceDefinition(): Promise<WorkspaceAnswers> {
-  return inquirer.prompt<WorkspaceAnswers>([
+async function promptGroupDefinition(): Promise<GroupAnswers> {
+  return inquirer.prompt<GroupAnswers>([
     {
       type: 'input',
-      name: 'workspaceName',
-      message: 'ワークスペース名を入力してください',
+      name: 'groupName',
+      message: 'グループ名を入力してください',
       default: 'default',
-      validate: (input: string) => input.trim() !== '' || 'ワークスペース名は必須です',
+      validate: (input: string) => input.trim() !== '' || 'グループ名は必須です',
     },
     {
       type: 'input',
       name: 'description',
-      message: 'ワークスペースの説明を入力してください（任意）',
+      message: 'グループの説明を入力してください（任意）',
       default: '',
     },
   ]);
@@ -162,16 +162,16 @@ async function promptEnvVariables(): Promise<Record<string, string>> {
   return env;
 }
 
-async function buildWorkspaceConfig(): Promise<{ name: string; workspace: Workspace }> {
-  const workspaceAnswers = await promptWorkspaceDefinition();
-  const commands: Workspace['commands'] = [];
+async function buildGroupConfig(): Promise<{ name: string; group: Group }> {
+  const groupAnswers = await promptGroupDefinition();
+  const commands: Group['commands'] = [];
 
   for (;;) {
     const commandAnswers = await promptCommandDefinition();
     const env = await promptEnvVariables();
     const ports = parsePorts(commandAnswers.ports);
 
-    const commandConfig: Workspace['commands'][number] = {
+    const commandConfig: Group['commands'][number] = {
       name: commandAnswers.name.trim(),
       command: commandAnswers.command.trim(),
     };
@@ -204,12 +204,12 @@ async function buildWorkspaceConfig(): Promise<{ name: string; workspace: Worksp
     }
   }
 
-  const workspace: Workspace = {
-    description: workspaceAnswers.description,
+  const group: Group = {
+    description: groupAnswers.description,
     commands,
   };
 
-  return { name: workspaceAnswers.workspaceName.trim(), workspace };
+  return { name: groupAnswers.groupName.trim(), group };
 }
 
 async function confirmOverwrite(path: string, force?: boolean): Promise<boolean> {
@@ -250,12 +250,12 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
       return;
     }
 
-    const { name: workspaceName, workspace } = await buildWorkspaceConfig();
+    const { name: groupName, group } = await buildGroupConfig();
     const projectConfig: PortMuxConfig = {
       $schema: localSchemaPath,
       version: '1.0.0',
-      workspaces: {
-        [workspaceName]: workspace,
+      groups: {
+        [groupName]: group,
       },
     };
 
@@ -270,9 +270,9 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
     console.log(chalk.green(`✓ プロジェクト設定を生成しました: ${projectConfigPath}`));
 
     const globalRepository = {
-      globalName: workspaceName,
+      globalName: groupName,
       projectPath: projectRoot,
-      workspaceRef: workspaceName,
+      groupRef: groupName,
     };
 
     let globalConfig: GlobalConfig = {
@@ -307,7 +307,7 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
 
     globalConfig.repositories[globalRepository.globalName] = {
       path: globalRepository.projectPath,
-      workspace: globalRepository.workspaceRef,
+      group: globalRepository.groupRef,
     };
 
     const globalValidation = GlobalConfigSchema.safeParse(globalConfig);

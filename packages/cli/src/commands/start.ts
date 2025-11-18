@@ -6,9 +6,9 @@ import {
   PortInUseError,
   ProcessManager,
   ProcessStartError,
-  WorkspaceManager,
-  WorkspaceResolutionError,
-  type ResolvedWorkspace,
+  GroupManager,
+  GroupResolutionError,
+  type ResolvedGroup,
 } from '@portmux/core';
 
 import { Command } from 'commander';
@@ -17,64 +17,64 @@ import { resolve } from 'path';
 
 export const startCommand: ReturnType<typeof createStartCommand> = createStartCommand();
 
-export async function runStartCommand(workspaceName?: string, processName?: string): Promise<void> {
+export async function runStartCommand(groupName?: string, processName?: string): Promise<void> {
   try {
-    // ワークスペースを解決
-    let resolvedWorkspace: ResolvedWorkspace;
+    // グループを解決
+    let resolvedGroup: ResolvedGroup;
     try {
-      if (workspaceName) {
-        // ワークスペース名が指定されている場合はグローバル設定から検索
-        resolvedWorkspace = WorkspaceManager.resolveWorkspaceByName(workspaceName);
+      if (groupName) {
+        // グループ名が指定されている場合はグローバル設定から検索
+        resolvedGroup = GroupManager.resolveGroupByName(groupName);
       } else {
         // 指定されていない場合は自動解決
-        resolvedWorkspace = WorkspaceManager.resolveWorkspaceAuto();
+        resolvedGroup = GroupManager.resolveGroupAuto();
       }
     } catch (error) {
-      if (error instanceof WorkspaceResolutionError) {
-        // WorkspaceManager で解決できない場合は従来の方法でフォールバック
+      if (error instanceof GroupResolutionError) {
+        // GroupManager で解決できない場合は従来の方法でフォールバック
         const configPath = ConfigManager.findConfigFile();
         const config = ConfigManager.loadConfig(configPath);
         const projectRoot = resolve(configPath, '..');
 
-        const workspaceKeys = Object.keys(config.workspaces);
-        const targetWorkspace = workspaceName ?? workspaceKeys[0];
+        const groupKeys = Object.keys(config.groups);
+        const targetGroup = groupName ?? groupKeys[0];
 
-        if (!targetWorkspace) {
-          console.error(chalk.red('エラー: ワークスペースが見つかりません'));
+        if (!targetGroup) {
+          console.error(chalk.red('エラー: グループが見つかりません'));
           process.exit(1);
         }
 
-        const workspace = config.workspaces[targetWorkspace];
-        if (!workspace) {
-          console.error(chalk.red(`エラー: ワークスペース "${targetWorkspace}" が見つかりません`));
+        const group = config.groups[targetGroup];
+        if (!group) {
+          console.error(chalk.red(`エラー: グループ "${targetGroup}" が見つかりません`));
           process.exit(1);
         }
 
-        resolvedWorkspace = {
-          name: targetWorkspace,
+        resolvedGroup = {
+          name: targetGroup,
           path: projectRoot,
           projectConfig: config,
           projectConfigPath: configPath,
-          workspaceDefinitionName: targetWorkspace,
+          groupDefinitionName: targetGroup,
         };
       } else {
         throw error;
       }
     }
 
-    const targetWorkspace = resolvedWorkspace.workspaceDefinitionName;
-    const workspace = resolvedWorkspace.projectConfig.workspaces[targetWorkspace];
-    const projectRoot = resolvedWorkspace.path;
+    const targetGroup = resolvedGroup.groupDefinitionName;
+    const group = resolvedGroup.projectConfig.groups[targetGroup];
+    const projectRoot = resolvedGroup.path;
 
-    if (!workspace) {
-      console.error(chalk.red(`エラー: ワークスペース "${targetWorkspace}" が見つかりません`));
+    if (!group) {
+      console.error(chalk.red(`エラー: グループ "${targetGroup}" が見つかりません`));
       process.exit(1);
     }
 
     // 起動するプロセスを決定
     const processesToStart = processName
-      ? workspace.commands.filter((cmd) => cmd.name === processName)
-      : workspace.commands;
+      ? group.commands.filter((cmd) => cmd.name === processName)
+      : group.commands;
 
     if (processesToStart.length === 0) {
       console.error(
@@ -86,7 +86,7 @@ export async function runStartCommand(workspaceName?: string, processName?: stri
     }
 
     // ロックを取得して各プロセスを起動
-    await LockManager.withLock('workspace', resolvedWorkspace.name, async () => {
+    await LockManager.withLock('group', resolvedGroup.name, async () => {
       for (const cmd of processesToStart) {
         try {
           // 環境変数を解決
@@ -94,10 +94,10 @@ export async function runStartCommand(workspaceName?: string, processName?: stri
           const resolvedCommand = ConfigManager.resolveCommandEnv(cmd.command, cmd.env);
 
           // プロセスを起動（PortManager の予約 API は ProcessManager 内で使用される）
-          await ProcessManager.startProcess(targetWorkspace, cmd.name, resolvedCommand, {
+          await ProcessManager.startProcess(targetGroup, cmd.name, resolvedCommand, {
             ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
             env: resolvedEnv,
-            workspaceKey: resolvedWorkspace.path,
+            groupKey: resolvedGroup.path,
             projectRoot,
             ...(cmd.ports !== undefined && { ports: cmd.ports }),
           });
@@ -129,9 +129,9 @@ export async function runStartCommand(workspaceName?: string, processName?: stri
 function createStartCommand(): Command {
   return new Command('start')
     .description('プロセスを起動します')
-    .argument('[workspace-name]', 'ワークスペース名（省略時はカレントディレクトリから設定を読む）')
-    .argument('[process-name]', 'プロセス名（省略時はワークスペースの全プロセスを起動）')
-    .action(async (workspaceName?: string, processName?: string) => {
-      await runStartCommand(workspaceName, processName);
+    .argument('[group-name]', 'グループ名（省略時はカレントディレクトリから設定を読む）')
+    .argument('[process-name]', 'プロセス名（省略時はグループの全プロセスを起動）')
+    .action(async (groupName?: string, processName?: string) => {
+      await runStartCommand(groupName, processName);
     });
 }

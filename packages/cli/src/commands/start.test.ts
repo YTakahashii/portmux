@@ -4,15 +4,15 @@ import {
   LockManager,
   ProcessManager,
   ProcessStartError,
-  WorkspaceManager,
-  WorkspaceResolutionError,
+  GroupManager,
+  GroupResolutionError,
 } from '@portmux/core';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { runStartCommand } from './start.js';
 
 vi.mock('@portmux/core', () => {
   class ConfigNotFoundError extends Error {}
-  class WorkspaceResolutionError extends Error {}
+  class GroupResolutionError extends Error {}
   class ProcessStartError extends Error {}
   class PortInUseError extends Error {}
   class LockTimeoutError extends Error {}
@@ -24,9 +24,9 @@ vi.mock('@portmux/core', () => {
       resolveEnvObject: vi.fn(),
       resolveCommandEnv: vi.fn(),
     },
-    WorkspaceManager: {
-      resolveWorkspaceByName: vi.fn(),
-      resolveWorkspaceAuto: vi.fn(),
+    GroupManager: {
+      resolveGroupByName: vi.fn(),
+      resolveGroupAuto: vi.fn(),
     },
     LockManager: {
       withLock: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock('@portmux/core', () => {
       startProcess: vi.fn(),
     },
     ConfigNotFoundError,
-    WorkspaceResolutionError,
+    GroupResolutionError,
     ProcessStartError,
     PortInUseError,
     LockTimeoutError,
@@ -50,14 +50,14 @@ vi.mock('chalk', () => ({
 }));
 
 describe('runStartCommand', () => {
-  const resolvedWorkspace = {
+  const resolvedGroup = {
     name: 'ws-one',
     path: '/repo',
     projectConfigPath: '/repo/portmux.config.json',
-    workspaceDefinitionName: 'ws-one',
+    groupDefinitionName: 'ws-one',
     projectConfig: {
       version: '1.0.0',
-      workspaces: {
+      groups: {
         'ws-one': {
           description: '',
           commands: [{ name: 'api', command: 'npm start', cwd: './api', ports: [3000], env: { FOO: 'BAR' } }],
@@ -78,18 +78,18 @@ describe('runStartCommand', () => {
     vi.mocked(ConfigManager.resolveEnvObject).mockReturnValue({ RESOLVED: 'yes' });
     vi.mocked(ConfigManager.resolveCommandEnv).mockImplementation((command: string) => command);
     vi.mocked(ProcessManager.startProcess).mockResolvedValue();
-    vi.mocked(WorkspaceManager.resolveWorkspaceByName).mockReturnValue(resolvedWorkspace);
-    vi.mocked(WorkspaceManager.resolveWorkspaceAuto).mockReturnValue(resolvedWorkspace);
+    vi.mocked(GroupManager.resolveGroupByName).mockReturnValue(resolvedGroup);
+    vi.mocked(GroupManager.resolveGroupAuto).mockReturnValue(resolvedGroup);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it('starts all processes in the resolved workspace', async () => {
+  it('starts all processes in the resolved group', async () => {
     await runStartCommand('ws-one');
 
-    expect(LockManager.withLock).toHaveBeenCalledWith('workspace', 'ws-one', expect.any(Function));
+    expect(LockManager.withLock).toHaveBeenCalledWith('group', 'ws-one', expect.any(Function));
     expect(ProcessManager.startProcess).toHaveBeenCalledWith(
       'ws-one',
       'api',
@@ -97,7 +97,7 @@ describe('runStartCommand', () => {
       expect.objectContaining({
         cwd: './api',
         env: { RESOLVED: 'yes' },
-        workspaceKey: '/repo',
+        groupKey: '/repo',
         projectRoot: '/repo',
         ports: [3000],
       })
@@ -105,14 +105,14 @@ describe('runStartCommand', () => {
     expect(console.log).toHaveBeenCalledWith('✓ プロセス "api" を起動しました');
   });
 
-  it('falls back to config file when workspace resolution fails', async () => {
-    vi.mocked(WorkspaceManager.resolveWorkspaceByName).mockImplementation(() => {
-      throw new WorkspaceResolutionError('not found');
+  it('falls back to config file when group resolution fails', async () => {
+    vi.mocked(GroupManager.resolveGroupByName).mockImplementation(() => {
+      throw new GroupResolutionError('not found');
     });
-    vi.mocked(ConfigManager.findConfigFile).mockReturnValue('/workspace/portmux.config.json');
+    vi.mocked(ConfigManager.findConfigFile).mockReturnValue('/group/portmux.config.json');
     vi.mocked(ConfigManager.loadConfig).mockReturnValue({
       version: '1.0.0',
-      workspaces: {
+      groups: {
         default: {
           description: '',
           commands: [{ name: 'worker', command: 'node worker.js' }],
@@ -128,8 +128,8 @@ describe('runStartCommand', () => {
       'worker',
       'node worker.js',
       expect.objectContaining({
-        workspaceKey: '/workspace',
-        projectRoot: '/workspace',
+        groupKey: '/group',
+        projectRoot: '/group',
       })
     );
   });
@@ -151,7 +151,7 @@ describe('runStartCommand', () => {
   });
 
   it('exits when config is missing', async () => {
-    vi.mocked(WorkspaceManager.resolveWorkspaceAuto).mockImplementation(() => {
+    vi.mocked(GroupManager.resolveGroupAuto).mockImplementation(() => {
       throw new ConfigNotFoundError('missing');
     });
 

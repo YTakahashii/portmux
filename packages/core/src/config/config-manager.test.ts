@@ -8,9 +8,9 @@ import { tmpdir } from 'os';
 
 const baseConfig: PortMuxConfig = {
   version: '1.0.0',
-  workspaces: {
+  groups: {
     default: {
-      description: 'Default workspace',
+      description: 'Default group',
       commands: [
         {
           name: 'api',
@@ -139,22 +139,22 @@ describe('ConfigManager', () => {
   describe('mergeGlobalAndProjectConfigs', () => {
     it('グローバル設定とプロジェクト設定をマージして返す', () => {
       const { root: root1 } = createTempProject();
-      const anotherWorkspace = baseConfig.workspaces.default;
-      if (!anotherWorkspace) {
-        throw new Error('baseConfig must have default workspace');
+      const anotherGroup = baseConfig.groups.default;
+      if (!anotherGroup) {
+        throw new Error('baseConfig must have default group');
       }
       const { root: root2 } = createTempProject({
         ...baseConfig,
-        workspaces: {
-          another: anotherWorkspace,
+        groups: {
+          another: anotherGroup,
         },
       });
 
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          'workspace-1': { path: root1, workspace: 'default' },
-          'workspace-2': { path: root2, workspace: 'another' },
+          'group-1': { path: root1, group: 'default' },
+          'group-2': { path: root2, group: 'another' },
         },
       };
 
@@ -166,10 +166,10 @@ describe('ConfigManager', () => {
         const merged = ConfigManager.mergeGlobalAndProjectConfigs();
 
         expect(merged).not.toBeNull();
-        expect(Object.keys(merged?.repositories ?? {})).toEqual(['workspace-1', 'workspace-2']);
-        expect(merged?.repositories['workspace-1']?.projectConfigPath).toBe(join(root1, 'portmux.config.json'));
-        expect(merged?.repositories['workspace-1']?.workspaceDefinitionName).toBe('default');
-        expect(merged?.repositories['workspace-2']?.workspaceDefinitionName).toBe('another');
+        expect(Object.keys(merged?.repositories ?? {})).toEqual(['group-1', 'group-2']);
+        expect(merged?.repositories['group-1']?.projectConfigPath).toBe(join(root1, 'portmux.config.json'));
+        expect(merged?.repositories['group-1']?.groupDefinitionName).toBe('default');
+        expect(merged?.repositories['group-2']?.groupDefinitionName).toBe('another');
       } finally {
         cleanupTempDir(root1);
         cleanupTempDir(root2);
@@ -182,8 +182,8 @@ describe('ConfigManager', () => {
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          valid: { path: root, workspace: 'default' },
-          invalid: { path: '/does-not-exist', workspace: 'default' },
+          valid: { path: root, group: 'default' },
+          invalid: { path: '/does-not-exist', group: 'default' },
         },
       };
 
@@ -208,8 +208,8 @@ describe('ConfigManager', () => {
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          valid: { path: root, workspace: 'default' },
-          invalid: { path: '/does-not-exist', workspace: 'default' },
+          valid: { path: root, group: 'default' },
+          invalid: { path: '/does-not-exist', group: 'default' },
         },
       };
 

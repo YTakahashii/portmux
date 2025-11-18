@@ -62,8 +62,8 @@ export class VersionMismatchError extends PortmuxError {
 /** Duplicate repository name error. */
 export class DuplicateRepositoryNameError extends PortmuxError {
   override readonly name = 'DuplicateRepositoryNameError';
-  constructor(workspaceName: string) {
-    super(`リポジトリ名が重複しています: ${workspaceName}\nグローバル設定のリポジトリ名は一意である必要があります。`);
+  constructor(groupName: string) {
+    super(`リポジトリ名が重複しています: ${groupName}\nグローバル設定のリポジトリ名は一意である必要があります。`);
   }
 }
 
@@ -71,14 +71,14 @@ export class DuplicateRepositoryNameError extends PortmuxError {
 export class InvalidRepositoryReferenceError extends PortmuxError {
   override readonly name = 'InvalidRepositoryReferenceError';
   constructor(
-    public readonly workspaceName: string,
-    public readonly referencedWorkspace: string,
+    public readonly groupName: string,
+    public readonly referencedGroup: string,
     public readonly projectConfigPath: string
   ) {
     super(
       `無効なリポジトリ参照です。\n` +
-        `グローバル設定のリポジトリ "${workspaceName}" が参照している ` +
-        `プロジェクト設定内のワークスペース "${referencedWorkspace}" が見つかりません。\n` +
+        `グローバル設定のリポジトリ "${groupName}" が参照している ` +
+        `プロジェクト設定内のグループ "${referencedGroup}" が見つかりません。\n` +
         `プロジェクト設定: ${projectConfigPath}`
     );
   }
@@ -97,7 +97,7 @@ export interface MergedRepositoryConfig {
   path: string;
   projectConfigPath: string;
   projectConfig: PortMuxConfig;
-  workspaceDefinitionName: string;
+  groupDefinitionName: string;
 }
 
 export interface MergedGlobalConfig {
@@ -142,16 +142,16 @@ function ensureUniqueRepositoryNames(globalConfig: GlobalConfig): void {
 }
 
 /**
- * リポジトリが参照するワークスペースが存在するか検証
+ * リポジトリが参照するグループが存在するか検証
  */
 function validateRepositoryReference(
   repositoryName: string,
-  workspaceName: string,
+  groupName: string,
   projectConfig: PortMuxConfig,
   projectConfigPath: string
 ): void {
-  if (!projectConfig.workspaces[workspaceName]) {
-    throw new InvalidRepositoryReferenceError(repositoryName, workspaceName, projectConfigPath);
+  if (!projectConfig.groups[groupName]) {
+    throw new InvalidRepositoryReferenceError(repositoryName, groupName, projectConfigPath);
   }
 }
 
@@ -332,14 +332,14 @@ export const ConfigManager = {
    * @param projectConfig Project configuration
    * @param projectConfigPath Path to the project configuration (used in error messages)
    * @throws DuplicateRepositoryNameError When repository names are duplicated
-   * @throws InvalidRepositoryReferenceError When a repository points to a missing workspace definition
+   * @throws InvalidRepositoryReferenceError When a repository points to a missing group definition
    */
   validateGlobalConfig(globalConfig: GlobalConfig, projectConfig: PortMuxConfig, projectConfigPath: string): void {
     ensureUniqueRepositoryNames(globalConfig);
 
     // 外部参照の整合性チェック
     for (const [repositoryName, repository] of Object.entries(globalConfig.repositories)) {
-      validateRepositoryReference(repositoryName, repository.workspace, projectConfig, projectConfigPath);
+      validateRepositoryReference(repositoryName, repository.group, projectConfig, projectConfigPath);
     }
   },
 
@@ -347,7 +347,7 @@ export const ConfigManager = {
    * グローバル設定とプロジェクト設定を統合して返す
    *
    * - targetRepository を指定すると、そのエントリのみを対象にマージする
-   * - skipInvalid が true の場合、存在しないプロジェクト設定やワークスペース参照のエントリはスキップする
+   * - skipInvalid が true の場合、存在しないプロジェクト設定やグループ参照のエントリはスキップする
    *
    * @returns マージ済み設定。グローバル設定ファイルが存在しない場合は null
    */
@@ -388,14 +388,14 @@ export const ConfigManager = {
         }
 
         const projectConfig = this.loadConfig(projectConfigPath);
-        validateRepositoryReference(repositoryName, repository.workspace, projectConfig, projectConfigPath);
+        validateRepositoryReference(repositoryName, repository.group, projectConfig, projectConfigPath);
 
         mergedRepositories[repositoryName] = {
           name: repositoryName,
           path: normalizePath(repository.path),
           projectConfig,
           projectConfigPath,
-          workspaceDefinitionName: repository.workspace,
+          groupDefinitionName: repository.group,
         };
       } catch (error) {
         if (!skipInvalid) {

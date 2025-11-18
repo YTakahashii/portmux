@@ -83,51 +83,51 @@ describe('LockManager', () => {
     });
   });
 
-  describe('acquireWorkspaceLock', () => {
-    it('ワークスペースロックを取得できる', async () => {
-      const workspace = 'test-workspace';
-      const releaseLock = await LockManager.acquireWorkspaceLock(workspace);
+  describe('acquireGroupLock', () => {
+    it('グループロックを取得できる', async () => {
+      const group = 'test-group';
+      const releaseLock = await LockManager.acquireGroupLock(group);
 
       expect(releaseLock).toBeInstanceOf(Function);
-      expect(existsSync(join(getLockDir(), 'test-workspace.lock'))).toBe(true);
+      expect(existsSync(join(getLockDir(), 'test-group.lock'))).toBe(true);
 
       await releaseLock();
     });
 
-    it('ワークスペースロックを解放できる', async () => {
-      const workspace = 'test-workspace';
-      const releaseLock = await LockManager.acquireWorkspaceLock(workspace);
+    it('グループロックを解放できる', async () => {
+      const group = 'test-group';
+      const releaseLock = await LockManager.acquireGroupLock(group);
 
       await expect(releaseLock()).resolves.toBeUndefined();
     });
 
-    it('ワークスペース名をスラッグ化してロックファイルを作成する', async () => {
+    it('グループ名をスラッグ化してロックファイルを作成する', async () => {
       const lockDir = getLockDir();
-      const releaseLock1 = await LockManager.acquireWorkspaceLock('My Workspace');
-      expect(existsSync(join(lockDir, 'My-Workspace.lock'))).toBe(true);
+      const releaseLock1 = await LockManager.acquireGroupLock('My Group');
+      expect(existsSync(join(lockDir, 'My-Group.lock'))).toBe(true);
       await releaseLock1();
 
-      const releaseLock2 = await LockManager.acquireWorkspaceLock('workspace/with/slashes');
-      expect(existsSync(join(lockDir, 'workspace-with-slashes.lock'))).toBe(true);
+      const releaseLock2 = await LockManager.acquireGroupLock('group/with/slashes');
+      expect(existsSync(join(lockDir, 'group-with-slashes.lock'))).toBe(true);
       await releaseLock2();
 
-      const releaseLock3 = await LockManager.acquireWorkspaceLock('workspace---with---dashes');
-      expect(existsSync(join(lockDir, 'workspace-with-dashes.lock'))).toBe(true);
+      const releaseLock3 = await LockManager.acquireGroupLock('group---with---dashes');
+      expect(existsSync(join(lockDir, 'group-with-dashes.lock'))).toBe(true);
       await releaseLock3();
 
-      const releaseLock4 = await LockManager.acquireWorkspaceLock('-workspace-');
-      expect(existsSync(join(lockDir, 'workspace.lock'))).toBe(true);
+      const releaseLock4 = await LockManager.acquireGroupLock('-group-');
+      expect(existsSync(join(lockDir, 'group.lock'))).toBe(true);
       await releaseLock4();
     });
 
-    it('ワークスペースロックを取得するとロックディレクトリが作成される', async () => {
+    it('グループロックを取得するとロックディレクトリが作成される', async () => {
       const lockDir = getLockDir();
       expect(existsSync(lockDir)).toBe(false);
 
-      const releaseLock = await LockManager.acquireWorkspaceLock('test-workspace');
+      const releaseLock = await LockManager.acquireGroupLock('test-group');
 
       expect(existsSync(lockDir)).toBe(true);
-      expect(existsSync(join(lockDir, 'test-workspace.lock'))).toBe(true);
+      expect(existsSync(join(lockDir, 'test-group.lock'))).toBe(true);
 
       await releaseLock();
     });
@@ -146,10 +146,10 @@ describe('LockManager', () => {
       expect(result).toBe('test-result');
     });
 
-    it('ワークスペースロックで処理を実行できる', async () => {
+    it('グループロックで処理を実行できる', async () => {
       let executed = false;
 
-      const result = await LockManager.withLock('workspace', 'test-workspace', () => {
+      const result = await LockManager.withLock('group', 'test-group', () => {
         executed = true;
         return Promise.resolve('test-result');
       });
@@ -158,12 +158,12 @@ describe('LockManager', () => {
       expect(result).toBe('test-result');
     });
 
-    it('ワークスペースロックでワークスペース名がnullの場合にエラーを投げる', async () => {
+    it('グループロックでグループ名がnullの場合にエラーを投げる', async () => {
       await expect(
-        LockManager.withLock('workspace', null, () => {
+        LockManager.withLock('group', null, () => {
           return Promise.resolve('test-result');
         })
-      ).rejects.toThrow('ワークスペースロックの取得にはワークスペース名が必要です');
+      ).rejects.toThrow('グループロックの取得にはグループ名が必要です');
     });
 
     it('処理がエラーを投げてもロックを解放する', async () => {
@@ -186,10 +186,10 @@ describe('LockManager', () => {
       const releaseLock2 = await LockManager.acquireGlobalLock();
       await releaseLock2();
 
-      const releaseLock3 = await LockManager.acquireWorkspaceLock('workspace-1');
+      const releaseLock3 = await LockManager.acquireGroupLock('group-1');
       await releaseLock3();
 
-      const releaseLock4 = await LockManager.acquireWorkspaceLock('workspace-2');
+      const releaseLock4 = await LockManager.acquireGroupLock('group-2');
       await releaseLock4();
     });
   });
@@ -211,10 +211,10 @@ describe('LockManager', () => {
       await expect(LockManager.acquireGlobalLock()).rejects.toThrow(LockTimeoutError);
     });
 
-    it('acquireWorkspaceLock がタイムアウトした場合に LockTimeoutError を投げる', async () => {
+    it('acquireGroupLock がタイムアウトした場合に LockTimeoutError を投げる', async () => {
       vi.mocked(lock).mockRejectedValue(new Error('Lock timeout'));
 
-      await expect(LockManager.acquireWorkspaceLock('test-workspace')).rejects.toThrow(LockTimeoutError);
+      await expect(LockManager.acquireGroupLock('test-group')).rejects.toThrow(LockTimeoutError);
     });
   });
 

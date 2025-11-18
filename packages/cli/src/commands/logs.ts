@@ -67,23 +67,23 @@ function printAvailableProcesses(): void {
     return;
   }
 
-  console.log('利用可能なワークスペース/プロセス:');
+  console.log('利用可能なグループ/プロセス:');
   for (const state of states) {
-    const repositoryLabel = state.workspaceKey ?? state.workspace;
+    const repositoryLabel = state.groupKey ?? state.group;
     const repositorySuffix =
-      state.workspaceKey && state.workspaceKey !== state.workspace ? ` (${state.workspace})` : '';
+      state.groupKey && state.groupKey !== state.group ? ` (${state.group})` : '';
     console.log(`  - ${repositoryLabel}${repositorySuffix}/${state.process}`);
   }
 }
 
 export function runLogsCommand(
-  workspaceName: string | undefined,
+  groupName: string | undefined,
   processName: string | undefined,
   options: LogsOptions
 ): void {
   try {
-    if (!workspaceName || !processName) {
-      console.error(chalk.red('エラー: ワークスペース名とプロセス名を指定してください'));
+    if (!groupName || !processName) {
+      console.error(chalk.red('エラー: グループ名とプロセス名を指定してください'));
       printAvailableProcesses();
       process.exit(1);
       return;
@@ -98,10 +98,10 @@ export function runLogsCommand(
       return;
     }
 
-    const state = StateManager.readState(workspaceName, processName);
+    const state = StateManager.readState(groupName, processName);
     if (!state) {
       console.error(
-        chalk.red(`エラー: ワークスペース "${workspaceName}" のプロセス "${processName}" は実行中ではありません`)
+        chalk.red(`エラー: グループ "${groupName}" のプロセス "${processName}" は実行中ではありません`)
       );
       process.exit(1);
       return;
@@ -191,12 +191,12 @@ export function runLogsCommand(
 function createLogsCommand(): Command {
   return new Command('logs')
     .description('プロセスのログを表示します')
-    .argument('[workspace-name]', 'ワークスペース名')
+    .argument('[group-name]', 'グループ名')
     .argument('[process-name]', 'プロセス名')
     .option('-n, --lines <lines>', '末尾から表示する行数 (デフォルト: 50)', '50')
     .option('--no-follow', 'ログの追尾を無効にします')
     .option('-t, --timestamps', '各行にタイムスタンプを付与して表示します')
-    .action((workspaceName: string, processName: string, cmdOptions: LogsOptions) => {
-      runLogsCommand(workspaceName, processName, cmdOptions);
+    .action((groupName: string, processName: string, cmdOptions: LogsOptions) => {
+      runLogsCommand(groupName, processName, cmdOptions);
     });
 }

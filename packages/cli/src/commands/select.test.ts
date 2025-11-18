@@ -1,12 +1,12 @@
-import { WorkspaceManager } from '@portmux/core';
+import { GroupManager } from '@portmux/core';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import inquirer from 'inquirer';
 import { runStartCommand } from './start.js';
 import { selectCommand } from './select.js';
 
 vi.mock('@portmux/core', () => ({
-  WorkspaceManager: {
-    buildSelectableWorkspaces: vi.fn(),
+  GroupManager: {
+    buildSelectableGroups: vi.fn(),
   },
   parseGitWorktreeList: vi.fn(),
 }));
@@ -42,7 +42,7 @@ function runSelect(args: string[] = []): Promise<void> {
 }
 
 describe('selectCommand', () => {
-  const buildSelectableWorkspaces = vi.mocked(WorkspaceManager.buildSelectableWorkspaces);
+  const buildSelectableGroups = vi.mocked(GroupManager.buildSelectableGroups);
   const promptMock = vi.mocked(inquirer.prompt);
   const runStartMock = vi.mocked(runStartCommand);
 
@@ -57,43 +57,43 @@ describe('selectCommand', () => {
     vi.clearAllMocks();
   });
 
-  it('prints message when no selectable workspace', async () => {
-    buildSelectableWorkspaces.mockReturnValue([]);
+  it('prints message when no selectable group', async () => {
+    buildSelectableGroups.mockReturnValue([]);
 
     await runSelect();
 
     expect(console.log).toHaveBeenCalledWith(
-      '選択可能なワークスペースがありません。グローバル設定を確認してください。'
+      '選択可能なグループがありません。グローバル設定を確認してください。'
     );
     expect(runStartMock).not.toHaveBeenCalled();
   });
 
-  it('builds choices and starts selected workspace', async () => {
-    buildSelectableWorkspaces.mockReturnValue([
+  it('builds choices and starts selected group', async () => {
+    buildSelectableGroups.mockReturnValue([
       {
         projectName: 'proj',
         repositoryName: 'repo1',
         path: '/path/repo1',
         isRunning: true,
-        workspaceDefinitionName: 'default',
+        groupDefinitionName: 'default',
       },
       {
         projectName: 'proj',
         repositoryName: 'repo2',
         path: '/path/repo2',
         isRunning: false,
-        workspaceDefinitionName: 'default',
+        groupDefinitionName: 'default',
       },
     ]);
-    promptMock.mockResolvedValue({ workspace: 'repo2' });
+    promptMock.mockResolvedValue({ group: 'repo2' });
 
     await runSelect();
 
     expect(promptMock).toHaveBeenCalledWith([
       {
         type: 'list',
-        name: 'workspace',
-        message: '起動するワークスペースを選択してください',
+        name: 'group',
+        message: '起動するグループを選択してください',
         choices: [
           expect.objectContaining({ label: '--- proj ---' }),
           { name: '[Running] repo1 (/path/repo1)', value: 'repo1', short: 'repo1' },
@@ -104,26 +104,26 @@ describe('selectCommand', () => {
     expect(runStartMock).toHaveBeenCalledWith('repo2');
   });
 
-  it('passes --all to include all workspaces', async () => {
-    buildSelectableWorkspaces.mockReturnValue([
+  it('passes --all to include all groups', async () => {
+    buildSelectableGroups.mockReturnValue([
       {
         projectName: 'proj',
         repositoryName: 'repo',
         path: '/path/repo',
         isRunning: false,
-        workspaceDefinitionName: 'default',
+        groupDefinitionName: 'default',
       },
     ]);
-    promptMock.mockResolvedValue({ workspace: 'repo' });
+    promptMock.mockResolvedValue({ group: 'repo' });
 
     await runSelect(['--all']);
 
-    expect(buildSelectableWorkspaces).toHaveBeenCalledWith([], { includeAll: true });
+    expect(buildSelectableGroups).toHaveBeenCalledWith([], { includeAll: true });
     expect(runStartMock).toHaveBeenCalledWith('repo');
   });
 
   it('exits on error', async () => {
-    buildSelectableWorkspaces.mockImplementation(() => {
+    buildSelectableGroups.mockImplementation(() => {
       throw new Error('boom');
     });
 

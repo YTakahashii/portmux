@@ -36,15 +36,15 @@ describe('runLogsCommand', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('prints available processes when workspace or process is missing', () => {
+  it('prints available processes when group or process is missing', () => {
     listAllStates.mockReturnValue([
-      { workspace: 'ws', workspaceKey: '/repo/path', process: 'api', status: 'Running' as const },
+      { group: 'ws', groupKey: '/repo/path', process: 'api', status: 'Running' as const },
     ]);
 
     runLogsCommand(undefined, undefined, { follow: false });
 
-    expect(console.error).toHaveBeenCalledWith('エラー: ワークスペース名とプロセス名を指定してください');
-    expect(console.log).toHaveBeenCalledWith('利用可能なワークスペース/プロセス:');
+    expect(console.error).toHaveBeenCalledWith('エラー: グループ名とプロセス名を指定してください');
+    expect(console.log).toHaveBeenCalledWith('利用可能なグループ/プロセス:');
     expect(console.log).toHaveBeenCalledWith('  - /repo/path (ws)/api');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
@@ -52,22 +52,22 @@ describe('runLogsCommand', () => {
   it('exits with error when state is not found', () => {
     readState.mockReturnValue(null);
 
-    runLogsCommand('workspace', 'proc', { follow: false });
+    runLogsCommand('group', 'proc', { follow: false });
 
     expect(console.error).toHaveBeenCalledWith(
-      'エラー: ワークスペース "workspace" のプロセス "proc" は実行中ではありません'
+      'エラー: グループ "group" のプロセス "proc" は実行中ではありません'
     );
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it('exits with error when logPath is missing', () => {
     readState.mockReturnValue({
-      workspace: 'workspace',
+      group: 'group',
       process: 'proc',
       status: 'Running' as const,
     });
 
-    runLogsCommand('workspace', 'proc', { follow: false });
+    runLogsCommand('group', 'proc', { follow: false });
 
     expect(console.error).toHaveBeenCalledWith('エラー: プロセス "proc" のログファイルパスが見つかりません');
     expect(process.exit).toHaveBeenCalledWith(1);
@@ -76,13 +76,13 @@ describe('runLogsCommand', () => {
   it('exits with error when log file does not exist', () => {
     const logPath = join(tempDir, 'missing.log');
     readState.mockReturnValue({
-      workspace: 'workspace',
+      group: 'group',
       process: 'proc',
       status: 'Running' as const,
       logPath,
     });
 
-    runLogsCommand('workspace', 'proc', { follow: false });
+    runLogsCommand('group', 'proc', { follow: false });
 
     expect(console.error).toHaveBeenCalledWith(`エラー: ログファイルが存在しません: ${logPath}`);
     expect(process.exit).toHaveBeenCalledWith(1);
@@ -92,13 +92,13 @@ describe('runLogsCommand', () => {
     const logPath = join(tempDir, 'app.log');
     writeFileSync(logPath, ['line1', 'line2', 'line3'].join('\n'));
     readState.mockReturnValue({
-      workspace: 'workspace',
+      group: 'group',
       process: 'proc',
       status: 'Running' as const,
       logPath,
     });
 
-    runLogsCommand('workspace', 'proc', { lines: '2', follow: false, timestamps: false });
+    runLogsCommand('group', 'proc', { lines: '2', follow: false, timestamps: false });
 
     expect(console.log).toHaveBeenCalledWith('line2');
     expect(console.log).toHaveBeenCalledWith('line3');
@@ -109,13 +109,13 @@ describe('runLogsCommand', () => {
     const logPath = join(tempDir, 'app.log');
     writeFileSync(logPath, 'only-line\n');
     readState.mockReturnValue({
-      workspace: 'workspace',
+      group: 'group',
       process: 'proc',
       status: 'Running' as const,
       logPath,
     });
 
-    runLogsCommand('workspace', 'proc', { lines: '1', follow: false, timestamps: true });
+    runLogsCommand('group', 'proc', { lines: '1', follow: false, timestamps: true });
 
     expect(console.log).toHaveBeenCalledWith(expect.stringMatching(/^\[\d{4}-\d{2}-\d{2}T/));
     expect(process.exit).not.toHaveBeenCalled();
@@ -125,13 +125,13 @@ describe('runLogsCommand', () => {
     const logPath = join(tempDir, 'app.log');
     writeFileSync(logPath, 'line\n');
     readState.mockReturnValue({
-      workspace: 'workspace',
+      group: 'group',
       process: 'proc',
       status: 'Running' as const,
       logPath,
     });
 
-    runLogsCommand('workspace', 'proc', { lines: 'abc', follow: false });
+    runLogsCommand('group', 'proc', { lines: 'abc', follow: false });
 
     expect(console.error).toHaveBeenCalledWith('エラー: --lines には 0 以上の整数を指定してください');
     expect(process.exit).toHaveBeenCalledWith(1);

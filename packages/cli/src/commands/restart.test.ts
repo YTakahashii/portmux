@@ -5,14 +5,14 @@ import {
   LockTimeoutError,
   ProcessManager,
   ProcessRestartError,
-  WorkspaceManager,
+  GroupManager,
 } from '@portmux/core';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { runRestartCommand } from './restart.js';
 
 vi.mock('@portmux/core', () => {
   class ConfigNotFoundError extends Error {}
-  class WorkspaceResolutionError extends Error {}
+  class GroupResolutionError extends Error {}
   class ProcessRestartError extends Error {}
   class PortInUseError extends Error {}
   class LockTimeoutError extends Error {}
@@ -24,9 +24,9 @@ vi.mock('@portmux/core', () => {
       resolveEnvObject: vi.fn(),
       resolveCommandEnv: vi.fn(),
     },
-    WorkspaceManager: {
-      resolveWorkspaceByName: vi.fn(),
-      resolveWorkspaceAuto: vi.fn(),
+    GroupManager: {
+      resolveGroupByName: vi.fn(),
+      resolveGroupAuto: vi.fn(),
     },
     LockManager: {
       withLock: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock('@portmux/core', () => {
       restartProcess: vi.fn(),
     },
     ConfigNotFoundError,
-    WorkspaceResolutionError,
+    GroupResolutionError,
     ProcessRestartError,
     PortInUseError,
     LockTimeoutError,
@@ -52,14 +52,14 @@ vi.mock('chalk', () => ({
 }));
 
 describe('runRestartCommand', () => {
-  const resolvedWorkspace = {
+  const resolvedGroup = {
     name: 'ws-one',
     path: '/repo',
     projectConfigPath: '/repo/portmux.config.json',
-    workspaceDefinitionName: 'ws-one',
+    groupDefinitionName: 'ws-one',
     projectConfig: {
       version: '1.0.0',
-      workspaces: {
+      groups: {
         'ws-one': {
           description: '',
           commands: [
@@ -83,8 +83,8 @@ describe('runRestartCommand', () => {
     vi.mocked(ConfigManager.resolveEnvObject).mockReturnValue({ RESOLVED: 'yes' });
     vi.mocked(ConfigManager.resolveCommandEnv).mockImplementation((cmd: string) => cmd);
     vi.mocked(ProcessManager.restartProcess).mockResolvedValue();
-    vi.mocked(WorkspaceManager.resolveWorkspaceByName).mockReturnValue(resolvedWorkspace);
-    vi.mocked(WorkspaceManager.resolveWorkspaceAuto).mockReturnValue(resolvedWorkspace);
+    vi.mocked(GroupManager.resolveGroupByName).mockReturnValue(resolvedGroup);
+    vi.mocked(GroupManager.resolveGroupAuto).mockReturnValue(resolvedGroup);
   });
 
   afterEach(() => {
@@ -94,7 +94,7 @@ describe('runRestartCommand', () => {
   it('再起動処理を各プロセスに委譲する', async () => {
     await runRestartCommand('ws-one');
 
-    expect(LockManager.withLock).toHaveBeenCalledWith('workspace', 'ws-one', expect.any(Function));
+    expect(LockManager.withLock).toHaveBeenCalledWith('group', 'ws-one', expect.any(Function));
     expect(ProcessManager.restartProcess).toHaveBeenCalledWith(
       'ws-one',
       'api',
@@ -102,7 +102,7 @@ describe('runRestartCommand', () => {
       expect.objectContaining({
         cwd: './api',
         env: { RESOLVED: 'yes' },
-        workspaceKey: '/repo',
+        groupKey: '/repo',
         projectRoot: '/repo',
         ports: [3000],
       })
@@ -111,7 +111,7 @@ describe('runRestartCommand', () => {
       'ws-one',
       'worker',
       'node worker.js',
-      expect.objectContaining({ env: {}, workspaceKey: '/repo', projectRoot: '/repo' })
+      expect.objectContaining({ env: {}, groupKey: '/repo', projectRoot: '/repo' })
     );
     expect(console.log).toHaveBeenCalledWith('✓ プロセス "api" を再起動しました');
     expect(console.log).toHaveBeenCalledWith('✓ プロセス "worker" を再起動しました');
@@ -125,8 +125,8 @@ describe('runRestartCommand', () => {
     expect(console.error).toHaveBeenCalledWith('エラー: プロセス "api" の再起動に失敗しました: restart fail');
   });
 
-  it('exits when workspace resolution fails', async () => {
-    vi.mocked(WorkspaceManager.resolveWorkspaceByName).mockImplementation(() => {
+  it('exits when group resolution fails', async () => {
+    vi.mocked(GroupManager.resolveGroupByName).mockImplementation(() => {
       throw new ConfigNotFoundError('missing');
     });
 

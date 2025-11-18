@@ -16,7 +16,7 @@ export interface ProcessStartOptions {
   env?: Record<string, string>;
   projectRoot?: string; // portmux.config.json が存在するディレクトリ
   ports?: number[]; // 使用するポート番号の配列
-  workspaceKey?: string; // Repository path (from global config) for display
+  groupKey?: string; // Repository path (from global config) for display
 }
 
 /** プロセス起動エラー */
@@ -50,8 +50,8 @@ export class ProcessRestartError extends PortmuxError {
  * プロセス状態情報
  */
 export interface ProcessInfo {
-  workspace: string;
-  workspaceKey?: string;
+  group: string;
+  groupKey?: string;
   process: string;
   status: ProcessStatus;
   pid?: number;
@@ -65,14 +65,14 @@ export const ProcessManager = {
   /**
    * プロセスを起動する
    *
-   * @param workspace ワークスペース名
+   * @param group グループ名
    * @param processName プロセス名
    * @param command 実行するコマンド
    * @param options 起動オプション
    * @throws ProcessStartError 起動に失敗した場合
    */
   async startProcess(
-    workspace: string,
+    group: string,
     processName: string,
     command: string,
     options: ProcessStartOptions = {}
@@ -85,7 +85,7 @@ export const ProcessManager = {
     if (options.ports && options.ports.length > 0) {
       try {
         const plan = await PortManager.planReservation({
-          workspace,
+          group,
           process: processName,
           ports: options.ports,
         });
@@ -105,7 +105,7 @@ export const ProcessManager = {
     }
 
     // 既存のプロセスをチェック
-    const existingState = StateManager.readState(workspace, processName);
+    const existingState = StateManager.readState(group, processName);
     if (existingState?.status === 'Running') {
       if (existingState.pid && isPidAlive(existingState.pid)) {
         // ポート予約を解放
@@ -117,7 +117,7 @@ export const ProcessManager = {
         );
       } else {
         // PID が死んでいる場合は状態をクリア
-        StateManager.deleteState(workspace, processName);
+        StateManager.deleteState(group, processName);
       }
     }
 
@@ -151,7 +151,7 @@ export const ProcessManager = {
     };
 
     // ログファイルの準備
-    const logPath = StateManager.generateLogPath(workspace, processName);
+    const logPath = StateManager.generateLogPath(group, processName);
 
     // ログファイルのファイルディスクリプタを取得
     let logFd: number;
@@ -220,8 +220,8 @@ export const ProcessManager = {
 
     // 状態を保存
     const state: ProcessState = {
-      workspace,
-      workspaceKey: options.workspaceKey ?? workspace,
+      group,
+      groupKey: options.groupKey ?? group,
       process: processName,
       status: 'Running',
       pid,
@@ -229,25 +229,25 @@ export const ProcessManager = {
       logPath,
       ...(options.ports !== undefined && { ports: options.ports }),
     };
-    StateManager.writeState(workspace, processName, state);
+    StateManager.writeState(group, processName, state);
   },
 
   /**
    * プロセスを停止する
    *
-   * @param workspace ワークスペース名
+   * @param group グループ名
    * @param processName プロセス名
    * @param timeout タイムアウト時間（ミリ秒、デフォルト: 10000）
    * @throws ProcessStopError 停止に失敗した場合
    */
-  async stopProcess(workspace: string, processName: string, timeout = 10000): Promise<void> {
-    const state = StateManager.readState(workspace, processName);
+  async stopProcess(group: string, processName: string, timeout = 10000): Promise<void> {
+    const state = StateManager.readState(group, processName);
     let cleaned = false;
     const cleanup = (): void => {
       if (cleaned) {
         return;
       }
-      PortManager.releaseReservationByProcess(workspace, processName);
+      PortManager.releaseReservationByProcess(group, processName);
       cleaned = true;
     };
 
@@ -258,14 +258,14 @@ export const ProcessManager = {
     try {
       if (state.status === 'Stopped') {
         // 既に停止している場合は状態を削除
-        StateManager.deleteState(workspace, processName);
+        StateManager.deleteState(group, processName);
         cleanup();
         return;
       }
 
       if (!state.pid) {
         // PID が記録されていない場合は状態を削除して終了
-        StateManager.deleteState(workspace, processName);
+        StateManager.deleteState(group, processName);
         cleanup();
         return;
       }
@@ -279,9 +279,9 @@ export const ProcessManager = {
           status: 'Stopped',
           stoppedAt: new Date().toISOString(),
         };
-        StateManager.writeState(workspace, processName, stoppedState);
+        StateManager.writeState(group, processName, stoppedState);
         // 状態ファイルを削除（停止済みは保持しない）
-        StateManager.deleteState(workspace, processName);
+        StateManager.deleteState(group, processName);
         cleanup();
         return;
       }
@@ -303,9 +303,9 @@ export const ProcessManager = {
             status: 'Stopped',
             stoppedAt: new Date().toISOString(),
           };
-          StateManager.writeState(workspace, processName, stoppedState);
+          StateManager.writeState(group, processName, stoppedState);
           // 状態ファイルを削除
-          StateManager.deleteState(workspace, processName);
+          StateManager.deleteState(group, processName);
           cleanup();
           return;
         }
@@ -326,8 +326,8 @@ export const ProcessManager = {
           status: 'Stopped',
           stoppedAt: new Date().toISOString(),
         };
-        StateManager.writeState(workspace, processName, stoppedState);
-        StateManager.deleteState(workspace, processName);
+        StateManager.writeState(group, processName, stoppedState);
+        StateManager.deleteState(group, processName);
         cleanup();
       } else {
         throw new ProcessStopError(
@@ -359,16 +359,16 @@ export const ProcessManager = {
             status: 'Stopped',
             stoppedAt: new Date().toISOString(),
           };
-          StateManager.writeState(state.workspace, state.process, updatedState);
+          StateManager.writeState(state.group, state.process, updatedState);
           // 状態ファイルを削除
-          StateManager.deleteState(state.workspace, state.process);
+          StateManager.deleteState(state.group, state.process);
           status = 'Stopped';
         }
       }
 
       processes.push({
-        workspace: state.workspace,
-        ...(state.workspaceKey !== undefined && { workspaceKey: state.workspaceKey }),
+        group: state.group,
+        ...(state.groupKey !== undefined && { groupKey: state.groupKey }),
         process: state.process,
         status,
         ...(state.pid !== undefined && { pid: state.pid }),
@@ -382,43 +382,43 @@ export const ProcessManager = {
   /**
    * プロセスを再起動する
    *
-   * @param workspace ワークスペース名
+   * @param group グループ名
    * @param processName プロセス名
    * @param command 実行するコマンド
    * @param options 起動オプション
    * @throws ProcessRestartError 再起動に失敗した場合
    */
   async restartProcess(
-    workspace: string,
+    group: string,
     processName: string,
     command: string,
     options: ProcessStartOptions = {}
   ): Promise<void> {
     const restartPlan = {
-      previousState: StateManager.readState(workspace, processName),
+      previousState: StateManager.readState(group, processName),
     };
 
     try {
       if (restartPlan.previousState) {
-        await this.stopProcess(workspace, processName);
+        await this.stopProcess(group, processName);
       }
     } catch (error) {
       throw new ProcessRestartError(`プロセス "${processName}" の停止に失敗しました`, error);
     }
 
     try {
-      await this.startProcess(workspace, processName, command, options);
+      await this.startProcess(group, processName, command, options);
     } catch (error) {
       const errorState: ProcessState = {
-        workspace,
-        workspaceKey: options.workspaceKey ?? restartPlan.previousState?.workspaceKey ?? workspace,
+        group,
+        groupKey: options.groupKey ?? restartPlan.previousState?.groupKey ?? group,
         process: processName,
         status: 'Error',
         error: error instanceof Error ? error.message : String(error),
         ...(restartPlan.previousState?.logPath !== undefined && { logPath: restartPlan.previousState.logPath }),
         ...(restartPlan.previousState?.ports !== undefined && { ports: restartPlan.previousState.ports }),
       };
-      StateManager.writeState(workspace, processName, errorState);
+      StateManager.writeState(group, processName, errorState);
       throw new ProcessRestartError(`プロセス "${processName}" の再起動に失敗しました`, error);
     }
   },

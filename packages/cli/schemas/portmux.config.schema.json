@@ -17,19 +17,19 @@
     "runner": {
       "$ref": "#/$defs/runner"
     },
-    "workspaces": {
+    "groups": {
       "type": "object",
       "minProperties": 1,
-      "description": "Workspace definitions keyed by workspace name.",
+      "description": "Group definitions keyed by group name.",
       "patternProperties": {
         "^.*$": {
-          "$ref": "#/$defs/workspace"
+          "$ref": "#/$defs/group"
         }
       },
       "additionalProperties": false
     }
   },
-  "required": ["version", "workspaces"],
+  "required": ["version", "groups"],
   "$defs": {
     "runner": {
       "type": "object",
@@ -43,18 +43,18 @@
       },
       "required": ["mode"]
     },
-    "workspace": {
+    "group": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "description": {
           "type": "string",
-          "description": "Human readable description of the workspace."
+          "description": "Human readable description of the group."
         },
         "commands": {
           "type": "array",
           "minItems": 1,
-          "description": "List of commands to run in this workspace.",
+          "description": "List of commands to run in this group.",
           "items": {
             "$ref": "#/$defs/command"
           }

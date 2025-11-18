@@ -5,50 +5,50 @@ import chalk from 'chalk';
 
 export const stopCommand: ReturnType<typeof createStopCommand> = createStopCommand();
 
-export async function runStopCommand(workspaceName?: string, processName?: string): Promise<void> {
+export async function runStopCommand(groupName?: string, processName?: string): Promise<void> {
   try {
-    // ワークスペース名が指定されていない場合は、状態ストアから全プロセスを取得
-    if (!workspaceName) {
+    // グループ名が指定されていない場合は、状態ストアから全プロセスを取得
+    if (!groupName) {
       const allStates = StateManager.listAllStates();
-      const workspaces = new Set(allStates.map((s) => s.workspace));
+      const groups = new Set(allStates.map((s) => s.group));
 
-      if (workspaces.size === 0) {
+      if (groups.size === 0) {
         console.log(chalk.yellow('停止するプロセスがありません'));
         return;
       }
 
-      // 複数のワークスペースがある場合はエラー
-      if (workspaces.size > 1) {
-        console.error(chalk.red('エラー: 複数のワークスペースが実行中です。ワークスペース名を指定してください。'));
+      // 複数のグループがある場合はエラー
+      if (groups.size > 1) {
+        console.error(chalk.red('エラー: 複数のグループが実行中です。グループ名を指定してください。'));
         process.exit(1);
         return;
       }
 
-      workspaceName = Array.from(workspaces)[0];
+      groupName = Array.from(groups)[0];
     }
 
     // 停止するプロセスを決定
     const allStates = StateManager.listAllStates();
     const processesToStop = processName
-      ? allStates.filter((s) => s.workspace === workspaceName && s.process === processName)
-      : allStates.filter((s) => s.workspace === workspaceName);
+      ? allStates.filter((s) => s.group === groupName && s.process === processName)
+      : allStates.filter((s) => s.group === groupName);
 
     if (processesToStop.length === 0) {
       console.log(
         chalk.yellow(
           processName
             ? `プロセス "${processName}" は実行中ではありません`
-            : `ワークスペース "${workspaceName ?? 'unknown'}" に実行中のプロセスがありません`
+            : `グループ "${groupName ?? 'unknown'}" に実行中のプロセスがありません`
         )
       );
       return;
     }
 
     // ロックを取得して各プロセスを停止
-    await LockManager.withLock('workspace', workspaceName ?? null, async () => {
+    await LockManager.withLock('group', groupName ?? null, async () => {
       for (const state of processesToStop) {
         try {
-          await ProcessManager.stopProcess(state.workspace, state.process);
+          await ProcessManager.stopProcess(state.group, state.process);
 
           console.log(chalk.green(`✓ プロセス "${state.process}" を停止しました`));
         } catch (error) {
@@ -74,9 +74,9 @@ export async function runStopCommand(workspaceName?: string, processName?: strin
 function createStopCommand(): Command {
   return new Command('stop')
     .description('プロセスを停止します')
-    .argument('[workspace-name]', 'ワークスペース名')
-    .argument('[process-name]', 'プロセス名（省略時はワークスペースの全プロセスを停止）')
-    .action(async (workspaceName?: string, processName?: string) => {
-      await runStopCommand(workspaceName, processName);
+    .argument('[group-name]', 'グループ名')
+    .argument('[process-name]', 'プロセス名（省略時はグループの全プロセスを停止）')
+    .action(async (groupName?: string, processName?: string) => {
+      await runStopCommand(groupName, processName);
     });
 }

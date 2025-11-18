@@ -7,21 +7,21 @@ import { StateManager } from '../state/state-manager.js';
 import { PortmuxError } from '../errors.js';
 
 /**
- * ワークスペース解決エラー
+ * グループ解決エラー
  */
-export class WorkspaceResolutionError extends PortmuxError {
-  override readonly name = 'WorkspaceResolutionError';
+export class GroupResolutionError extends PortmuxError {
+  override readonly name = 'GroupResolutionError';
 }
 
 /**
- * ワークスペース情報
+ * グループ情報
  */
-export interface ResolvedWorkspace {
+export interface ResolvedGroup {
   name: string;
   path: string;
   projectConfig: PortMuxConfig;
   projectConfigPath: string;
-  workspaceDefinitionName: string;
+  groupDefinitionName: string;
 }
 
 /**
@@ -33,11 +33,11 @@ export interface GitWorktreeInfo {
   branch: string;
 }
 
-export interface WorkspaceSelection {
+export interface GroupSelection {
   repositoryName: string;
   projectName: string;
   path: string;
-  workspaceDefinitionName: string;
+  groupDefinitionName: string;
   isRunning: boolean;
 }
 
@@ -117,11 +117,11 @@ function normalizePath(path: string): string {
 }
 
 /**
- * 実行中ワークスペースの集合を返す
+ * 実行中グループの集合を返す
  */
-function getRunningWorkspaceNames(): Set<string> {
+function getRunningGroupNames(): Set<string> {
   const states = StateManager.listAllStates();
-  const running = states.filter((state) => state.status === 'Running').map((state) => state.workspace);
+  const running = states.filter((state) => state.status === 'Running').map((state) => state.group);
   return new Set(running);
 }
 
@@ -134,25 +134,25 @@ function getProjectName(path: string): string {
 }
 
 /**
- * ワークスペースを管理するオブジェクト
+ * グループを管理するオブジェクト
  */
-export const WorkspaceManager = {
+export const GroupManager = {
   /**
-   * Resolve a workspace from a repository entry name in the global config.
+   * Resolve a group from a repository entry name in the global config.
    *
    * @param repositoryName Repository name defined in the global config
-   * @returns Resolved workspace information
-   * @throws WorkspaceResolutionError When the workspace cannot be resolved
+   * @returns Resolved group information
+   * @throws GroupResolutionError When the group cannot be resolved
    */
-  resolveWorkspaceByName(repositoryName: string): ResolvedWorkspace {
+  resolveGroupByName(repositoryName: string): ResolvedGroup {
     let merged = null;
     try {
       merged = ConfigManager.mergeGlobalAndProjectConfigs({ targetRepository: repositoryName });
     } catch (error) {
-      throw new WorkspaceResolutionError(error instanceof Error ? error.message : String(error));
+      throw new GroupResolutionError(error instanceof Error ? error.message : String(error));
     }
     if (!merged) {
-      throw new WorkspaceResolutionError(
+      throw new GroupResolutionError(
         `リポジトリ "${repositoryName}" が見つかりません。\n` +
           `グローバル設定ファイル (${ConfigManager.getGlobalConfigPath()}) が存在しません。`
       );
@@ -160,7 +160,7 @@ export const WorkspaceManager = {
 
     const mergedRepository = merged.repositories[repositoryName];
     if (!mergedRepository) {
-      throw new WorkspaceResolutionError(`リポジトリ "${repositoryName}" がグローバル設定に見つかりません。`);
+      throw new GroupResolutionError(`リポジトリ "${repositoryName}" がグローバル設定に見つかりません。`);
     }
 
     return {
@@ -168,18 +168,18 @@ export const WorkspaceManager = {
       path: mergedRepository.path,
       projectConfig: mergedRepository.projectConfig,
       projectConfigPath: mergedRepository.projectConfigPath,
-      workspaceDefinitionName: mergedRepository.workspaceDefinitionName,
+      groupDefinitionName: mergedRepository.groupDefinitionName,
     };
   },
 
   /**
-   * カレントディレクトリから自動的にワークスペースを解決
+   * カレントディレクトリから自動的にグループを解決
    *
    * @param startDir 開始ディレクトリ（デフォルト: process.cwd()）
-   * @returns 解決されたワークスペース情報
-   * @throws WorkspaceResolutionError ワークスペースが見つからない場合
+   * @returns 解決されたグループ情報
+   * @throws GroupResolutionError グループが見つからない場合
    */
-  resolveWorkspaceAuto(startDir: string = process.cwd()): ResolvedWorkspace {
+  resolveGroupAuto(startDir: string = process.cwd()): ResolvedGroup {
     const normalizedCwd = normalizePath(startDir);
 
     // プロジェクト設定ファイルを探す
@@ -187,7 +187,7 @@ export const WorkspaceManager = {
     try {
       projectConfigPath = ConfigManager.findConfigFile(startDir);
     } catch {
-      throw new WorkspaceResolutionError(
+      throw new GroupResolutionError(
         `プロジェクト設定ファイル (portmux.config.json) が見つかりません。\n` + `カレントディレクトリ: ${normalizedCwd}`
       );
     }
@@ -199,18 +199,18 @@ export const WorkspaceManager = {
     const mergedConfig = ConfigManager.mergeGlobalAndProjectConfigs({ skipInvalid: true });
     if (!mergedConfig) {
       // グローバル設定がない場合はフォールバックモード
-      // プロジェクト設定の最初のワークスペースを使用
-      const firstWorkspaceName = Object.keys(projectConfig.workspaces)[0];
-      if (!firstWorkspaceName) {
-        throw new WorkspaceResolutionError('プロジェクト設定にワークスペースが定義されていません。');
+      // プロジェクト設定の最初のグループを使用
+      const firstGroupName = Object.keys(projectConfig.groups)[0];
+      if (!firstGroupName) {
+        throw new GroupResolutionError('プロジェクト設定にグループが定義されていません。');
       }
 
       return {
-        name: firstWorkspaceName,
+        name: firstGroupName,
         path: projectRoot,
         projectConfig,
         projectConfigPath,
-        workspaceDefinitionName: firstWorkspaceName,
+        groupDefinitionName: firstGroupName,
       };
     }
 
@@ -220,35 +220,34 @@ export const WorkspaceManager = {
       // Git 環境ではない場合はフォールバックモード
       // カレントディレクトリとマッチするリポジトリを探す
       for (const mergedRepository of Object.values(mergedConfig.repositories)) {
-        const workspacePath = mergedRepository.path;
-        if (workspacePath === normalizedCwd || workspacePath === projectRoot) {
+        const groupPath = mergedRepository.path;
+        if (groupPath === normalizedCwd || groupPath === projectRoot) {
           return {
             name: mergedRepository.name,
-            path: workspacePath,
+            path: groupPath,
             projectConfig: mergedRepository.projectConfig,
             projectConfigPath: mergedRepository.projectConfigPath,
-            workspaceDefinitionName: mergedRepository.workspaceDefinitionName,
+            groupDefinitionName: mergedRepository.groupDefinitionName,
           };
         }
       }
 
-      // 見つからない場合は最初のワークスペースを使用
-      const firstWorkspaceName = Object.keys(projectConfig.workspaces)[0];
-      if (!firstWorkspaceName) {
-        throw new WorkspaceResolutionError('プロジェクト設定にワークスペースが定義されていません。');
+      // 見つからない場合は最初のグループを使用
+      const firstGroupName = Object.keys(projectConfig.groups)[0];
+      if (!firstGroupName) {
+        throw new GroupResolutionError('プロジェクト設定にグループが定義されていません。');
       }
 
       console.warn(
-        `警告: グローバル設定でリポジトリが見つかりません。` +
-          `デフォルトのワークスペース "${firstWorkspaceName}" を使用します。`
+        `警告: グローバル設定でリポジトリが見つかりません。` + `デフォルトのグループ "${firstGroupName}" を使用します。`
       );
 
       return {
-        name: firstWorkspaceName,
+        name: firstGroupName,
         path: projectRoot,
         projectConfig,
         projectConfigPath,
-        workspaceDefinitionName: firstWorkspaceName,
+        groupDefinitionName: firstGroupName,
       };
     }
 
@@ -266,7 +265,7 @@ export const WorkspaceManager = {
     }
 
     if (!matchedWorktree) {
-      throw new WorkspaceResolutionError(
+      throw new GroupResolutionError(
         `カレントディレクトリに対応する git worktree が見つかりません。\n` + `カレントディレクトリ: ${normalizedCwd}`
       );
     }
@@ -275,19 +274,19 @@ export const WorkspaceManager = {
 
     // グローバル設定でマッチするリポジトリを探す
     for (const mergedRepository of Object.values(mergedConfig.repositories)) {
-      const workspacePath = mergedRepository.path;
-      if (workspacePath === matchedWorktreePath) {
+      const groupPath = mergedRepository.path;
+      if (groupPath === matchedWorktreePath) {
         return {
           name: mergedRepository.name,
-          path: workspacePath,
+          path: groupPath,
           projectConfig: mergedRepository.projectConfig,
           projectConfigPath: mergedRepository.projectConfigPath,
-          workspaceDefinitionName: mergedRepository.workspaceDefinitionName,
+          groupDefinitionName: mergedRepository.groupDefinitionName,
         };
       }
     }
 
-    throw new WorkspaceResolutionError(
+    throw new GroupResolutionError(
       `git worktree に対応するリポジトリがグローバル設定に見つかりません。\n` +
         `worktree パス: ${matchedWorktreePath}\n` +
         `グローバル設定ファイルにリポジトリを追加してください: ${ConfigManager.getGlobalConfigPath()}`
@@ -295,44 +294,44 @@ export const WorkspaceManager = {
   },
 
   /**
-   * すべてのワークスペースを列挙
+   * すべてのグループを列挙
    *
-   * @returns すべてのワークスペース情報の配列
+   * @returns すべてのグループ情報の配列
    */
-  listAllWorkspaces(): ResolvedWorkspace[] {
+  listAllGroups(): ResolvedGroup[] {
     const mergedConfig = ConfigManager.mergeGlobalAndProjectConfigs({ skipInvalid: true });
     if (!mergedConfig) {
       return [];
     }
 
-    const workspaces: ResolvedWorkspace[] = [];
+    const groups: ResolvedGroup[] = [];
 
     for (const mergedRepository of Object.values(mergedConfig.repositories)) {
-      workspaces.push({
+      groups.push({
         name: mergedRepository.name,
         path: mergedRepository.path,
         projectConfig: mergedRepository.projectConfig,
         projectConfigPath: mergedRepository.projectConfigPath,
-        workspaceDefinitionName: mergedRepository.workspaceDefinitionName,
+        groupDefinitionName: mergedRepository.groupDefinitionName,
       });
     }
 
-    return workspaces;
+    return groups;
   },
 
   /**
-   * 対話選択用のワークスペース一覧を生成
+   * 対話選択用のグループ一覧を生成
    *
    * @param worktrees git worktree list の結果
-   * @param options includeAll が true の場合は worktree に含まれないワークスペースも表示
-   * @returns 選択肢に利用できるワークスペース情報
+   * @param options includeAll が true の場合は worktree に含まれないグループも表示
+   * @returns 選択肢に利用できるグループ情報
    */
-  buildSelectableWorkspaces(
+  buildSelectableGroups(
     worktrees: GitWorktreeInfo[],
     options?: {
       includeAll?: boolean;
     }
-  ): WorkspaceSelection[] {
+  ): GroupSelection[] {
     const mergedConfig = ConfigManager.mergeGlobalAndProjectConfigs({ skipInvalid: true });
     if (!mergedConfig) {
       return [];
@@ -340,8 +339,8 @@ export const WorkspaceManager = {
 
     const includeAll = options?.includeAll ?? false;
     const normalizedWorktreePaths = new Set(worktrees.map((worktree) => normalizePath(worktree.path)));
-    const runningWorkspaces = getRunningWorkspaceNames();
-    const selections: WorkspaceSelection[] = [];
+    const runningGroups = getRunningGroupNames();
+    const selections: GroupSelection[] = [];
 
     for (const mergedRepository of Object.values(mergedConfig.repositories)) {
       const normalizedPath = mergedRepository.path;
@@ -354,8 +353,8 @@ export const WorkspaceManager = {
         repositoryName: mergedRepository.name,
         projectName: getProjectName(normalizedPath),
         path: normalizedPath,
-        workspaceDefinitionName: mergedRepository.workspaceDefinitionName,
-        isRunning: runningWorkspaces.has(mergedRepository.name),
+        groupDefinitionName: mergedRepository.groupDefinitionName,
+        isRunning: runningGroups.has(mergedRepository.name),
       });
     }
 

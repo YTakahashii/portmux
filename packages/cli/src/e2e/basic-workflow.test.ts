@@ -27,14 +27,14 @@ describe('basic CLI workflow (init → start → ps → restart → stop)', () =
     mkdirSync(join(homeDir, '.config', 'portmux'), { recursive: true });
     const projectConfigPath = join(tempDir, 'portmux.config.json');
 
-    const workspaceName = 'app';
+    const groupName = 'app';
     const commandName = 'svc';
     const command = 'node -e "setInterval(() => {}, 2000)"';
 
     const projectConfig = {
       version: '1.0.0',
-      workspaces: {
-        [workspaceName]: {
+      groups: {
+        [groupName]: {
           description: '',
           commands: [{ name: commandName, command }],
         },
@@ -45,7 +45,7 @@ describe('basic CLI workflow (init → start → ps → restart → stop)', () =
     const globalConfig = {
       version: '1.0.0',
       repositories: {
-        [workspaceName]: { path: tempDir, workspace: workspaceName },
+        [groupName]: { path: tempDir, group: groupName },
       },
     };
     writeFileSync(globalConfigPath, `${JSON.stringify(globalConfig, null, 2)}\n`);

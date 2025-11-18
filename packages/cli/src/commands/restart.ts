@@ -7,9 +7,9 @@ import {
   ProcessManager,
   ProcessRestartError,
   ProcessStartError,
-  WorkspaceManager,
-  WorkspaceResolutionError,
-  type ResolvedWorkspace,
+  GroupManager,
+  GroupResolutionError,
+  type ResolvedGroup,
 } from '@portmux/core';
 import { Command } from 'commander';
 import chalk from 'chalk';
@@ -17,55 +17,55 @@ import { resolve } from 'path';
 
 export const restartCommand: ReturnType<typeof createRestartCommand> = createRestartCommand();
 
-function resolveWorkspaceOrFallback(workspaceName?: string): ResolvedWorkspace {
+function resolveGroupOrFallback(groupName?: string): ResolvedGroup {
   try {
-    if (workspaceName) {
-      return WorkspaceManager.resolveWorkspaceByName(workspaceName);
+    if (groupName) {
+      return GroupManager.resolveGroupByName(groupName);
     }
-    return WorkspaceManager.resolveWorkspaceAuto();
+    return GroupManager.resolveGroupAuto();
   } catch (error) {
-    if (error instanceof WorkspaceResolutionError) {
+    if (error instanceof GroupResolutionError) {
       // フォールバック: start と同じ挙動でプロジェクト設定を直接読む
       const configPath = ConfigManager.findConfigFile();
       const config = ConfigManager.loadConfig(configPath);
       const projectRoot = resolve(configPath, '..');
 
-      const workspaceKeys = Object.keys(config.workspaces);
-      const targetWorkspace = workspaceName ?? workspaceKeys[0];
+      const groupKeys = Object.keys(config.groups);
+      const targetGroup = groupName ?? groupKeys[0];
 
-      if (!targetWorkspace) {
-        throw new WorkspaceResolutionError('ワークスペースが見つかりません');
+      if (!targetGroup) {
+        throw new GroupResolutionError('グループが見つかりません');
       }
 
-      const workspace = config.workspaces[targetWorkspace];
-      if (!workspace) {
-        throw new WorkspaceResolutionError(`ワークスペース "${targetWorkspace}" が見つかりません`);
+      const group = config.groups[targetGroup];
+      if (!group) {
+        throw new GroupResolutionError(`グループ "${targetGroup}" が見つかりません`);
       }
 
       return {
-        name: targetWorkspace,
+        name: targetGroup,
         path: projectRoot,
         projectConfig: config,
         projectConfigPath: configPath,
-        workspaceDefinitionName: targetWorkspace,
+        groupDefinitionName: targetGroup,
       };
     }
     throw error;
   }
 }
 
-async function restartProcess(resolvedWorkspace: ResolvedWorkspace, processName?: string): Promise<void> {
-  const targetWorkspace = resolvedWorkspace.workspaceDefinitionName;
-  const workspaceDef = resolvedWorkspace.projectConfig.workspaces[targetWorkspace];
+async function restartProcess(resolvedGroup: ResolvedGroup, processName?: string): Promise<void> {
+  const targetGroup = resolvedGroup.groupDefinitionName;
+  const groupDef = resolvedGroup.projectConfig.groups[targetGroup];
 
-  if (!workspaceDef) {
-    console.error(chalk.red(`エラー: ワークスペース "${targetWorkspace}" が見つかりません`));
+  if (!groupDef) {
+    console.error(chalk.red(`エラー: グループ "${targetGroup}" が見つかりません`));
     process.exit(1);
   }
 
   const processes = processName
-    ? workspaceDef.commands.filter((cmd) => cmd.name === processName)
-    : workspaceDef.commands;
+    ? groupDef.commands.filter((cmd) => cmd.name === processName)
+    : groupDef.commands;
 
   if (processes.length === 0) {
     console.error(
@@ -76,7 +76,7 @@ async function restartProcess(resolvedWorkspace: ResolvedWorkspace, processName?
     process.exit(1);
   }
 
-  await LockManager.withLock('workspace', resolvedWorkspace.name, async () => {
+  await LockManager.withLock('group', resolvedGroup.name, async () => {
     for (const cmd of processes) {
       try {
         const resolvedEnv = cmd.env ? ConfigManager.resolveEnvObject(cmd.env) : {};
@@ -84,11 +84,11 @@ async function restartProcess(resolvedWorkspace: ResolvedWorkspace, processName?
 
         console.log(chalk.yellow(`● プロセス "${cmd.name}" を再起動します`));
 
-        await ProcessManager.restartProcess(targetWorkspace, cmd.name, resolvedCommand, {
+        await ProcessManager.restartProcess(targetGroup, cmd.name, resolvedCommand, {
           ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
           env: resolvedEnv,
-          workspaceKey: resolvedWorkspace.path,
-          projectRoot: resolvedWorkspace.path,
+          groupKey: resolvedGroup.path,
+          projectRoot: resolvedGroup.path,
           ...(cmd.ports !== undefined && { ports: cmd.ports }),
         });
 
@@ -108,10 +108,10 @@ async function restartProcess(resolvedWorkspace: ResolvedWorkspace, processName?
   });
 }
 
-export async function runRestartCommand(workspaceName?: string, processName?: string): Promise<void> {
+export async function runRestartCommand(groupName?: string, processName?: string): Promise<void> {
   try {
-    const resolvedWorkspace = resolveWorkspaceOrFallback(workspaceName);
-    await restartProcess(resolvedWorkspace, processName);
+    const resolvedGroup = resolveGroupOrFallback(groupName);
+    await restartProcess(resolvedGroup, processName);
   } catch (error) {
     if (error instanceof ConfigNotFoundError) {
       console.error(chalk.red(`エラー: ${error.message}`));
@@ -119,7 +119,7 @@ export async function runRestartCommand(workspaceName?: string, processName?: st
     } else if (error instanceof LockTimeoutError) {
       console.error(chalk.red(`エラー: ${error.message}`));
       process.exit(1);
-    } else if (error instanceof WorkspaceResolutionError) {
+    } else if (error instanceof GroupResolutionError) {
       console.error(chalk.red(`エラー: ${error.message}`));
       process.exit(1);
     } else {
@@ -132,9 +132,9 @@ export async function runRestartCommand(workspaceName?: string, processName?: st
 function createRestartCommand(): Command {
   return new Command('restart')
     .description('プロセスを再起動します')
-    .argument('[workspace-name]', 'ワークスペース名（省略時はカレントディレクトリから設定を読む）')
-    .argument('[process-name]', 'プロセス名（省略時はワークスペースの全プロセスを対象）')
-    .action(async (workspaceName?: string, processName?: string) => {
-      await runRestartCommand(workspaceName, processName);
+    .argument('[group-name]', 'グループ名（省略時はカレントディレクトリから設定を読む）')
+    .argument('[process-name]', 'プロセス名（省略時はグループの全プロセスを対象）')
+    .action(async (groupName?: string, processName?: string) => {
+      await runRestartCommand(groupName, processName);
     });
 }

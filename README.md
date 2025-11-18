@@ -1,6 +1,6 @@
 # PortMux
 
-PortMux is a CLI for running multiple workspace processes in the background while keeping port reservations, logs, and process state simple. You describe processes in a config file, then start, stop, or restart them together with consistent port handling.
+PortMux is a CLI for running multiple group processes in the background while keeping port reservations, logs, and process state simple. You describe processes in a config file, then start, stop, or restart them together with consistent port handling.
 
 ## Install
 
@@ -18,9 +18,9 @@ PortMux is a CLI for running multiple workspace processes in the background whil
    {
      "$schema": "node_modules/@portmux/cli/schemas/portmux.config.schema.json",
      "version": "1.0.0",
-     "workspaces": {
+     "groups": {
        "app": {
-         "description": "Demo workspace",
+         "description": "Demo group",
          "commands": [
            {
              "name": "web",
@@ -37,24 +37,24 @@ PortMux is a CLI for running multiple workspace processes in the background whil
    }
    ```
 3. Start processes with `portmux start` (target a single process by name if needed).
-4. Check running status with `portmux ps`, and tail logs with `portmux logs <workspace> <process>`.
-5. Stop with `portmux stop [workspace] [process]`, or restart with `portmux restart [workspace] [process]`.
+4. Check running status with `portmux ps`, and tail logs with `portmux logs <group> <process>`.
+5. Stop with `portmux stop [group] [process]`, or restart with `portmux restart [group] [process]`.
 
 ## Command Reference
 
 - `portmux init [--force]`  
   Interactive generation of `portmux.config.json`, plus appending the repository entry to `~/.config/portmux/config.json`. Use `--force` to overwrite existing entries.
-- `portmux start [workspace-name] [process-name]`  
-  Starts processes in the target workspace (auto-resolves when omitted). Handles port reservations and environment variable substitution; starts all configured processes if no process is specified.
-- `portmux restart [workspace-name] [process-name]`  
-  Stops then restarts target processes, using the same workspace resolution rules as `start`.
-- `portmux stop [workspace-name] [process-name]`  
-  Stops processes. When the workspace is omitted, the running workspace is auto-selected; if multiple are running, an error prompts you to specify one.
+- `portmux start [group-name] [process-name]`  
+  Starts processes in the target group (auto-resolves when omitted). Handles port reservations and environment variable substitution; starts all configured processes if no process is specified.
+- `portmux restart [group-name] [process-name]`  
+  Stops then restarts target processes, using the same group resolution rules as `start`.
+- `portmux stop [group-name] [process-name]`  
+  Stops processes. When the group is omitted, the running group is auto-selected; if multiple are running, an error prompts you to specify one.
 - `portmux ps`  
-  Lists current process states including workspace key, process name, status, and PID.
+  Lists current process states including group key, process name, status, and PID.
 - `portmux select [--all]`  
-  Lists selectable workspaces from the global config and runs `start` for the chosen entry. `--all` also shows non–Git worktree entries.
-- `portmux logs <workspace-name> <process-name> [-n <lines>] [--no-follow] [-t]`  
+  Lists selectable groups from the global config and runs `start` for the chosen entry. `--all` also shows non–Git worktree entries.
+- `portmux logs <group-name> <process-name> [-n <lines>] [--no-follow] [-t]`  
   Shows logs for a process. Default tail is 50 lines; `--no-follow` disables streaming; `-t` prefixes lines with timestamps.
 
 ## Configuration Reference
@@ -64,8 +64,8 @@ PortMux is a CLI for running multiple workspace processes in the background whil
 - `$schema` (optional): Point to `node_modules/@portmux/cli/schemas/portmux.config.schema.json` for editor IntelliSense.
 - `version` (required): Currently supported version is `1.0.0`. A mismatched major version raises an error.
 - `runner.mode` (optional): Currently only `background` is supported.
-- `workspaces` (required): Object keyed by workspace name.
-  - `description`: Workspace description.
+- `groups` (required): Object keyed by group name.
+  - `description`: Group description.
   - `commands`: Array of processes to run.
     - `name` / `command` (required): Process name and shell command.
     - `ports` (optional): Array of port numbers to reserve. Startup fails if a port is already in use.
@@ -77,13 +77,13 @@ PortMux is a CLI for running multiple workspace processes in the background whil
 - `version`: Use the same `1.0.0` as the project config.
 - `repositories`: Map keyed by repository alias.
   - `path`: Absolute path to the project root.
-  - `workspace`: Workspace name in `portmux.config.json`.
-- Running `portmux init` registers the current project. `start`/`restart`/`select` use this mapping to resolve workspaces by name.
+  - `group`: Group name in `portmux.config.json`.
+- Running `portmux init` registers the current project. `start`/`restart`/`select` use this mapping to resolve groups by name.
 
-### Workspace Resolution
+### Group Resolution
 
-- When `start`/`restart` omit the workspace, resolution checks the global config and Git worktree info first.
-- If auto-resolution fails, PortMux searches upward from the current directory for `portmux.config.json` and uses the first workspace definition in that file.
+- When `start`/`restart` omit the group, resolution checks the global config and Git worktree info first.
+- If auto-resolution fails, PortMux searches upward from the current directory for `portmux.config.json` and uses the first group definition in that file.
 
 ### Logs and State
 

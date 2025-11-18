@@ -25,14 +25,14 @@ describe('logs command integration', () => {
     mkdirSync(join(homeDir, '.config', 'portmux'), { recursive: true });
     const projectConfigPath = join(tempDir, 'portmux.config.json');
 
-    const workspaceName = 'app';
+    const groupName = 'app';
     const commandName = 'svc';
     const command = 'node -e "console.log(\'hello from logs test\'); setInterval(() => {}, 2000)"';
 
     const projectConfig = {
       version: '1.0.0',
-      workspaces: {
-        [workspaceName]: {
+      groups: {
+        [groupName]: {
           description: '',
           commands: [{ name: commandName, command }],
         },
@@ -43,7 +43,7 @@ describe('logs command integration', () => {
     const globalConfig = {
       version: '1.0.0',
       repositories: {
-        [workspaceName]: { path: tempDir, workspace: workspaceName },
+        [groupName]: { path: tempDir, group: groupName },
       },
     };
     writeFileSync(globalConfigPath, `${JSON.stringify(globalConfig, null, 2)}\n`);

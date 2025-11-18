@@ -140,12 +140,12 @@ describe('ProcessManager', () => {
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
-      await ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+      await ProcessManager.startProcess('group-1', 'api', 'npm start', {
         projectRoot: testProjectRoot,
       });
 
       expect(PortManager.reconcileFromState).toHaveBeenCalled();
-      expect(StateManager.readState).toHaveBeenCalledWith('workspace-1', 'api');
+      expect(StateManager.readState).toHaveBeenCalledWith('group-1', 'api');
       expect(spawn).toHaveBeenCalledWith('npm start', {
         cwd: testProjectRoot,
         env: expect.any(Object),
@@ -156,11 +156,11 @@ describe('ProcessManager', () => {
       expect(mockChildProcess.unref).toHaveBeenCalled();
       expect(closeSync).toHaveBeenCalledWith(1);
       expect(StateManager.writeState).toHaveBeenCalledWith(
-        'workspace-1',
+        'group-1',
         'api',
         expect.objectContaining({
-          workspace: 'workspace-1',
-          workspaceKey: 'workspace-1',
+          group: 'group-1',
+          groupKey: 'group-1',
           process: 'api',
           status: 'Running',
           pid: 1234,
@@ -169,7 +169,7 @@ describe('ProcessManager', () => {
       );
     });
 
-    it('workspaceKey が指定されている場合は状態に含める', async () => {
+    it('groupKey が指定されている場合は状態に含める', async () => {
       const mockChildProcess = {
         pid: 1234,
         unref: vi.fn(),
@@ -184,17 +184,17 @@ describe('ProcessManager', () => {
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
-      await ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+      await ProcessManager.startProcess('group-1', 'api', 'npm start', {
         projectRoot: testProjectRoot,
-        workspaceKey: '/repo/path/global',
+        groupKey: '/repo/path/global',
       });
 
       expect(StateManager.writeState).toHaveBeenCalledWith(
-        'workspace-1',
+        'group-1',
         'api',
         expect.objectContaining({
-          workspace: 'workspace-1',
-          workspaceKey: '/repo/path/global',
+          group: 'group-1',
+          groupKey: '/repo/path/global',
           process: 'api',
           status: 'Running',
           pid: 1234,
@@ -221,13 +221,13 @@ describe('ProcessManager', () => {
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
-      await ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+      await ProcessManager.startProcess('group-1', 'api', 'npm start', {
         projectRoot: testProjectRoot,
         ports: [3000, 3001],
       });
 
       expect(PortManager.planReservation).toHaveBeenCalledWith({
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         ports: [3000, 3001],
       });
@@ -255,7 +255,7 @@ describe('ProcessManager', () => {
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
-      await ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+      await ProcessManager.startProcess('group-1', 'api', 'npm start', {
         projectRoot: testProjectRoot,
         ports: [3000],
       });
@@ -266,7 +266,7 @@ describe('ProcessManager', () => {
 
     it('既に起動しているプロセスがある場合はエラーを投げる', async () => {
       const existingState: ProcessState = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Running',
         pid: 1234,
@@ -278,7 +278,7 @@ describe('ProcessManager', () => {
       vi.mocked(isPidAlive).mockReturnValue(true);
 
       await expect(
-        ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+        ProcessManager.startProcess('group-1', 'api', 'npm start', {
           projectRoot: testProjectRoot,
         })
       ).rejects.toThrow(ProcessStartError);
@@ -288,7 +288,7 @@ describe('ProcessManager', () => {
 
     it('PID が死んでいる既存プロセスがある場合は状態をクリアして起動する', async () => {
       const existingState: ProcessState = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Running',
         pid: 1234,
@@ -309,11 +309,11 @@ describe('ProcessManager', () => {
       vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
 
-      await ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+      await ProcessManager.startProcess('group-1', 'api', 'npm start', {
         projectRoot: testProjectRoot,
       });
 
-      expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
+      expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
     });
 
     it('ポート予約に失敗した場合はエラーを投げる', async () => {
@@ -323,7 +323,7 @@ describe('ProcessManager', () => {
       vi.mocked(PortManager.planReservation).mockRejectedValue(portError);
 
       await expect(
-        ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+        ProcessManager.startProcess('group-1', 'api', 'npm start', {
           projectRoot: testProjectRoot,
           ports: [3000],
         })
@@ -341,7 +341,7 @@ describe('ProcessManager', () => {
       });
 
       await expect(
-        ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+        ProcessManager.startProcess('group-1', 'api', 'npm start', {
           ports: [3000],
         })
       ).rejects.toThrow(ProcessStartError);
@@ -362,7 +362,7 @@ describe('ProcessManager', () => {
       });
 
       await expect(
-        ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+        ProcessManager.startProcess('group-1', 'api', 'npm start', {
           projectRoot: testProjectRoot,
           ports: [3000],
         })
@@ -383,7 +383,7 @@ describe('ProcessManager', () => {
       });
 
       await expect(
-        ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+        ProcessManager.startProcess('group-1', 'api', 'npm start', {
           projectRoot: testProjectRoot,
         })
       ).rejects.toThrow(ProcessStartError);
@@ -411,7 +411,7 @@ describe('ProcessManager', () => {
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
 
       await expect(
-        ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+        ProcessManager.startProcess('group-1', 'api', 'npm start', {
           projectRoot: testProjectRoot,
           ports: [3000],
         })
@@ -440,7 +440,7 @@ describe('ProcessManager', () => {
       vi.mocked(isPidAlive).mockReturnValue(false);
 
       await expect(
-        ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+        ProcessManager.startProcess('group-1', 'api', 'npm start', {
           projectRoot: testProjectRoot,
           ports: [3000],
         })
@@ -464,7 +464,7 @@ describe('ProcessManager', () => {
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
-      await ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+      await ProcessManager.startProcess('group-1', 'api', 'npm start', {
         projectRoot: testProjectRoot,
         cwd: 'src',
       });
@@ -494,7 +494,7 @@ describe('ProcessManager', () => {
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
-      await ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+      await ProcessManager.startProcess('group-1', 'api', 'npm start', {
         projectRoot: testProjectRoot,
         cwd: absoluteCwd,
       });
@@ -522,7 +522,7 @@ describe('ProcessManager', () => {
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
-      await ProcessManager.startProcess('workspace-1', 'api', 'npm start', {
+      await ProcessManager.startProcess('group-1', 'api', 'npm start', {
         projectRoot: testProjectRoot,
         env: { NODE_ENV: 'test', PORT: '3000' },
       });
@@ -542,7 +542,7 @@ describe('ProcessManager', () => {
   describe('stopProcess', () => {
     it('プロセスを正常に停止できる', async () => {
       const state: ProcessState = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Running',
         pid: 1234,
@@ -555,62 +555,62 @@ describe('ProcessManager', () => {
       // 2回目の isPidAlive 呼び出しで false を返す（停止した）
       vi.mocked(isPidAlive).mockReturnValueOnce(true).mockReturnValueOnce(false);
 
-      await ProcessManager.stopProcess('workspace-1', 'api');
+      await ProcessManager.stopProcess('group-1', 'api');
 
       expect(kill).toHaveBeenCalledWith(1234, 'SIGTERM');
       expect(StateManager.writeState).toHaveBeenCalledWith(
-        'workspace-1',
+        'group-1',
         'api',
         expect.objectContaining({
           status: 'Stopped',
           stoppedAt: expect.any(String),
         })
       );
-      expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
-      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
+      expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
     });
 
     it('状態が見つからない場合はエラーを投げる', async () => {
       vi.mocked(StateManager.readState).mockReturnValue(null);
 
-      await expect(ProcessManager.stopProcess('workspace-1', 'api')).rejects.toThrow(ProcessStopError);
+      await expect(ProcessManager.stopProcess('group-1', 'api')).rejects.toThrow(ProcessStopError);
     });
 
     it('既に停止している場合は状態を削除する', async () => {
       const state: ProcessState = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Stopped',
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
 
-      await ProcessManager.stopProcess('workspace-1', 'api');
+      await ProcessManager.stopProcess('group-1', 'api');
 
-      expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
-      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
+      expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
       expect(kill).not.toHaveBeenCalled();
     });
 
     it('PID が記録されていない場合は状態を削除する', async () => {
       const state: ProcessState = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Running',
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
 
-      await ProcessManager.stopProcess('workspace-1', 'api');
+      await ProcessManager.stopProcess('group-1', 'api');
 
-      expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
-      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
+      expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
       expect(kill).not.toHaveBeenCalled();
     });
 
     it('プロセスが既に死んでいる場合は状態を更新して終了する', async () => {
       const state: ProcessState = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Running',
         pid: 1234,
@@ -620,24 +620,24 @@ describe('ProcessManager', () => {
       vi.mocked(StateManager.readState).mockReturnValue(state);
       vi.mocked(isPidAlive).mockReturnValue(false);
 
-      await ProcessManager.stopProcess('workspace-1', 'api');
+      await ProcessManager.stopProcess('group-1', 'api');
 
       expect(StateManager.writeState).toHaveBeenCalledWith(
-        'workspace-1',
+        'group-1',
         'api',
         expect.objectContaining({
           status: 'Stopped',
           stoppedAt: expect.any(String),
         })
       );
-      expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
-      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
+      expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
       expect(kill).not.toHaveBeenCalled();
     });
 
     it('SIGTERM 送信に失敗した場合はエラーを投げる', async () => {
       const state: ProcessState = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Running',
         pid: 1234,
@@ -650,13 +650,13 @@ describe('ProcessManager', () => {
         throw new Error('Permission denied');
       });
 
-      await expect(ProcessManager.stopProcess('workspace-1', 'api')).rejects.toThrow(ProcessStopError);
-      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
+      await expect(ProcessManager.stopProcess('group-1', 'api')).rejects.toThrow(ProcessStopError);
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
     });
 
     it('タイムアウトした場合は SIGKILL を送信する', async () => {
       const state: ProcessState = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Running',
         pid: 1234,
@@ -671,17 +671,17 @@ describe('ProcessManager', () => {
       vi.mocked(kill).mockReturnValue(true);
 
       // タイムアウトを短く設定
-      await expect(ProcessManager.stopProcess('workspace-1', 'api', 100)).rejects.toThrow(ProcessStopError);
+      await expect(ProcessManager.stopProcess('group-1', 'api', 100)).rejects.toThrow(ProcessStopError);
 
       expect(kill).toHaveBeenCalledWith(1234, 'SIGTERM');
       // SIGKILL も呼ばれるはず（タイムアウト後）
       expect(kill).toHaveBeenCalledWith(1234, 'SIGKILL');
-      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
     });
 
     it('SIGKILL 送信後もプロセスが生存している場合はエラーを投げる', async () => {
       const state: ProcessState = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Running',
         pid: 1234,
@@ -692,8 +692,8 @@ describe('ProcessManager', () => {
       vi.mocked(isPidAlive).mockReturnValue(true); // 常に生存している
       vi.mocked(kill).mockReturnValue(true);
 
-      await expect(ProcessManager.stopProcess('workspace-1', 'api', 100)).rejects.toThrow(ProcessStopError);
-      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('workspace-1', 'api');
+      await expect(ProcessManager.stopProcess('group-1', 'api', 100)).rejects.toThrow(ProcessStopError);
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
     });
   });
 
@@ -701,8 +701,8 @@ describe('ProcessManager', () => {
     it('すべてのプロセスの状態一覧を取得できる', () => {
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
-          workspaceKey: '/repo/path/one',
+          group: 'group-1',
+          groupKey: '/repo/path/one',
           process: 'api',
           status: 'Running',
           pid: 1234,
@@ -710,8 +710,8 @@ describe('ProcessManager', () => {
           logPath: '/path/to/log1.log',
         },
         {
-          workspace: 'workspace-2',
-          workspaceKey: '/repo/path/two',
+          group: 'group-2',
+          groupKey: '/repo/path/two',
           process: 'worker',
           status: 'Running',
           pid: 5678,
@@ -727,16 +727,16 @@ describe('ProcessManager', () => {
 
       expect(processes).toHaveLength(2);
       expect(processes[0]).toEqual({
-        workspace: 'workspace-1',
-        workspaceKey: '/repo/path/one',
+        group: 'group-1',
+        groupKey: '/repo/path/one',
         process: 'api',
         status: 'Running',
         pid: 1234,
         logPath: '/path/to/log1.log',
       });
       expect(processes[1]).toEqual({
-        workspace: 'workspace-2',
-        workspaceKey: '/repo/path/two',
+        group: 'group-2',
+        groupKey: '/repo/path/two',
         process: 'worker',
         status: 'Running',
         pid: 5678,
@@ -747,14 +747,14 @@ describe('ProcessManager', () => {
     it('死んでいるプロセスの状態を更新する', () => {
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
+          group: 'group-1',
           process: 'api',
           status: 'Running',
           pid: 1234,
           startedAt: '2024-01-01T00:00:00.000Z',
         },
         {
-          workspace: 'workspace-2',
+          group: 'group-2',
           process: 'worker',
           status: 'Running',
           pid: 5678,
@@ -771,20 +771,20 @@ describe('ProcessManager', () => {
       expect(processes[0]?.status).toBe('Running');
       expect(processes[1]?.status).toBe('Stopped');
       expect(StateManager.writeState).toHaveBeenCalledWith(
-        'workspace-2',
+        'group-2',
         'worker',
         expect.objectContaining({
           status: 'Stopped',
           stoppedAt: expect.any(String),
         })
       );
-      expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-2', 'worker');
+      expect(StateManager.deleteState).toHaveBeenCalledWith('group-2', 'worker');
     });
 
     it('PID がないプロセスはそのまま返す', () => {
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
+          group: 'group-1',
           process: 'api',
           status: 'Stopped',
         },
@@ -802,7 +802,7 @@ describe('ProcessManager', () => {
     it('PID がない Running 状態のプロセスはそのまま返す', () => {
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
+          group: 'group-1',
           process: 'api',
           status: 'Running',
         },
@@ -821,20 +821,20 @@ describe('ProcessManager', () => {
   describe('restartProcess', () => {
     it('既存の状態があれば停止してから起動する', async () => {
       vi.mocked(StateManager.readState).mockReturnValue({
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Running',
       });
       const stopSpy = vi.spyOn(ProcessManager, 'stopProcess').mockResolvedValue();
       const startSpy = vi.spyOn(ProcessManager, 'startProcess').mockResolvedValue();
 
-      await ProcessManager.restartProcess('workspace-1', 'api', 'npm start', {
+      await ProcessManager.restartProcess('group-1', 'api', 'npm start', {
         projectRoot: testProjectRoot,
       });
 
-      expect(stopSpy).toHaveBeenCalledWith('workspace-1', 'api');
+      expect(stopSpy).toHaveBeenCalledWith('group-1', 'api');
       expect(startSpy).toHaveBeenCalledWith(
-        'workspace-1',
+        'group-1',
         'api',
         'npm start',
         expect.objectContaining({ projectRoot: testProjectRoot })
@@ -846,13 +846,13 @@ describe('ProcessManager', () => {
       const stopSpy = vi.spyOn(ProcessManager, 'stopProcess').mockResolvedValue();
       const startSpy = vi.spyOn(ProcessManager, 'startProcess').mockResolvedValue();
 
-      await ProcessManager.restartProcess('workspace-1', 'api', 'npm start', {
+      await ProcessManager.restartProcess('group-1', 'api', 'npm start', {
         projectRoot: testProjectRoot,
       });
 
       expect(stopSpy).not.toHaveBeenCalled();
       expect(startSpy).toHaveBeenCalledWith(
-        'workspace-1',
+        'group-1',
         'api',
         'npm start',
         expect.objectContaining({ projectRoot: testProjectRoot })
@@ -861,7 +861,7 @@ describe('ProcessManager', () => {
 
     it('停止に失敗した場合は ProcessRestartError を投げる', async () => {
       vi.mocked(StateManager.readState).mockReturnValue({
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Running',
       });
@@ -869,14 +869,14 @@ describe('ProcessManager', () => {
       vi.spyOn(ProcessManager, 'startProcess').mockResolvedValue();
 
       await expect(
-        ProcessManager.restartProcess('workspace-1', 'api', 'npm start', { projectRoot: testProjectRoot })
+        ProcessManager.restartProcess('group-1', 'api', 'npm start', { projectRoot: testProjectRoot })
       ).rejects.toBeInstanceOf(ProcessRestartError);
       expect(StateManager.writeState).not.toHaveBeenCalled();
     });
 
     it('起動に失敗した場合は Error 状態を書き込み ProcessRestartError を投げる', async () => {
       vi.mocked(StateManager.readState).mockReturnValue({
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         status: 'Running',
         logPath: '/tmp/log.log',
@@ -886,10 +886,10 @@ describe('ProcessManager', () => {
       vi.spyOn(ProcessManager, 'startProcess').mockRejectedValue(new ProcessStartError('failed to start'));
 
       await expect(
-        ProcessManager.restartProcess('workspace-1', 'api', 'npm start', { projectRoot: testProjectRoot })
+        ProcessManager.restartProcess('group-1', 'api', 'npm start', { projectRoot: testProjectRoot })
       ).rejects.toBeInstanceOf(ProcessRestartError);
       expect(StateManager.writeState).toHaveBeenCalledWith(
-        'workspace-1',
+        'group-1',
         'api',
         expect.objectContaining({
           status: 'Error',

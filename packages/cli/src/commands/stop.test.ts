@@ -56,38 +56,38 @@ describe('stopCommand', () => {
     expect(ProcessManager.stopProcess).not.toHaveBeenCalled();
   });
 
-  it('errors when multiple workspaces are running without specifying workspace', async () => {
+  it('errors when multiple groups are running without specifying group', async () => {
     listAllStates.mockReturnValue([
-      { workspace: 'ws1', process: 'api', status: 'Running' as const },
-      { workspace: 'ws2', process: 'worker', status: 'Running' as const },
+      { group: 'ws1', process: 'api', status: 'Running' as const },
+      { group: 'ws2', process: 'worker', status: 'Running' as const },
     ]);
 
     await runStopCommand();
 
     expect(console.error).toHaveBeenCalledWith(
-      'エラー: 複数のワークスペースが実行中です。ワークスペース名を指定してください。'
+      'エラー: 複数のグループが実行中です。グループ名を指定してください。'
     );
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(ProcessManager.stopProcess).not.toHaveBeenCalled();
   });
 
-  it('stops all processes in specified workspace', async () => {
+  it('stops all processes in specified group', async () => {
     listAllStates.mockReturnValue([
-      { workspace: 'ws1', process: 'api', status: 'Running' as const },
-      { workspace: 'ws1', process: 'worker', status: 'Running' as const },
-      { workspace: 'ws2', process: 'other', status: 'Running' as const },
+      { group: 'ws1', process: 'api', status: 'Running' as const },
+      { group: 'ws1', process: 'worker', status: 'Running' as const },
+      { group: 'ws2', process: 'other', status: 'Running' as const },
     ]);
 
     await runStopCommand('ws1');
 
-    expect(LockManager.withLock).toHaveBeenCalledWith('workspace', 'ws1', expect.any(Function));
+    expect(LockManager.withLock).toHaveBeenCalledWith('group', 'ws1', expect.any(Function));
     expect(ProcessManager.stopProcess).toHaveBeenCalledTimes(2);
     expect(console.log).toHaveBeenCalledWith('✓ プロセス "api" を停止しました');
     expect(console.log).toHaveBeenCalledWith('✓ プロセス "worker" を停止しました');
   });
 
   it('reports when targeted process is not running', async () => {
-    listAllStates.mockReturnValue([{ workspace: 'ws1', process: 'api', status: 'Running' as const }]);
+    listAllStates.mockReturnValue([{ group: 'ws1', process: 'api', status: 'Running' as const }]);
 
     await runStopCommand('ws1', 'missing');
 
@@ -96,7 +96,7 @@ describe('stopCommand', () => {
   });
 
   it('logs ProcessStopError and continues', async () => {
-    listAllStates.mockReturnValue([{ workspace: 'ws1', process: 'api', status: 'Running' as const }]);
+    listAllStates.mockReturnValue([{ group: 'ws1', process: 'api', status: 'Running' as const }]);
     vi.mocked(ProcessManager.stopProcess).mockRejectedValueOnce(new ProcessStopError('failed'));
 
     await runStopCommand('ws1');
@@ -105,7 +105,7 @@ describe('stopCommand', () => {
   });
 
   it('exits on lock timeout', async () => {
-    listAllStates.mockReturnValue([{ workspace: 'ws1', process: 'api', status: 'Running' as const }]);
+    listAllStates.mockReturnValue([{ group: 'ws1', process: 'api', status: 'Running' as const }]);
     vi.mocked(LockManager.withLock).mockRejectedValueOnce(new LockTimeoutError('timeout'));
 
     await runStopCommand('ws1');

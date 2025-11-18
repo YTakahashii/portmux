@@ -33,7 +33,7 @@ export class LockReleaseError extends PortmuxError {
 /**
  * ロックの種類
  */
-export type LockType = 'global' | 'workspace';
+export type LockType = 'global' | 'group';
 
 /**
  * ロック管理の設定
@@ -73,13 +73,13 @@ function getGlobalLockPath(): string {
 }
 
 /**
- * ワークスペースロックファイルのパスを取得
+ * グループロックファイルのパスを取得
  */
-function getWorkspaceLockPath(workspace: string): string {
+function getGroupLockPath(group: string): string {
   ensureLockDir();
 
-  // ワークスペース名をスラッグ化
-  const slug = workspace
+  // グループ名をスラッグ化
+  const slug = group
     .replace(/[^a-zA-Z0-9-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
@@ -135,14 +135,14 @@ export const LockManager = {
   },
 
   /**
-   * ワークスペースロックを取得
+   * グループロックを取得
    *
-   * @param workspace ワークスペース名
+   * @param group グループ名
    * @returns ロック解放関数
    * @throws LockTimeoutError タイムアウトした場合
    */
-  async acquireWorkspaceLock(workspace: string): Promise<ReleaseLockFn> {
-    const lockPath = getWorkspaceLockPath(workspace);
+  async acquireGroupLock(group: string): Promise<ReleaseLockFn> {
+    const lockPath = getGroupLockPath(group);
 
     try {
       const releaseFn = await lock(lockPath, {
@@ -171,20 +171,20 @@ export const LockManager = {
    * ロックを取得してから処理を実行し、最後に必ずロックを解放する
    *
    * @param lockType ロックの種類
-   * @param workspace ワークスペース名（ワークスペースロックの場合）
+   * @param group グループ名（グループロックの場合）
    * @param fn 実行する処理
    * @returns 処理の結果
    */
-  async withLock<T>(lockType: LockType, workspace: string | null, fn: () => Promise<T>): Promise<T> {
+  async withLock<T>(lockType: LockType, group: string | null, fn: () => Promise<T>): Promise<T> {
     let releaseLock: ReleaseLockFn;
 
     if (lockType === 'global') {
       releaseLock = await this.acquireGlobalLock();
     } else {
-      if (!workspace) {
-        throw new Error('ワークスペースロックの取得にはワークスペース名が必要です');
+      if (!group) {
+        throw new Error('グループロックの取得にはグループ名が必要です');
       }
-      releaseLock = await this.acquireWorkspaceLock(workspace);
+      releaseLock = await this.acquireGroupLock(group);
     }
 
     try {

@@ -18,7 +18,7 @@ export class PortInUseError extends PortmuxError {
  * ポート予約リクエスト
  */
 export interface PortReservationRequest {
-  workspace: string;
+  group: string;
   process: string;
   ports: number[];
 }
@@ -43,7 +43,7 @@ export interface PortReservationMetadata {
  * ポート予約情報（状態ストアに保存）
  */
 export interface PortReservation {
-  workspace: string;
+  group: string;
   process: string;
   ports: number[];
   pid?: number;
@@ -107,14 +107,14 @@ export const PortManager = {
       if (state.status === 'Running' && state.pid) {
         const ports: number[] = state.ports ?? [];
         const reservation: PortReservation = {
-          workspace: state.workspace,
+          group: state.group,
           process: state.process,
           ports,
           pid: state.pid,
           reservedAt: state.startedAt ?? new Date().toISOString(),
           ...(state.startedAt && { startedAt: state.startedAt }),
         };
-        const key = `${state.workspace}:${state.process}`;
+        const key = `${state.group}:${state.process}`;
         reservations.set(key, reservation);
       }
     }
@@ -131,7 +131,7 @@ export const PortManager = {
     for (const reservation of reservations.values()) {
       if (reservation.pid && !isPidAlive(reservation.pid)) {
         // PID が死んでいる場合は状態を削除
-        StateManager.deleteState(reservation.workspace, reservation.process);
+        StateManager.deleteState(reservation.group, reservation.process);
       }
     }
   },
@@ -151,7 +151,7 @@ export const PortManager = {
 
     // 状態ストアから既存の予約を読み込み
     const existingReservations = this.loadReservationsFromState();
-    const existingKey = `${request.workspace}:${request.process}`;
+    const existingKey = `${request.group}:${request.process}`;
     const existingReservation = existingReservations.get(existingKey);
 
     if (existingReservation) {
@@ -168,7 +168,7 @@ export const PortManager = {
 
     // 一時予約を作成
     const reservation: PortReservation = {
-      workspace: request.workspace,
+      group: request.group,
       process: request.process,
       ports: request.ports,
       reservedAt: new Date().toISOString(),
@@ -212,17 +212,17 @@ export const PortManager = {
   },
 
   /**
-   * ワークスペース・プロセス名でポート予約を解放
+   * グループ・プロセス名でポート予約を解放
    */
-  releaseReservationByProcess(workspace: string, process: string): void {
+  releaseReservationByProcess(group: string, process: string): void {
     // 保留中の予約を削除
     for (const [token, reservation] of pendingReservations.entries()) {
-      if (reservation.workspace === workspace && reservation.process === process) {
+      if (reservation.group === group && reservation.process === process) {
         pendingReservations.delete(token);
       }
     }
 
     // 状態ストアから削除（StateManager も保持しているためクリアしておく）
-    StateManager.deleteState(workspace, process);
+    StateManager.deleteState(group, process);
   },
 };

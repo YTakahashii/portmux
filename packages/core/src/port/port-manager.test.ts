@@ -86,7 +86,7 @@ describe('PortManager', () => {
     it('状態ストアからポート予約情報を読み込む', () => {
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
+          group: 'group-1',
           process: 'api',
           status: 'Running',
           pid: 1234,
@@ -94,7 +94,7 @@ describe('PortManager', () => {
           ports: [3000],
         },
         {
-          workspace: 'workspace-2',
+          group: 'group-2',
           process: 'worker',
           status: 'Running',
           pid: 5678,
@@ -102,7 +102,7 @@ describe('PortManager', () => {
           ports: [4000, 4001],
         },
         {
-          workspace: 'workspace-3',
+          group: 'group-3',
           process: 'api',
           status: 'Stopped',
         },
@@ -113,16 +113,16 @@ describe('PortManager', () => {
       const reservations = PortManager.loadReservationsFromState();
 
       expect(reservations.size).toBe(2);
-      expect(reservations.get('workspace-1:api')).toEqual({
-        workspace: 'workspace-1',
+      expect(reservations.get('group-1:api')).toEqual({
+        group: 'group-1',
         process: 'api',
         ports: [3000],
         pid: 1234,
         reservedAt: '2024-01-01T00:00:00.000Z',
         startedAt: '2024-01-01T00:00:00.000Z',
       });
-      expect(reservations.get('workspace-2:worker')).toEqual({
-        workspace: 'workspace-2',
+      expect(reservations.get('group-2:worker')).toEqual({
+        group: 'group-2',
         process: 'worker',
         ports: [4000, 4001],
         pid: 5678,
@@ -134,12 +134,12 @@ describe('PortManager', () => {
     it('Running 状態でないプロセスは読み込まない', () => {
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
+          group: 'group-1',
           process: 'api',
           status: 'Stopped',
         },
         {
-          workspace: 'workspace-2',
+          group: 'group-2',
           process: 'worker',
           status: 'Error',
         },
@@ -155,7 +155,7 @@ describe('PortManager', () => {
     it('PID がない Running 状態のプロセスは読み込まない', () => {
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
+          group: 'group-1',
           process: 'api',
           status: 'Running',
         },
@@ -171,7 +171,7 @@ describe('PortManager', () => {
     it('startedAt がない場合は現在時刻を使用する', () => {
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
+          group: 'group-1',
           process: 'api',
           status: 'Running',
           pid: 1234,
@@ -183,7 +183,7 @@ describe('PortManager', () => {
       const reservations = PortManager.loadReservationsFromState();
 
       expect(reservations.size).toBe(1);
-      const reservation = reservations.get('workspace-1:api');
+      const reservation = reservations.get('group-1:api');
       expect(reservation).toBeDefined();
       expect(reservation?.reservedAt).toBeDefined();
       expect(reservation?.startedAt).toBeUndefined();
@@ -194,14 +194,14 @@ describe('PortManager', () => {
     it('PID が死んでいる予約を解放する', () => {
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
+          group: 'group-1',
           process: 'api',
           status: 'Running',
           pid: 1234,
           startedAt: '2024-01-01T00:00:00.000Z',
         },
         {
-          workspace: 'workspace-2',
+          group: 'group-2',
           process: 'worker',
           status: 'Running',
           pid: 5678,
@@ -217,13 +217,13 @@ describe('PortManager', () => {
       PortManager.reconcileFromState();
 
       expect(StateManager.deleteState).toHaveBeenCalledTimes(1);
-      expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-2', 'worker');
+      expect(StateManager.deleteState).toHaveBeenCalledWith('group-2', 'worker');
     });
 
     it('PID が生存している予約は解放しない', () => {
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
+          group: 'group-1',
           process: 'api',
           status: 'Running',
           pid: 1234,
@@ -242,7 +242,7 @@ describe('PortManager', () => {
     it('PID がない予約は解放しない', () => {
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
+          group: 'group-1',
           process: 'api',
           status: 'Running',
           startedAt: '2024-01-01T00:00:00.000Z',
@@ -264,7 +264,7 @@ describe('PortManager', () => {
       vi.mocked(StateManager.listAllStates).mockReturnValue([]);
 
       const request = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         ports: [3000, 3001],
       };
@@ -280,7 +280,7 @@ describe('PortManager', () => {
       vi.mocked(checkPortUsed).mockResolvedValue(false);
       const states: ProcessState[] = [
         {
-          workspace: 'workspace-1',
+          group: 'group-1',
           process: 'api',
           status: 'Running',
           pid: 1234,
@@ -290,7 +290,7 @@ describe('PortManager', () => {
       vi.mocked(StateManager.listAllStates).mockReturnValue(states);
 
       const request = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         ports: [3000, 3001],
       };
@@ -306,7 +306,7 @@ describe('PortManager', () => {
       vi.mocked(StateManager.listAllStates).mockReturnValue([]);
 
       const request = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         ports: [3000],
       };
@@ -321,7 +321,7 @@ describe('PortManager', () => {
       vi.mocked(StateManager.listAllStates).mockReturnValue([]);
 
       const request = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         ports: [3000, 3001],
       };
@@ -346,7 +346,7 @@ describe('PortManager', () => {
       vi.mocked(StateManager.listAllStates).mockReturnValue([]);
 
       const request = {
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         ports: [3000, 3001],
       };
@@ -376,17 +376,17 @@ describe('PortManager', () => {
       vi.mocked(StateManager.listAllStates).mockReturnValue([]);
 
       const plan = await PortManager.planReservation({
-        workspace: 'workspace-1',
+        group: 'group-1',
         process: 'api',
         ports: [3000],
       });
 
-      PortManager.releaseReservationByProcess('workspace-1', 'api');
+      PortManager.releaseReservationByProcess('group-1', 'api');
 
       expect(() => {
         PortManager.commitReservation(plan.reservationToken);
       }).toThrow('無効な予約トークンです');
-      expect(StateManager.deleteState).toHaveBeenCalledWith('workspace-1', 'api');
+      expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
     });
   });
 

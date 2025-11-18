@@ -28,34 +28,34 @@ describe('StateManager', () => {
 
   it('writeState と readState で状態を永続化できる', () => {
     const state: ProcessState = {
-      workspace: 'App',
+      group: 'App',
       process: 'API Server',
       status: 'Running',
       pid: 4321,
       startedAt: new Date().toISOString(),
     };
 
-    StateManager.writeState(state.workspace, state.process, state);
-    const loaded = StateManager.readState(state.workspace, state.process);
+    StateManager.writeState(state.group, state.process, state);
+    const loaded = StateManager.readState(state.group, state.process);
 
     expect(loaded).toEqual(state);
   });
 
   it('deleteState で状態ファイルを削除できる', () => {
-    const state = { workspace: 'App', process: 'Worker', status: 'Stopped' } as const;
+    const state = { group: 'App', process: 'Worker', status: 'Stopped' } as const;
 
-    StateManager.writeState(state.workspace, state.process, state);
-    StateManager.deleteState(state.workspace, state.process);
+    StateManager.writeState(state.group, state.process, state);
+    StateManager.deleteState(state.group, state.process);
 
-    expect(StateManager.readState(state.workspace, state.process)).toBeNull();
+    expect(StateManager.readState(state.group, state.process)).toBeNull();
   });
 
   it('listAllStates は全ての状態を返し、破損ファイルをスキップする', () => {
-    const first = { workspace: 'ws-1', process: 'api', status: 'Running' } as const;
-    const second = { workspace: 'ws-2', process: 'worker', status: 'Stopped' } as const;
+    const first = { group: 'ws-1', process: 'api', status: 'Running' } as const;
+    const second = { group: 'ws-2', process: 'worker', status: 'Stopped' } as const;
 
-    StateManager.writeState(first.workspace, first.process, first);
-    StateManager.writeState(second.workspace, second.process, second);
+    StateManager.writeState(first.group, first.process, first);
+    StateManager.writeState(second.group, second.process, second);
 
     writeFileSync(join(stateDir, 'corrupted.json'), '{ invalid json', 'utf-8');
 
@@ -68,10 +68,10 @@ describe('StateManager', () => {
   it('generateLogPath はログディレクトリを作成し、スラッグ化されたファイル名を返す', () => {
     const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(42);
 
-    const logPath = StateManager.generateLogPath('My Workspace', 'Service/API');
+    const logPath = StateManager.generateLogPath('My Group', 'Service/API');
 
     expect(logPath.startsWith(join(portmuxDir, 'logs'))).toBe(true);
-    expect(logPath).toContain('My-Workspace-Service-API-');
+    expect(logPath).toContain('My-Group-Service-API-');
     expect(existsSync(join(portmuxDir, 'logs'))).toBe(true);
 
     nowSpy.mockRestore();

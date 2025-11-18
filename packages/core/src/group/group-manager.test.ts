@@ -1,12 +1,12 @@
 import type { GlobalConfig, PortMuxConfig } from '../config/schema.js';
-import { WorkspaceManager, WorkspaceResolutionError } from './workspace-manager.js';
+import { GroupManager, GroupResolutionError } from './group-manager.js';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'fs';
 
 import { join } from 'path';
 import { tmpdir as systemTmpdir } from 'node:os';
 
-const testHomeDir = mkdtempSync(join(systemTmpdir(), 'portmux-workspace-home-'));
+const testHomeDir = mkdtempSync(join(systemTmpdir(), 'portmux-group-home-'));
 
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof import('os')>('os');
@@ -58,9 +58,9 @@ const globalConfigPath = join(testHomeDir, '.config', 'portmux', 'config.json');
 
 const baseProjectConfig: PortMuxConfig = {
   version: '1.0.0',
-  workspaces: {
+  groups: {
     default: {
-      description: 'Default workspace',
+      description: 'Default group',
       commands: [
         {
           name: 'api',
@@ -70,7 +70,7 @@ const baseProjectConfig: PortMuxConfig = {
       ],
     },
     dev: {
-      description: 'Dev workspace',
+      description: 'Dev group',
       commands: [
         {
           name: 'api',
@@ -85,13 +85,13 @@ const baseProjectConfig: PortMuxConfig = {
 const baseGlobalConfig: GlobalConfig = {
   version: '1.0.0',
   repositories: {
-    'workspace-1': {
-      path: '/tmp/workspace-1',
-      workspace: 'default',
+    'group-1': {
+      path: '/tmp/group-1',
+      group: 'default',
     },
-    'workspace-2': {
-      path: '/tmp/workspace-2',
-      workspace: 'dev',
+    'group-2': {
+      path: '/tmp/group-2',
+      group: 'dev',
     },
   },
 };
@@ -100,7 +100,7 @@ function createTempProject(config: PortMuxConfig = baseProjectConfig): {
   root: string;
   configPath: string;
 } {
-  const tempRoot = mkdtempSync(join(systemTmpdir(), 'portmux-workspace-'));
+  const tempRoot = mkdtempSync(join(systemTmpdir(), 'portmux-group-'));
   const configPath = join(tempRoot, 'portmux.config.json');
   writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
   return { root: tempRoot, configPath };
@@ -116,7 +116,7 @@ function cleanupTempDir(dir: string): void {
   rmSync(dir, { recursive: true, force: true });
 }
 
-describe('WorkspaceManager', () => {
+describe('GroupManager', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mockStore.execSync.mockClear();
@@ -130,26 +130,26 @@ describe('WorkspaceManager', () => {
     rmSync(testHomeDir, { recursive: true, force: true });
   });
 
-  describe('resolveWorkspaceByName', () => {
-    it('ワークスペース名から設定を解決できる', () => {
+  describe('resolveGroupByName', () => {
+    it('グループ名から設定を解決できる', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          'test-workspace': {
+          'test-group': {
             path: root,
-            workspace: 'default',
+            group: 'default',
           },
         },
       };
       createGlobalConfig(globalConfig);
 
-      const resolved = WorkspaceManager.resolveWorkspaceByName('test-workspace');
+      const resolved = GroupManager.resolveGroupByName('test-group');
 
-      expect(resolved.name).toBe('test-workspace');
+      expect(resolved.name).toBe('test-group');
       expect(resolved.path).toBe(realpathSync(root));
       expect(resolved.projectConfigPath).toBe(configPath);
-      expect(resolved.workspaceDefinitionName).toBe('default');
+      expect(resolved.groupDefinitionName).toBe('default');
       expect(resolved.projectConfig).toEqual(baseProjectConfig);
 
       cleanupTempDir(root);
@@ -157,65 +157,65 @@ describe('WorkspaceManager', () => {
 
     it('グローバル設定ファイルが存在しない場合にエラーを投げる', () => {
       expect(() => {
-        WorkspaceManager.resolveWorkspaceByName('test-workspace');
-      }).toThrow(WorkspaceResolutionError);
+        GroupManager.resolveGroupByName('test-group');
+      }).toThrow(GroupResolutionError);
     });
 
-    it('ワークスペースがグローバル設定に見つからない場合にエラーを投げる', () => {
+    it('グループがグローバル設定に見つからない場合にエラーを投げる', () => {
       createGlobalConfig();
 
       expect(() => {
-        WorkspaceManager.resolveWorkspaceByName('non-existent');
-      }).toThrow(WorkspaceResolutionError);
+        GroupManager.resolveGroupByName('non-existent');
+      }).toThrow(GroupResolutionError);
     });
 
     it('プロジェクト設定ファイルが見つからない場合にエラーを投げる', () => {
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          'test-workspace': {
+          'test-group': {
             path: '/non-existent-path',
-            workspace: 'default',
+            group: 'default',
           },
         },
       };
       createGlobalConfig(globalConfig);
 
       expect(() => {
-        WorkspaceManager.resolveWorkspaceByName('test-workspace');
-      }).toThrow(WorkspaceResolutionError);
+        GroupManager.resolveGroupByName('test-group');
+      }).toThrow(GroupResolutionError);
     });
 
-    it('プロジェクト設定内にワークスペース定義が見つからない場合にエラーを投げる', () => {
+    it('プロジェクト設定内にグループ定義が見つからない場合にエラーを投げる', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          'test-workspace': {
+          'test-group': {
             path: root,
-            workspace: 'non-existent',
+            group: 'non-existent',
           },
         },
       };
       createGlobalConfig(globalConfig);
 
       expect(() => {
-        WorkspaceManager.resolveWorkspaceByName('test-workspace');
-      }).toThrow(WorkspaceResolutionError);
+        GroupManager.resolveGroupByName('test-group');
+      }).toThrow(GroupResolutionError);
 
       cleanupTempDir(root);
     });
   });
 
-  describe('resolveWorkspaceAuto', () => {
-    it('Git worktree からワークスペースを解決できる', () => {
+  describe('resolveGroupAuto', () => {
+    it('Git worktree からグループを解決できる', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          'test-workspace': {
+          'test-group': {
             path: root,
-            workspace: 'default',
+            group: 'default',
           },
         },
       };
@@ -237,47 +237,47 @@ describe('WorkspaceManager', () => {
         return callActualExistsSync(path);
       });
 
-      const resolved = WorkspaceManager.resolveWorkspaceAuto(root);
+      const resolved = GroupManager.resolveGroupAuto(root);
 
-      expect(resolved.name).toBe('test-workspace');
+      expect(resolved.name).toBe('test-group');
       expect(resolved.path).toBe(realpathSync(root));
       expect(resolved.projectConfigPath).toBe(configPath);
-      expect(resolved.workspaceDefinitionName).toBe('default');
+      expect(resolved.groupDefinitionName).toBe('default');
 
       cleanupTempDir(root);
     });
 
-    it('グローバル設定がない場合はフォールバックモードで最初のワークスペースを使用', () => {
+    it('グローバル設定がない場合はフォールバックモードで最初のグループを使用', () => {
       const { root, configPath } = createTempProject();
 
-      const resolved = WorkspaceManager.resolveWorkspaceAuto(root);
+      const resolved = GroupManager.resolveGroupAuto(root);
 
       expect(resolved.name).toBe('default');
       expect(resolved.path).toBe(realpathSync(root));
       expect(resolved.projectConfigPath).toBe(configPath);
-      expect(resolved.workspaceDefinitionName).toBe('default');
+      expect(resolved.groupDefinitionName).toBe('default');
 
       cleanupTempDir(root);
     });
 
     it('プロジェクト設定ファイルが見つからない場合にエラーを投げる', () => {
-      const tempRoot = mkdtempSync(join(systemTmpdir(), 'portmux-workspace-'));
+      const tempRoot = mkdtempSync(join(systemTmpdir(), 'portmux-group-'));
 
       expect(() => {
-        WorkspaceManager.resolveWorkspaceAuto(tempRoot);
-      }).toThrow(WorkspaceResolutionError);
+        GroupManager.resolveGroupAuto(tempRoot);
+      }).toThrow(GroupResolutionError);
 
       cleanupTempDir(tempRoot);
     });
 
-    it('Git 環境ではない場合はパスマッチでワークスペースを解決', () => {
+    it('Git 環境ではない場合はパスマッチでグループを解決', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          'test-workspace': {
+          'test-group': {
             path: root,
-            workspace: 'default',
+            group: 'default',
           },
         },
       };
@@ -291,24 +291,24 @@ describe('WorkspaceManager', () => {
         return callActualExistsSync(path);
       });
 
-      const resolved = WorkspaceManager.resolveWorkspaceAuto(root);
+      const resolved = GroupManager.resolveGroupAuto(root);
 
-      expect(resolved.name).toBe('test-workspace');
+      expect(resolved.name).toBe('test-group');
       expect(resolved.path).toBe(realpathSync(root));
       expect(resolved.projectConfigPath).toBe(configPath);
-      expect(resolved.workspaceDefinitionName).toBe('default');
+      expect(resolved.groupDefinitionName).toBe('default');
 
       cleanupTempDir(root);
     });
 
-    it('Git 環境ではない場合、マッチしない場合は最初のワークスペースを使用して警告を出す', () => {
+    it('Git 環境ではない場合、マッチしない場合は最初のグループを使用して警告を出す', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          'test-workspace': {
+          'test-group': {
             path: '/different-path',
-            workspace: 'default',
+            group: 'default',
           },
         },
       };
@@ -324,12 +324,12 @@ describe('WorkspaceManager', () => {
 
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-      const resolved = WorkspaceManager.resolveWorkspaceAuto(root);
+      const resolved = GroupManager.resolveGroupAuto(root);
 
       expect(resolved.name).toBe('default');
       expect(resolved.path).toBe(realpathSync(root));
       expect(resolved.projectConfigPath).toBe(configPath);
-      expect(resolved.workspaceDefinitionName).toBe('default');
+      expect(resolved.groupDefinitionName).toBe('default');
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('警告'));
 
       warnSpy.mockRestore();
@@ -341,9 +341,9 @@ describe('WorkspaceManager', () => {
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          'test-workspace': {
+          'test-group': {
             path: root,
-            workspace: 'default',
+            group: 'default',
           },
         },
       };
@@ -366,20 +366,20 @@ describe('WorkspaceManager', () => {
       });
 
       expect(() => {
-        WorkspaceManager.resolveWorkspaceAuto(root);
-      }).toThrow(WorkspaceResolutionError);
+        GroupManager.resolveGroupAuto(root);
+      }).toThrow(GroupResolutionError);
 
       cleanupTempDir(root);
     });
 
-    it('git worktree に対応するワークスペースがグローバル設定に見つからない場合にエラーを投げる', () => {
+    it('git worktree に対応するグループがグローバル設定に見つからない場合にエラーを投げる', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          'test-workspace': {
+          'test-group': {
             path: '/different-path',
-            workspace: 'default',
+            group: 'default',
           },
         },
       };
@@ -402,77 +402,77 @@ describe('WorkspaceManager', () => {
       });
 
       expect(() => {
-        WorkspaceManager.resolveWorkspaceAuto(root);
-      }).toThrow(WorkspaceResolutionError);
+        GroupManager.resolveGroupAuto(root);
+      }).toThrow(GroupResolutionError);
 
       cleanupTempDir(root);
     });
   });
 
-  describe('listAllWorkspaces', () => {
-    it('すべてのワークスペースを列挙できる', () => {
+  describe('listAllGroups', () => {
+    it('すべてのグループを列挙できる', () => {
       const { root: root1 } = createTempProject();
-      const devWorkspace = baseProjectConfig.workspaces.dev;
-      if (!devWorkspace) {
-        throw new Error('dev workspace is not defined');
+      const devGroup = baseProjectConfig.groups.dev;
+      if (!devGroup) {
+        throw new Error('dev group is not defined');
       }
       const { root: root2 } = createTempProject({
         ...baseProjectConfig,
-        workspaces: {
-          dev: devWorkspace,
+        groups: {
+          dev: devGroup,
         },
       });
 
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          'workspace-1': {
+          'group-1': {
             path: root1,
-            workspace: 'default',
+            group: 'default',
           },
-          'workspace-2': {
+          'group-2': {
             path: root2,
-            workspace: 'dev',
+            group: 'dev',
           },
         },
       };
       createGlobalConfig(globalConfig);
 
-      const workspaces = WorkspaceManager.listAllWorkspaces();
+      const groups = GroupManager.listAllGroups();
 
-      expect(workspaces).toHaveLength(2);
-      expect(workspaces.map((w) => w.name)).toEqual(expect.arrayContaining(['workspace-1', 'workspace-2']));
+      expect(groups).toHaveLength(2);
+      expect(groups.map((w) => w.name)).toEqual(expect.arrayContaining(['group-1', 'group-2']));
 
       cleanupTempDir(root1);
       cleanupTempDir(root2);
     });
 
     it('グローバル設定が存在しない場合は空配列を返す', () => {
-      const workspaces = WorkspaceManager.listAllWorkspaces();
-      expect(workspaces).toEqual([]);
+      const groups = GroupManager.listAllGroups();
+      expect(groups).toEqual([]);
     });
 
-    it('エラーが発生したワークスペースはスキップされる', () => {
+    it('エラーが発生したグループはスキップされる', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
-          'valid-workspace': {
+          'valid-group': {
             path: root,
-            workspace: 'default',
+            group: 'default',
           },
-          'invalid-workspace': {
+          'invalid-group': {
             path: '/non-existent-path',
-            workspace: 'default',
+            group: 'default',
           },
         },
       };
       createGlobalConfig(globalConfig);
 
-      const workspaces = WorkspaceManager.listAllWorkspaces();
+      const groups = GroupManager.listAllGroups();
 
-      expect(workspaces).toHaveLength(1);
-      expect(workspaces[0]?.name).toBe('valid-workspace');
+      expect(groups).toHaveLength(1);
+      expect(groups[0]?.name).toBe('valid-group');
 
       cleanupTempDir(root);
     });

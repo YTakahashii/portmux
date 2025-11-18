@@ -12,8 +12,8 @@ export type ProcessStatus = 'Running' | 'Stopped' | 'Error';
  * プロセス状態のデータ構造
  */
 export interface ProcessState {
-  workspace: string;
-  workspaceKey?: string;
+  group: string;
+  groupKey?: string;
   process: string;
   status: ProcessStatus;
   pid?: number;
@@ -56,10 +56,10 @@ function slugify(str: string): string {
 /**
  * 状態ファイルのパスを取得
  */
-function getStateFilePath(workspace: string, process: string): string {
-  const workspaceSlug = slugify(workspace);
+function getStateFilePath(group: string, process: string): string {
+  const groupSlug = slugify(group);
   const processSlug = slugify(process);
-  const filename = `${workspaceSlug}-${processSlug}.json`;
+  const filename = `${groupSlug}-${processSlug}.json`;
   return join(getStateDir(), filename);
 }
 
@@ -85,17 +85,17 @@ function ensureLogDir(): void {
 
 /**
  * ログファイルのパスを生成
- * ファイル名: <workspace-slug>-<process-slug>-<hash>.log
+ * ファイル名: <group-slug>-<process-slug>-<hash>.log
  */
-function generateLogPath(workspace: string, process: string): string {
+function generateLogPath(group: string, process: string): string {
   ensureLogDir();
 
-  const workspaceSlug = slugify(workspace);
+  const groupSlug = slugify(group);
   const processSlug = slugify(process);
 
   // ハッシュを付与（同一名でも衝突を避ける）
   const hash = Date.now().toString(36);
-  const filename = `${workspaceSlug}-${processSlug}-${hash}.log`;
+  const filename = `${groupSlug}-${processSlug}-${hash}.log`;
 
   return join(getLogDir(), filename);
 }
@@ -107,23 +107,23 @@ export const StateManager = {
   /**
    * ログファイルのパスを生成
    *
-   * @param workspace ワークスペース名
+   * @param group グループ名
    * @param process プロセス名
    * @returns ログファイルのパス
    */
-  generateLogPath(workspace: string, process: string): string {
-    return generateLogPath(workspace, process);
+  generateLogPath(group: string, process: string): string {
+    return generateLogPath(group, process);
   },
 
   /**
    * 状態を読み込む
    *
-   * @param workspace ワークスペース名
+   * @param group グループ名
    * @param process プロセス名
    * @returns プロセス状態（存在しない場合は null）
    */
-  readState(workspace: string, process: string): ProcessState | null {
-    const filePath = getStateFilePath(workspace, process);
+  readState(group: string, process: string): ProcessState | null {
+    const filePath = getStateFilePath(group, process);
 
     if (!existsSync(filePath)) {
       return null;
@@ -141,14 +141,14 @@ export const StateManager = {
   /**
    * 状態を書き込む
    *
-   * @param workspace ワークスペース名
+   * @param group グループ名
    * @param process プロセス名
    * @param state プロセス状態
    */
-  writeState(workspace: string, process: string, state: ProcessState): void {
+  writeState(group: string, process: string, state: ProcessState): void {
     ensureStateDir();
 
-    const filePath = getStateFilePath(workspace, process);
+    const filePath = getStateFilePath(group, process);
     const content = JSON.stringify(state, null, 2);
     writeFileSync(filePath, content, 'utf-8');
   },
@@ -156,11 +156,11 @@ export const StateManager = {
   /**
    * 状態を削除する
    *
-   * @param workspace ワークスペース名
+   * @param group グループ名
    * @param process プロセス名
    */
-  deleteState(workspace: string, process: string): void {
-    const filePath = getStateFilePath(workspace, process);
+  deleteState(group: string, process: string): void {
+    const filePath = getStateFilePath(group, process);
 
     if (existsSync(filePath)) {
       unlinkSync(filePath);

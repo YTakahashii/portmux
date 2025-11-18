@@ -5,7 +5,7 @@ import { z } from 'zod';
  *
  * Minimal support includes:
  * - version: required
- * - workspaces: required
+ * - groups: required
  *   - commands: name and command are required
  *   - ports and cwd are optional
  *   - env is currently passthrough only
@@ -22,8 +22,8 @@ export const CommandSchema = z.object({
   env: z.record(z.string(), z.string()).optional(), // 後回しだがパススルー用に定義
 });
 
-/** Workspace definition schema. */
-export const WorkspaceSchema = z.object({
+/** Group definition schema. */
+export const GroupSchema = z.object({
   description: z.string(),
   commands: z.array(CommandSchema).min(1, 'コマンドは1つ以上必要です'),
 });
@@ -43,10 +43,10 @@ export const PortMuxConfigSchema = z
     $schema: z.string().optional(),
     version: z.string().min(1, 'version は必須です'),
     runner: RunnerSchema.optional(),
-    workspaces: z.record(z.string(), WorkspaceSchema),
+    groups: z.record(z.string(), GroupSchema),
   })
-  .refine((data) => Object.keys(data.workspaces).length > 0, {
-    message: 'workspaces は1つ以上必要です',
+  .refine((data) => Object.keys(data.groups).length > 0, {
+    message: 'groups は1つ以上必要です',
   });
 
 /**
@@ -54,7 +54,7 @@ export const PortMuxConfigSchema = z
  */
 export const RepositorySchema = z.object({
   path: z.string().min(1, 'path は必須です'),
-  workspace: z.string().min(1, 'workspace は必須です'),
+  group: z.string().min(1, 'group は必須です'),
 });
 
 /**
@@ -69,7 +69,7 @@ export const GlobalConfigSchema = z.object({
  * Type definitions for configuration files.
  */
 export type PortMuxConfig = z.infer<typeof PortMuxConfigSchema>;
-export type Workspace = z.infer<typeof WorkspaceSchema>;
+export type Group = z.infer<typeof GroupSchema>;
 export type Command = z.infer<typeof CommandSchema>;
 export type GlobalConfig = z.infer<typeof GlobalConfigSchema>;
 export type Repository = z.infer<typeof RepositorySchema>;

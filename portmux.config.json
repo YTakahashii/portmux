@@ -1,9 +1,9 @@
 {
   "$schema": "./packages/cli/schemas/portmux.config.schema.json",
-  "version": "1.0",
-  "workspaces": {
+  "version": "1.0.0",
+  "groups": {
     "test": {
-      "description": "Test workspace",
+      "description": "Test group",
       "commands": [
         {
           "name": "sleep",

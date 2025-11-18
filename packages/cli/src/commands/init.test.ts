@@ -48,7 +48,7 @@ describe('runInitCommand', () => {
 
   it('creates project and global configs from prompts', async () => {
     mockPromptSequence([
-      { workspaceName: 'app', description: 'demo workspace' },
+      { groupName: 'app', description: 'demo group' },
       { name: 'api', command: 'npm start', ports: '3000', cwd: './services/api' },
       { addEnv: true },
       { key: 'API_URL', value: 'http://localhost:3000' },
@@ -62,9 +62,9 @@ describe('runInitCommand', () => {
     expect(projectConfig).toEqual({
       $schema: 'node_modules/@portmux/cli/schemas/portmux.config.schema.json',
       version: '1.0.0',
-      workspaces: {
+      groups: {
         app: {
-          description: 'demo workspace',
+          description: 'demo group',
           commands: [
             {
               name: 'api',
@@ -84,7 +84,7 @@ describe('runInitCommand', () => {
       repositories: {
         app: {
           path: tempDir,
-          workspace: 'app',
+          group: 'app',
         },
       },
     });
@@ -95,13 +95,13 @@ describe('runInitCommand', () => {
     const existingGlobal = {
       version: '1.0.0',
       repositories: {
-        app: { path: '/existing/path', workspace: 'default' },
+        app: { path: '/existing/path', group: 'default' },
       },
     };
     writeFileSync(globalConfigPath, `${JSON.stringify(existingGlobal, null, 2)}\n`);
 
     mockPromptSequence([
-      { workspaceName: 'app', description: '' },
+      { groupName: 'app', description: '' },
       { name: 'service', command: 'node index.js', ports: '', cwd: '' },
       { addEnv: false },
       { addMore: false },
@@ -110,7 +110,7 @@ describe('runInitCommand', () => {
     await runInitCommand({});
 
     const projectConfig = JSON.parse(readFileSync(join(tempDir, 'portmux.config.json'), 'utf-8'));
-    expect(projectConfig.workspaces.app.commands[0]).toMatchObject({
+    expect(projectConfig.groups.app.commands[0]).toMatchObject({
       name: 'service',
       command: 'node index.js',
     });
@@ -124,13 +124,13 @@ describe('runInitCommand', () => {
     const existingGlobal = {
       version: '1.0.0',
       repositories: {
-        app: { path: '/old', workspace: 'legacy' },
+        app: { path: '/old', group: 'legacy' },
       },
     };
     writeFileSync(globalConfigPath, `${JSON.stringify(existingGlobal, null, 2)}\n`);
 
     mockPromptSequence([
-      { workspaceName: 'app', description: 'updated' },
+      { groupName: 'app', description: 'updated' },
       { name: 'web', command: 'npm run dev', ports: '4000,4001', cwd: '' },
       { addEnv: false },
       { addMore: false },
@@ -141,7 +141,7 @@ describe('runInitCommand', () => {
     const globalConfig = JSON.parse(readFileSync(globalConfigPath, 'utf-8'));
     expect(globalConfig.repositories.app).toEqual({
       path: tempDir,
-      workspace: 'app',
+      group: 'app',
     });
   });
 

@@ -11,8 +11,8 @@ export * from './errors.js';
 export * from './config/schema.js';
 export * from './config/config-manager.js';
 
-// Workspace
-export * from './workspace/workspace-manager.js';
+// Group
+export * from './group/group-manager.js';
 
 // State
 export * from './state/state-manager.js';
