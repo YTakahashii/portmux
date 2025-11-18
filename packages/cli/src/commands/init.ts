@@ -237,6 +237,7 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
   const projectConfigPath = resolve(process.cwd(), 'portmux.config.json');
   const globalConfigPath = ConfigManager.getGlobalConfigPath();
   const projectRoot = resolve(process.cwd());
+  const localSchemaPath = 'node_modules/@portmux/cli/schemas/portmux.config.schema.json';
 
   try {
     if (!isInsideGitRepository()) {
@@ -251,6 +252,7 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
 
     const { name: workspaceName, workspace } = await buildWorkspaceConfig();
     const projectConfig: PortMuxConfig = {
+      $schema: localSchemaPath,
       version: '1.0.0',
       runner: { mode: 'background' },
       workspaces: {

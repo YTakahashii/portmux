@@ -5,10 +5,17 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "schemas"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./schemas/portmux.config.schema.json": {
+      "default": "./schemas/portmux.config.schema.json"
     }
   },
   "bin": {

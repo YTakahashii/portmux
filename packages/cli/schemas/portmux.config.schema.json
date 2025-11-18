@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portmux.dev/schema/portmux.config.json",
+  "title": "PortMux Project Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional local or remote JSON Schema reference for editor intellisense."
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Configuration version."
+    },
+    "runner": {
+      "$ref": "#/$defs/runner"
+    },
+    "workspaces": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Workspace definitions keyed by workspace name.",
+      "patternProperties": {
+        "^.*$": {
+          "$ref": "#/$defs/workspace"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["version", "runner", "workspaces"],
+  "$defs": {
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["background"],
+          "description": "Execution mode for commands."
+        }
+      },
+      "required": ["mode"]
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human readable description of the workspace."
+        },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "description": "List of commands to run in this workspace.",
+          "items": {
+            "$ref": "#/$defs/command"
+          }
+        }
+      },
+      "required": ["description", "commands"]
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique command name."
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Shell command to execute."
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "Ports the command binds to."
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Working directory for the command."
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables for the command.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["name", "command"]
+    }
+  }
+}

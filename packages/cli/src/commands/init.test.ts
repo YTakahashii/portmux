@@ -60,6 +60,7 @@ describe('runInitCommand', () => {
 
     const projectConfig = JSON.parse(readFileSync(join(tempDir, 'portmux.config.json'), 'utf-8'));
     expect(projectConfig).toEqual({
+      $schema: 'node_modules/@portmux/cli/schemas/portmux.config.schema.json',
       version: '1.0.0',
       runner: { mode: 'background' },
       workspaces: {

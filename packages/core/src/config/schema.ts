@@ -41,6 +41,7 @@ export const RunnerSchema = z.object({
  */
 export const PortMuxConfigSchema = z
   .object({
+    $schema: z.string().optional(),
     version: z.string().min(1, 'version は必須です'),
     runner: RunnerSchema,
     workspaces: z.record(z.string(), WorkspaceSchema),
