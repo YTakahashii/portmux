@@ -1,6 +1,12 @@
-import { type PortMuxConfig, PortMuxConfigSchema, type GlobalConfig, GlobalConfigSchema } from './schema.js';
+import {
+  type PortMuxConfig,
+  PortMuxConfigSchema,
+  type GlobalConfig,
+  GlobalConfigSchema,
+  type Repository,
+} from './schema.js';
 import { dirname, join, resolve } from 'path';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, realpathSync } from 'fs';
 import { homedir } from 'os';
 import { PortmuxError } from '../errors.js';
 
@@ -84,6 +90,22 @@ export class InvalidRepositoryReferenceError extends PortmuxError {
 const SUPPORTED_VERSION = '1.0.0';
 
 /**
+ * 参照済みのリポジトリとプロジェクト設定をまとめたマージ結果
+ */
+export interface MergedRepositoryConfig {
+  name: string;
+  path: string;
+  projectConfigPath: string;
+  projectConfig: PortMuxConfig;
+  workspaceDefinitionName: string;
+}
+
+export interface MergedGlobalConfig {
+  globalConfig: GlobalConfig;
+  repositories: Record<string, MergedRepositoryConfig>;
+}
+
+/**
  * バージョン文字列をパースして major, minor, patch を返す
  */
 function parseVersion(version: string): { major: number; minor: number; patch: number } {
@@ -93,6 +115,44 @@ function parseVersion(version: string): { major: number; minor: number; patch: n
     minor: parseInt(parts[1] ?? '0', 10),
     patch: parseInt(parts[2] ?? '0', 10),
   };
+}
+
+/**
+ * パスを正規化（シンボリックリンクを解決）
+ */
+function normalizePath(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+}
+
+/**
+ * リポジトリ名の一意性を検証
+ */
+function ensureUniqueRepositoryNames(globalConfig: GlobalConfig): void {
+  const repositoryNames = new Set<string>();
+  for (const name of Object.keys(globalConfig.repositories)) {
+    if (repositoryNames.has(name)) {
+      throw new DuplicateRepositoryNameError(name);
+    }
+    repositoryNames.add(name);
+  }
+}
+
+/**
+ * リポジトリが参照するワークスペースが存在するか検証
+ */
+function validateRepositoryReference(
+  repositoryName: string,
+  workspaceName: string,
+  projectConfig: PortMuxConfig,
+  projectConfigPath: string
+): void {
+  if (!projectConfig.workspaces[workspaceName]) {
+    throw new InvalidRepositoryReferenceError(repositoryName, workspaceName, projectConfigPath);
+  }
 }
 
 /**
@@ -275,21 +335,79 @@ export const ConfigManager = {
    * @throws InvalidRepositoryReferenceError When a repository points to a missing workspace definition
    */
   validateGlobalConfig(globalConfig: GlobalConfig, projectConfig: PortMuxConfig, projectConfigPath: string): void {
-    // リポジトリ名の一意性チェック
-    const repositoryNames = new Set<string>();
-    for (const name of Object.keys(globalConfig.repositories)) {
-      if (repositoryNames.has(name)) {
-        throw new DuplicateRepositoryNameError(name);
-      }
-      repositoryNames.add(name);
-    }
+    ensureUniqueRepositoryNames(globalConfig);
 
     // 外部参照の整合性チェック
     for (const [repositoryName, repository] of Object.entries(globalConfig.repositories)) {
-      if (!projectConfig.workspaces[repository.workspace]) {
-        throw new InvalidRepositoryReferenceError(repositoryName, repository.workspace, projectConfigPath);
+      validateRepositoryReference(repositoryName, repository.workspace, projectConfig, projectConfigPath);
+    }
+  },
+
+  /**
+   * グローバル設定とプロジェクト設定を統合して返す
+   *
+   * - targetRepository を指定すると、そのエントリのみを対象にマージする
+   * - skipInvalid が true の場合、存在しないプロジェクト設定やワークスペース参照のエントリはスキップする
+   *
+   * @returns マージ済み設定。グローバル設定ファイルが存在しない場合は null
+   */
+  mergeGlobalAndProjectConfigs(options?: {
+    targetRepository?: string;
+    skipInvalid?: boolean;
+  }): MergedGlobalConfig | null {
+    const globalConfig = this.loadGlobalConfig();
+    if (!globalConfig) {
+      return null;
+    }
+
+    ensureUniqueRepositoryNames(globalConfig);
+
+    if (options?.targetRepository && !globalConfig.repositories[options.targetRepository]) {
+      return { globalConfig, repositories: {} };
+    }
+
+    const repositoriesToProcess: Record<string, Repository> = {};
+    if (options?.targetRepository) {
+      const targetRepo = globalConfig.repositories[options.targetRepository];
+      if (targetRepo) {
+        repositoriesToProcess[options.targetRepository] = targetRepo;
+      }
+    } else {
+      Object.assign(repositoriesToProcess, globalConfig.repositories);
+    }
+
+    const mergedRepositories: Record<string, MergedRepositoryConfig> = {};
+    const skipInvalid = options?.skipInvalid ?? false;
+
+    for (const [repositoryName, repository] of Object.entries(repositoriesToProcess)) {
+      const projectConfigPath = join(repository.path, 'portmux.config.json');
+
+      try {
+        if (!existsSync(projectConfigPath)) {
+          throw new ConfigNotFoundError(projectConfigPath);
+        }
+
+        const projectConfig = this.loadConfig(projectConfigPath);
+        validateRepositoryReference(repositoryName, repository.workspace, projectConfig, projectConfigPath);
+
+        mergedRepositories[repositoryName] = {
+          name: repositoryName,
+          path: normalizePath(repository.path),
+          projectConfig,
+          projectConfigPath,
+          workspaceDefinitionName: repository.workspace,
+        };
+      } catch (error) {
+        if (!skipInvalid) {
+          throw error;
+        }
+        console.warn(
+          `警告: リポジトリ "${repositoryName}" の設定をマージできませんでした。${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
+
+    return { globalConfig, repositories: mergedRepositories };
   },
 
   /**

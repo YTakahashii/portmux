@@ -2,8 +2,8 @@ import { ConfigManager, VersionMismatchError } from './config-manager.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 
-import type { PortMuxConfig } from './schema.js';
-import { join } from 'path';
+import type { GlobalConfig, PortMuxConfig } from './schema.js';
+import { dirname, join } from 'path';
 import { tmpdir } from 'os';
 
 const baseConfig: PortMuxConfig = {
@@ -40,6 +40,11 @@ function createTempProject(config: PortMuxConfig = baseConfig): {
 
 function cleanupTempDir(dir: string): void {
   rmSync(dir, { recursive: true, force: true });
+}
+
+function writeGlobalConfig(path: string, config: GlobalConfig): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify(config, null, 2), 'utf-8');
 }
 
 afterEach(() => {
@@ -130,5 +135,99 @@ describe('ConfigManager', () => {
     } finally {
       cleanupTempDir(root);
     }
+  });
+
+  describe('mergeGlobalAndProjectConfigs', () => {
+    it('グローバル設定とプロジェクト設定をマージして返す', () => {
+      const { root: root1 } = createTempProject();
+      const anotherWorkspace = baseConfig.workspaces.default;
+      if (!anotherWorkspace) {
+        throw new Error('baseConfig must have default workspace');
+      }
+      const { root: root2 } = createTempProject({
+        ...baseConfig,
+        workspaces: {
+          another: anotherWorkspace,
+        },
+      });
+
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        repositories: {
+          'workspace-1': { path: root1, workspace: 'default' },
+          'workspace-2': { path: root2, workspace: 'another' },
+        },
+      };
+
+      const globalConfigPath = join(tmpdir(), 'portmux-configs', `${Math.random().toString(36)}.json`);
+      writeGlobalConfig(globalConfigPath, globalConfig);
+      vi.spyOn(ConfigManager, 'getGlobalConfigPath').mockReturnValue(globalConfigPath);
+
+      try {
+        const merged = ConfigManager.mergeGlobalAndProjectConfigs();
+
+        expect(merged).not.toBeNull();
+        expect(Object.keys(merged?.repositories ?? {})).toEqual(['workspace-1', 'workspace-2']);
+        expect(merged?.repositories['workspace-1']?.projectConfigPath).toBe(join(root1, 'portmux.config.json'));
+        expect(merged?.repositories['workspace-1']?.workspaceDefinitionName).toBe('default');
+        expect(merged?.repositories['workspace-2']?.workspaceDefinitionName).toBe('another');
+      } finally {
+        cleanupTempDir(root1);
+        cleanupTempDir(root2);
+        rmSync(dirname(globalConfigPath), { recursive: true, force: true });
+      }
+    });
+
+    it('targetRepository 指定時に他の無効なエントリを無視できる', () => {
+      const { root } = createTempProject();
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        repositories: {
+          valid: { path: root, workspace: 'default' },
+          invalid: { path: '/does-not-exist', workspace: 'default' },
+        },
+      };
+
+      const globalConfigPath = join(tmpdir(), 'portmux-configs', `${Math.random().toString(36)}.json`);
+      writeGlobalConfig(globalConfigPath, globalConfig);
+      vi.spyOn(ConfigManager, 'getGlobalConfigPath').mockReturnValue(globalConfigPath);
+
+      try {
+        const merged = ConfigManager.mergeGlobalAndProjectConfigs({ targetRepository: 'valid' });
+
+        expect(merged).not.toBeNull();
+        expect(Object.keys(merged?.repositories ?? {})).toEqual(['valid']);
+      } finally {
+        cleanupTempDir(root);
+        rmSync(dirname(globalConfigPath), { recursive: true, force: true });
+      }
+    });
+
+    it('skipInvalid が true の場合は無効なリポジトリをスキップする', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const { root } = createTempProject();
+      const globalConfig: GlobalConfig = {
+        version: '1.0.0',
+        repositories: {
+          valid: { path: root, workspace: 'default' },
+          invalid: { path: '/does-not-exist', workspace: 'default' },
+        },
+      };
+
+      const globalConfigPath = join(tmpdir(), 'portmux-configs', `${Math.random().toString(36)}.json`);
+      writeGlobalConfig(globalConfigPath, globalConfig);
+      vi.spyOn(ConfigManager, 'getGlobalConfigPath').mockReturnValue(globalConfigPath);
+
+      try {
+        const merged = ConfigManager.mergeGlobalAndProjectConfigs({ skipInvalid: true });
+
+        expect(merged).not.toBeNull();
+        expect(Object.keys(merged?.repositories ?? {})).toEqual(['valid']);
+        expect(warnSpy).toHaveBeenCalled();
+      } finally {
+        cleanupTempDir(root);
+        rmSync(dirname(globalConfigPath), { recursive: true, force: true });
+      }
+    });
   });
 });

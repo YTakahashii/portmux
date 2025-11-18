@@ -145,45 +145,30 @@ export const WorkspaceManager = {
    * @throws WorkspaceResolutionError When the workspace cannot be resolved
    */
   resolveWorkspaceByName(repositoryName: string): ResolvedWorkspace {
-    // グローバル設定を読み込み
-    const globalConfig = ConfigManager.loadGlobalConfig();
-    if (!globalConfig) {
+    let merged = null;
+    try {
+      merged = ConfigManager.mergeGlobalAndProjectConfigs({ targetRepository: repositoryName });
+    } catch (error) {
+      throw new WorkspaceResolutionError(error instanceof Error ? error.message : String(error));
+    }
+    if (!merged) {
       throw new WorkspaceResolutionError(
         `リポジトリ "${repositoryName}" が見つかりません。\n` +
           `グローバル設定ファイル (${ConfigManager.getGlobalConfigPath()}) が存在しません。`
       );
     }
 
-    // リポジトリを検索
-    const repository = globalConfig.repositories[repositoryName];
-    if (!repository) {
+    const mergedRepository = merged.repositories[repositoryName];
+    if (!mergedRepository) {
       throw new WorkspaceResolutionError(`リポジトリ "${repositoryName}" がグローバル設定に見つかりません。`);
-    }
-
-    // プロジェクト設定を読み込み
-    const projectConfigPath = join(repository.path, 'portmux.config.json');
-    if (!existsSync(projectConfigPath)) {
-      throw new WorkspaceResolutionError(
-        `リポジトリ "${repositoryName}" のプロジェクト設定ファイルが見つかりません: ${projectConfigPath}`
-      );
-    }
-
-    const projectConfig = ConfigManager.loadConfig(projectConfigPath);
-
-    // ワークスペース定義の存在確認
-    if (!projectConfig.workspaces[repository.workspace]) {
-      throw new WorkspaceResolutionError(
-        `プロジェクト設定内にワークスペース定義 "${repository.workspace}" が見つかりません。\n` +
-          `プロジェクト設定: ${projectConfigPath}`
-      );
     }
 
     return {
       name: repositoryName,
-      path: normalizePath(repository.path),
-      projectConfig,
-      projectConfigPath,
-      workspaceDefinitionName: repository.workspace,
+      path: mergedRepository.path,
+      projectConfig: mergedRepository.projectConfig,
+      projectConfigPath: mergedRepository.projectConfigPath,
+      workspaceDefinitionName: mergedRepository.workspaceDefinitionName,
     };
   },
 
@@ -211,8 +196,8 @@ export const WorkspaceManager = {
     const projectRoot = normalizePath(dirname(projectConfigPath));
 
     // グローバル設定を読み込み
-    const globalConfig = ConfigManager.loadGlobalConfig();
-    if (!globalConfig) {
+    const mergedConfig = ConfigManager.mergeGlobalAndProjectConfigs({ skipInvalid: true });
+    if (!mergedConfig) {
       // グローバル設定がない場合はフォールバックモード
       // プロジェクト設定の最初のワークスペースを使用
       const firstWorkspaceName = Object.keys(projectConfig.workspaces)[0];
@@ -234,15 +219,15 @@ export const WorkspaceManager = {
     if (!gitRoot) {
       // Git 環境ではない場合はフォールバックモード
       // カレントディレクトリとマッチするリポジトリを探す
-      for (const [repositoryName, repository] of Object.entries(globalConfig.repositories)) {
-        const workspacePath = normalizePath(repository.path);
+      for (const mergedRepository of Object.values(mergedConfig.repositories)) {
+        const workspacePath = mergedRepository.path;
         if (workspacePath === normalizedCwd || workspacePath === projectRoot) {
           return {
-            name: repositoryName,
+            name: mergedRepository.name,
             path: workspacePath,
-            projectConfig,
-            projectConfigPath,
-            workspaceDefinitionName: repository.workspace,
+            projectConfig: mergedRepository.projectConfig,
+            projectConfigPath: mergedRepository.projectConfigPath,
+            workspaceDefinitionName: mergedRepository.workspaceDefinitionName,
           };
         }
       }
@@ -289,15 +274,15 @@ export const WorkspaceManager = {
     const matchedWorktreePath = normalizePath(matchedWorktree.path);
 
     // グローバル設定でマッチするリポジトリを探す
-    for (const [repositoryName, repository] of Object.entries(globalConfig.repositories)) {
-      const workspacePath = normalizePath(repository.path);
+    for (const mergedRepository of Object.values(mergedConfig.repositories)) {
+      const workspacePath = mergedRepository.path;
       if (workspacePath === matchedWorktreePath) {
         return {
-          name: repositoryName,
+          name: mergedRepository.name,
           path: workspacePath,
-          projectConfig,
-          projectConfigPath,
-          workspaceDefinitionName: repository.workspace,
+          projectConfig: mergedRepository.projectConfig,
+          projectConfigPath: mergedRepository.projectConfigPath,
+          workspaceDefinitionName: mergedRepository.workspaceDefinitionName,
         };
       }
     }
@@ -315,21 +300,21 @@ export const WorkspaceManager = {
    * @returns すべてのワークスペース情報の配列
    */
   listAllWorkspaces(): ResolvedWorkspace[] {
-    const globalConfig = ConfigManager.loadGlobalConfig();
-    if (!globalConfig) {
+    const mergedConfig = ConfigManager.mergeGlobalAndProjectConfigs({ skipInvalid: true });
+    if (!mergedConfig) {
       return [];
     }
 
     const workspaces: ResolvedWorkspace[] = [];
 
-    for (const repositoryName of Object.keys(globalConfig.repositories)) {
-      try {
-        const resolved = this.resolveWorkspaceByName(repositoryName);
-        workspaces.push(resolved);
-      } catch {
-        // エラーが発生した場合はスキップ
-        continue;
-      }
+    for (const mergedRepository of Object.values(mergedConfig.repositories)) {
+      workspaces.push({
+        name: mergedRepository.name,
+        path: mergedRepository.path,
+        projectConfig: mergedRepository.projectConfig,
+        projectConfigPath: mergedRepository.projectConfigPath,
+        workspaceDefinitionName: mergedRepository.workspaceDefinitionName,
+      });
     }
 
     return workspaces;
@@ -348,8 +333,8 @@ export const WorkspaceManager = {
       includeAll?: boolean;
     }
   ): WorkspaceSelection[] {
-    const globalConfig = ConfigManager.loadGlobalConfig();
-    if (!globalConfig) {
+    const mergedConfig = ConfigManager.mergeGlobalAndProjectConfigs({ skipInvalid: true });
+    if (!mergedConfig) {
       return [];
     }
 
@@ -358,19 +343,19 @@ export const WorkspaceManager = {
     const runningWorkspaces = getRunningWorkspaceNames();
     const selections: WorkspaceSelection[] = [];
 
-    for (const [repositoryName, repository] of Object.entries(globalConfig.repositories)) {
-      const normalizedPath = normalizePath(repository.path);
+    for (const mergedRepository of Object.values(mergedConfig.repositories)) {
+      const normalizedPath = mergedRepository.path;
 
       if (!includeAll && normalizedWorktreePaths.size > 0 && !normalizedWorktreePaths.has(normalizedPath)) {
         continue;
       }
 
       selections.push({
-        repositoryName,
+        repositoryName: mergedRepository.name,
         projectName: getProjectName(normalizedPath),
         path: normalizedPath,
-        workspaceDefinitionName: repository.workspace,
-        isRunning: runningWorkspaces.has(repositoryName),
+        workspaceDefinitionName: mergedRepository.workspaceDefinitionName,
+        isRunning: runningWorkspaces.has(mergedRepository.name),
       });
     }
 
