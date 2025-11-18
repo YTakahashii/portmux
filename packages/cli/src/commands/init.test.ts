@@ -62,7 +62,6 @@ describe('runInitCommand', () => {
     expect(projectConfig).toEqual({
       $schema: 'node_modules/@portmux/cli/schemas/portmux.config.schema.json',
       version: '1.0.0',
-      runner: { mode: 'background' },
       workspaces: {
         app: {
           description: 'demo workspace',

@@ -8,7 +8,6 @@ import { tmpdir } from 'os';
 
 const baseConfig: PortMuxConfig = {
   version: '1.0.0',
-  runner: { mode: 'background' },
   workspaces: {
     default: {
       description: 'Default workspace',

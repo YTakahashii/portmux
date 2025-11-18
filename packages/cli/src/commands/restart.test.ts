@@ -59,7 +59,6 @@ describe('runRestartCommand', () => {
     workspaceDefinitionName: 'ws-one',
     projectConfig: {
       version: '1.0.0',
-      runner: { mode: 'background' as const },
       workspaces: {
         'ws-one': {
           description: '',

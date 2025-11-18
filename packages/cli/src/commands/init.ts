@@ -254,7 +254,6 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
     const projectConfig: PortMuxConfig = {
       $schema: localSchemaPath,
       version: '1.0.0',
-      runner: { mode: 'background' },
       workspaces: {
         [workspaceName]: workspace,
       },

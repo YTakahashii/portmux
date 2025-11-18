@@ -58,7 +58,6 @@ const globalConfigPath = join(testHomeDir, '.config', 'portmux', 'config.json');
 
 const baseProjectConfig: PortMuxConfig = {
   version: '1.0.0',
-  runner: { mode: 'background' },
   workspaces: {
     default: {
       description: 'Default workspace',

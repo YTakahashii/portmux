@@ -29,7 +29,7 @@
       "additionalProperties": false
     }
   },
-  "required": ["version", "runner", "workspaces"],
+  "required": ["version", "workspaces"],
   "$defs": {
     "runner": {
       "type": "object",

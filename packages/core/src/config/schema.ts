@@ -5,7 +5,6 @@ import { z } from 'zod';
  *
  * Minimal support includes:
  * - version: required
- * - runner.mode: required ("background" only)
  * - workspaces: required
  *   - commands: name and command are required
  *   - ports and cwd are optional
@@ -43,7 +42,7 @@ export const PortMuxConfigSchema = z
   .object({
     $schema: z.string().optional(),
     version: z.string().min(1, 'version は必須です'),
-    runner: RunnerSchema,
+    runner: RunnerSchema.optional(),
     workspaces: z.record(z.string(), WorkspaceSchema),
   })
   .refine((data) => Object.keys(data.workspaces).length > 0, {

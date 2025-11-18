@@ -57,7 +57,6 @@ describe('runStartCommand', () => {
     workspaceDefinitionName: 'ws-one',
     projectConfig: {
       version: '1.0.0',
-      runner: { mode: 'background' as const },
       workspaces: {
         'ws-one': {
           description: '',
@@ -113,7 +112,6 @@ describe('runStartCommand', () => {
     vi.mocked(ConfigManager.findConfigFile).mockReturnValue('/workspace/portmux.config.json');
     vi.mocked(ConfigManager.loadConfig).mockReturnValue({
       version: '1.0.0',
-      runner: { mode: 'background' as const },
       workspaces: {
         default: {
           description: '',

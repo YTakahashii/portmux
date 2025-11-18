@@ -31,7 +31,6 @@ describe('logs command integration', () => {
 
     const projectConfig = {
       version: '1.0.0',
-      runner: { mode: 'background' as const },
       workspaces: {
         [workspaceName]: {
           description: '',
