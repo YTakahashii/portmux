@@ -26,6 +26,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/proper-lockfile": "^4.1.4",
+    "@types/tcp-port-used": "^1.0.4",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
