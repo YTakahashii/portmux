@@ -114,7 +114,13 @@ describe('runRestartCommand', () => {
       'ws-one',
       'api',
       'npm start',
-      expect.objectContaining({ cwd: './api', env: { RESOLVED: 'yes' }, workspaceKey: '/repo', projectRoot: '/repo', ports: [3000] })
+      expect.objectContaining({
+        cwd: './api',
+        env: { RESOLVED: 'yes' },
+        workspaceKey: '/repo',
+        projectRoot: '/repo',
+        ports: [3000],
+      })
     );
     expect(ProcessManager.startProcess).toHaveBeenCalledWith(
       'ws-one',
