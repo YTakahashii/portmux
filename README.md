@@ -4,7 +4,7 @@ PortMux is a CLI for running multiple group processes in the background while ke
 
 ## Install
 
-- Global install (recommended): `pnpm add -g @portmux/cli` or `npm install -g @portmux/cli`, then use the `portmux` command.
+- Global install (recommended): `pnpm add -g portmux` or `npm install -g portmux`, then use the `portmux` command (you can also run it via `npx portmux`).
 - From this repository:
   1. `pnpm install`
   2. `pnpm build`
@@ -16,7 +16,7 @@ PortMux is a CLI for running multiple group processes in the background while ke
 2. Edit the generated config or add commands. Example:
    ```json
    {
-     "$schema": "node_modules/@portmux/cli/schemas/portmux.config.schema.json",
+     "$schema": "node_modules/portmux/schemas/portmux.config.schema.json",
      "groups": {
        "app": {
          "description": "Demo group",
@@ -60,7 +60,7 @@ PortMux is a CLI for running multiple group processes in the background while ke
 
 ### Project config: `portmux.config.json`
 
-- `$schema` (optional): Point to `node_modules/@portmux/cli/schemas/portmux.config.schema.json` for editor IntelliSense.
+- `$schema` (optional): Point to `node_modules/portmux/schemas/portmux.config.schema.json` for editor IntelliSense.
 - `runner.mode` (optional): Currently only `background` is supported.
 - `groups` (required): Object keyed by group name.
   - `description`: Group description.

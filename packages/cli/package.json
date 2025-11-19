@@ -1,5 +1,5 @@
 {
-  "name": "@portmux/cli",
+  "name": "portmux",
   "version": "0.0.1",
   "description": "CLI for PortMux",
   "type": "module",
@@ -9,6 +9,9 @@
     "dist",
     "schemas"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -6,7 +6,7 @@
   "scripts": {
     "test": "pnpm -r test",
     "build": "pnpm -r build",
-    "dev:cli": "pnpm --filter @portmux/cli dev",
+    "dev:cli": "pnpm --filter portmux dev",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "lint": "eslint .",
