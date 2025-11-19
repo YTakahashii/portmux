@@ -125,7 +125,7 @@ describe('ProcessManager', () => {
   });
 
   describe('startProcess', () => {
-    it('プロセスを正常に起動できる', async () => {
+    it('starts a process successfully', async () => {
       const mockChildProcess = {
         pid: 1234,
         unref: vi.fn(),
@@ -169,7 +169,7 @@ describe('ProcessManager', () => {
       );
     });
 
-    it('groupKey が指定されている場合は状態に含める', async () => {
+    it('includes groupKey in the state when provided', async () => {
       const mockChildProcess = {
         pid: 1234,
         unref: vi.fn(),
@@ -202,7 +202,7 @@ describe('ProcessManager', () => {
       );
     });
 
-    it('ポート予約を計画して確定する', async () => {
+    it('plans and commits a port reservation', async () => {
       const mockChildProcess = {
         pid: 1234,
         unref: vi.fn(),
@@ -234,7 +234,7 @@ describe('ProcessManager', () => {
       expect(PortManager.commitReservation).toHaveBeenCalledWith('test-token');
     });
 
-    it('ポート予約の警告を表示する', async () => {
+    it('logs port reservation warnings', async () => {
       const mockChildProcess = {
         pid: 1234,
         unref: vi.fn(),
@@ -264,7 +264,7 @@ describe('ProcessManager', () => {
       consoleWarnSpy.mockRestore();
     });
 
-    it('既に起動しているプロセスがある場合はエラーを投げる', async () => {
+    it('throws when a process is already running', async () => {
       const existingState: ProcessState = {
         group: 'group-1',
         process: 'api',
@@ -286,7 +286,7 @@ describe('ProcessManager', () => {
       expect(PortManager.releaseReservation).not.toHaveBeenCalled();
     });
 
-    it('PID が死んでいる既存プロセスがある場合は状態をクリアして起動する', async () => {
+    it('clears stale state and starts when the recorded PID is dead', async () => {
       const existingState: ProcessState = {
         group: 'group-1',
         process: 'api',
@@ -316,7 +316,7 @@ describe('ProcessManager', () => {
       expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
     });
 
-    it('ポート予約に失敗した場合はエラーを投げる', async () => {
+    it('throws when planning the port reservation fails', async () => {
       const portError = new Error('Port in use');
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(null);
@@ -332,7 +332,7 @@ describe('ProcessManager', () => {
       expect(PortManager.releaseReservation).not.toHaveBeenCalled();
     });
 
-    it('projectRoot が指定されていない場合、設定ファイルが見つからないとエラーを投げる', async () => {
+    it('throws if projectRoot is missing and the config file cannot be found', async () => {
       const configError = new Error('Config file not found');
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(null);
@@ -347,7 +347,7 @@ describe('ProcessManager', () => {
       ).rejects.toThrow(ProcessStartError);
     });
 
-    it('ログファイルの作成に失敗した場合はエラーを投げる', async () => {
+    it('throws when log file creation fails', async () => {
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(null);
       vi.mocked(PortManager.planReservation).mockResolvedValue({
@@ -371,7 +371,7 @@ describe('ProcessManager', () => {
       expect(PortManager.releaseReservation).toHaveBeenCalledWith('test-token');
     });
 
-    it('プロセス起動に失敗した場合はエラーを投げる', async () => {
+    it('throws when spawning the process fails', async () => {
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(null);
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
@@ -392,7 +392,7 @@ describe('ProcessManager', () => {
       expect(PortManager.releaseReservation).not.toHaveBeenCalled();
     });
 
-    it('PID が取得できない場合はエラーを投げる', async () => {
+    it('throws when no PID is available', async () => {
       const mockChildProcess = {
         pid: undefined,
         unref: vi.fn(),
@@ -420,7 +420,7 @@ describe('ProcessManager', () => {
       expect(PortManager.releaseReservation).toHaveBeenCalledWith('test-token');
     });
 
-    it('プロセスが起動直後に終了した場合はエラーを投げる', async () => {
+    it('throws when the process exits immediately after start', async () => {
       const mockChildProcess = {
         pid: 1234,
         unref: vi.fn(),
@@ -449,7 +449,7 @@ describe('ProcessManager', () => {
       expect(PortManager.releaseReservation).toHaveBeenCalledWith('test-token');
     });
 
-    it('cwd が相対パスの場合は projectRoot 基準で解決する', async () => {
+    it('resolves relative cwd from projectRoot', async () => {
       const mockChildProcess = {
         pid: 1234,
         unref: vi.fn(),
@@ -477,7 +477,7 @@ describe('ProcessManager', () => {
       );
     });
 
-    it('cwd が絶対パスの場合はそのまま使用する', async () => {
+    it('uses an absolute cwd as-is', async () => {
       const mockChildProcess = {
         pid: 1234,
         unref: vi.fn(),
@@ -507,7 +507,7 @@ describe('ProcessManager', () => {
       );
     });
 
-    it('環境変数をマージする', async () => {
+    it('merges environment variables', async () => {
       const mockChildProcess = {
         pid: 1234,
         unref: vi.fn(),
@@ -540,7 +540,7 @@ describe('ProcessManager', () => {
   });
 
   describe('stopProcess', () => {
-    it('プロセスを正常に停止できる', async () => {
+    it('stops a process successfully', async () => {
       const state: ProcessState = {
         group: 'group-1',
         process: 'api',
@@ -570,13 +570,13 @@ describe('ProcessManager', () => {
       expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
     });
 
-    it('状態が見つからない場合はエラーを投げる', async () => {
+    it('throws when no state exists', async () => {
       vi.mocked(StateManager.readState).mockReturnValue(null);
 
       await expect(ProcessManager.stopProcess('group-1', 'api')).rejects.toThrow(ProcessStopError);
     });
 
-    it('既に停止している場合は状態を削除する', async () => {
+    it('deletes the state if it is already stopped', async () => {
       const state: ProcessState = {
         group: 'group-1',
         process: 'api',
@@ -592,7 +592,7 @@ describe('ProcessManager', () => {
       expect(kill).not.toHaveBeenCalled();
     });
 
-    it('PID が記録されていない場合は状態を削除する', async () => {
+    it('deletes the state when no PID is recorded', async () => {
       const state: ProcessState = {
         group: 'group-1',
         process: 'api',
@@ -608,7 +608,7 @@ describe('ProcessManager', () => {
       expect(kill).not.toHaveBeenCalled();
     });
 
-    it('プロセスが既に死んでいる場合は状態を更新して終了する', async () => {
+    it('updates the state and exits when the process is already dead', async () => {
       const state: ProcessState = {
         group: 'group-1',
         process: 'api',
@@ -635,7 +635,7 @@ describe('ProcessManager', () => {
       expect(kill).not.toHaveBeenCalled();
     });
 
-    it('SIGTERM 送信に失敗した場合はエラーを投げる', async () => {
+    it('throws when sending SIGTERM fails', async () => {
       const state: ProcessState = {
         group: 'group-1',
         process: 'api',
@@ -654,7 +654,7 @@ describe('ProcessManager', () => {
       expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
     });
 
-    it('タイムアウトした場合は SIGKILL を送信する', async () => {
+    it('sends SIGKILL when the stop times out', async () => {
       const state: ProcessState = {
         group: 'group-1',
         process: 'api',
@@ -679,7 +679,7 @@ describe('ProcessManager', () => {
       expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
     });
 
-    it('SIGKILL 送信後もプロセスが生存している場合はエラーを投げる', async () => {
+    it('throws when the process remains alive even after SIGKILL', async () => {
       const state: ProcessState = {
         group: 'group-1',
         process: 'api',
@@ -698,7 +698,7 @@ describe('ProcessManager', () => {
   });
 
   describe('listProcesses', () => {
-    it('すべてのプロセスの状態一覧を取得できる', () => {
+    it('lists the state of every process', () => {
       const states: ProcessState[] = [
         {
           group: 'group-1',
@@ -744,7 +744,7 @@ describe('ProcessManager', () => {
       });
     });
 
-    it('死んでいるプロセスの状態を更新する', () => {
+    it('updates the state for dead processes', () => {
       const states: ProcessState[] = [
         {
           group: 'group-1',
@@ -781,7 +781,7 @@ describe('ProcessManager', () => {
       expect(StateManager.deleteState).toHaveBeenCalledWith('group-2', 'worker');
     });
 
-    it('PID がないプロセスはそのまま返す', () => {
+    it('returns processes without a PID as-is', () => {
       const states: ProcessState[] = [
         {
           group: 'group-1',
@@ -799,7 +799,7 @@ describe('ProcessManager', () => {
       expect(isPidAlive).not.toHaveBeenCalled();
     });
 
-    it('PID がない Running 状態のプロセスはそのまま返す', () => {
+    it('returns Running states without a PID as-is', () => {
       const states: ProcessState[] = [
         {
           group: 'group-1',
@@ -819,7 +819,7 @@ describe('ProcessManager', () => {
   });
 
   describe('restartProcess', () => {
-    it('既存の状態があれば停止してから起動する', async () => {
+    it('stops before starting when state exists', async () => {
       vi.mocked(StateManager.readState).mockReturnValue({
         group: 'group-1',
         process: 'api',
@@ -841,7 +841,7 @@ describe('ProcessManager', () => {
       );
     });
 
-    it('状態がなければ停止せずに起動する', async () => {
+    it('starts without stopping when no state exists', async () => {
       vi.mocked(StateManager.readState).mockReturnValue(null);
       const stopSpy = vi.spyOn(ProcessManager, 'stopProcess').mockResolvedValue();
       const startSpy = vi.spyOn(ProcessManager, 'startProcess').mockResolvedValue();
@@ -859,7 +859,7 @@ describe('ProcessManager', () => {
       );
     });
 
-    it('停止に失敗した場合は ProcessRestartError を投げる', async () => {
+    it('throws ProcessRestartError when stop fails', async () => {
       vi.mocked(StateManager.readState).mockReturnValue({
         group: 'group-1',
         process: 'api',
@@ -874,7 +874,7 @@ describe('ProcessManager', () => {
       expect(StateManager.writeState).not.toHaveBeenCalled();
     });
 
-    it('起動に失敗した場合は Error 状態を書き込み ProcessRestartError を投げる', async () => {
+    it('writes an Error state and throws ProcessRestartError when start fails', async () => {
       vi.mocked(StateManager.readState).mockReturnValue({
         group: 'group-1',
         process: 'api',

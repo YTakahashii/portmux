@@ -23,14 +23,14 @@ beforeEach(() => {
 });
 
 describe('isPidAlive', () => {
-  it('kill が成功すれば true を返す', async () => {
+  it('returns true when kill succeeds', async () => {
     const { isPidAlive } = await importModule();
 
     expect(isPidAlive(1234)).toBe(true);
     expect(killMock).toHaveBeenCalledWith(1234, 0);
   });
 
-  it('kill が失敗すれば false を返す', async () => {
+  it('returns false when kill fails', async () => {
     killMock.mockImplementation(() => {
       throw new Error('no such process');
     });
@@ -41,7 +41,7 @@ describe('isPidAlive', () => {
 });
 
 describe('getCommandLine', () => {
-  it('Linux では /proc からコマンドラインを取得する', async () => {
+  it('reads the command line from /proc on Linux', async () => {
     existsSyncMock.mockReturnValue(true);
     readFileSyncMock.mockReturnValue('node\0app.js\0');
 
@@ -52,7 +52,7 @@ describe('getCommandLine', () => {
     expect(readFileSyncMock).toHaveBeenCalledWith('/proc/42/cmdline', 'utf-8');
   });
 
-  it('Linux で /proc が存在しない場合は null を返す', async () => {
+  it('returns null when /proc is missing on Linux', async () => {
     existsSyncMock.mockReturnValue(false);
 
     const { getCommandLine } = await importModule();
@@ -60,7 +60,7 @@ describe('getCommandLine', () => {
     expect(getCommandLine(101)).toBeNull();
   });
 
-  it('macOS では ps コマンドの結果を返す', async () => {
+  it('uses the ps command result on macOS', async () => {
     platformMock.mockReturnValue('darwin');
     execSyncMock.mockReturnValue('node app.js\n');
 
@@ -73,7 +73,7 @@ describe('getCommandLine', () => {
     });
   });
 
-  it('Windows ではヘッダーを除いたコマンドラインを返す', async () => {
+  it('returns the command line without the header on Windows', async () => {
     platformMock.mockReturnValue('win32');
     execSyncMock.mockReturnValue('CommandLine\r\nnode app.js\r\n');
 
@@ -86,7 +86,7 @@ describe('getCommandLine', () => {
     });
   });
 
-  it('コマンド取得に失敗した場合は null を返す', async () => {
+  it('returns null when command retrieval fails', async () => {
     platformMock.mockReturnValue('darwin');
     execSyncMock.mockImplementation(() => {
       throw new Error('ps failed');
@@ -99,7 +99,7 @@ describe('getCommandLine', () => {
 });
 
 describe('verifyPidCommand', () => {
-  it('実際のコマンドラインが期待値を含む場合に true を返す', async () => {
+  it('returns true when the actual command line contains the expectation', async () => {
     platformMock.mockReturnValue('darwin');
     execSyncMock.mockReturnValue('node api-server.js');
 
@@ -108,7 +108,7 @@ describe('verifyPidCommand', () => {
     expect(verifyPidCommand(3000, 'node api-server.js')).toBe(true);
   });
 
-  it('シェル経由で部分一致する場合でも true を返す', async () => {
+  it('returns true even when the command matches via a shell wrapper', async () => {
     platformMock.mockReturnValue('darwin');
     execSyncMock.mockReturnValue('sh -c "node api-server.js"');
 
@@ -117,7 +117,7 @@ describe('verifyPidCommand', () => {
     expect(verifyPidCommand(4000, 'node api-server.js')).toBe(true);
   });
 
-  it('コマンドが取得できない場合は false を返す', async () => {
+  it('returns false when the command cannot be read', async () => {
     existsSyncMock.mockReturnValue(false);
 
     const { verifyPidCommand } = await importModule();
@@ -127,7 +127,7 @@ describe('verifyPidCommand', () => {
 });
 
 describe('isPidAliveAndValid', () => {
-  it('PID が生存していない場合は false を返す', async () => {
+  it('returns false when the PID is not alive', async () => {
     killMock.mockImplementation(() => {
       throw new Error('not alive');
     });
@@ -136,13 +136,13 @@ describe('isPidAliveAndValid', () => {
     expect(isPidAliveAndValid(6000, 'node x.js')).toBe(false);
   });
 
-  it('期待コマンドが指定されない場合は生存確認のみで判定する', async () => {
+  it('falls back to only the liveness check when no expected command is provided', async () => {
     const { isPidAliveAndValid } = await importModule();
 
     expect(isPidAliveAndValid(7000)).toBe(true);
   });
 
-  it('コマンドが一致しない場合は false を返す', async () => {
+  it('returns false when the command does not match', async () => {
     platformMock.mockReturnValue('darwin');
     execSyncMock.mockReturnValue('node other.js');
 

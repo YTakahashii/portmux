@@ -26,7 +26,7 @@ describe('StateManager', () => {
     rmSync(testHomeDir, { recursive: true, force: true });
   });
 
-  it('writeState と readState で状態を永続化できる', () => {
+  it('persists state via writeState and readState', () => {
     const state: ProcessState = {
       group: 'App',
       process: 'API Server',
@@ -41,7 +41,7 @@ describe('StateManager', () => {
     expect(loaded).toEqual(state);
   });
 
-  it('deleteState で状態ファイルを削除できる', () => {
+  it('removes the state file with deleteState', () => {
     const state = { group: 'App', process: 'Worker', status: 'Stopped' } as const;
 
     StateManager.writeState(state.group, state.process, state);
@@ -50,7 +50,7 @@ describe('StateManager', () => {
     expect(StateManager.readState(state.group, state.process)).toBeNull();
   });
 
-  it('listAllStates は全ての状態を返し、破損ファイルをスキップする', () => {
+  it('listAllStates returns every state and skips corrupt files', () => {
     const first = { group: 'ws-1', process: 'api', status: 'Running' } as const;
     const second = { group: 'ws-2', process: 'worker', status: 'Stopped' } as const;
 
@@ -65,7 +65,7 @@ describe('StateManager', () => {
     expect(states).toEqual(expect.arrayContaining([first, second]));
   });
 
-  it('generateLogPath はログディレクトリを作成し、スラッグ化されたファイル名を返す', () => {
+  it('generateLogPath creates the log dir and returns a slugified file path', () => {
     const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(42);
 
     const logPath = StateManager.generateLogPath('My Group', 'Service/API');

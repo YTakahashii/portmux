@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 describe('ConfigManager', () => {
-  it('resolveCommandEnv は commandEnv を優先して環境変数を解決する', () => {
+  it('resolveCommandEnv prefers commandEnv when resolving environment variables', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const previous = process.env.TEST_GLOBAL_VAR;
     process.env.TEST_GLOBAL_VAR = 'global-value';
@@ -71,7 +71,7 @@ describe('ConfigManager', () => {
     }
   });
 
-  it('resolveEnvObject は env 内の参照を再帰的に解決する', () => {
+  it('resolveEnvObject resolves references within env recursively', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const env = {
       API_BASE: 'https://example.com',
@@ -89,19 +89,19 @@ describe('ConfigManager', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('MISSING'));
   });
 
-  it('validateVersion はメジャーバージョンが異なる場合にエラーを投げる', () => {
+  it('validateVersion throws when the major version differs', () => {
     expect(() => {
       ConfigManager.validateVersion('2.0.0');
     }).toThrow(VersionMismatchError);
   });
 
-  it('validateVersion はサポートより新しいマイナーバージョンで警告を出す', () => {
+  it('validateVersion warns when the minor version is newer than supported', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     ConfigManager.validateVersion('1.2.0');
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('1.2.0'));
   });
 
-  it('findConfigFile は親ディレクトリを遡って設定ファイルを検出する', () => {
+  it('findConfigFile walks up parent directories to locate the config file', () => {
     const { root, nestedDir, configPath } = createTempProject();
     try {
       const found = ConfigManager.findConfigFile(nestedDir);
@@ -111,7 +111,7 @@ describe('ConfigManager', () => {
     }
   });
 
-  it('loadConfig はファイルを読み込みバリデーション済みの設定を返す', () => {
+  it('loadConfig reads the file and returns the validated config', () => {
     const { root, configPath } = createTempProject();
     try {
       const loaded = ConfigManager.loadConfig(configPath);
@@ -121,7 +121,7 @@ describe('ConfigManager', () => {
     }
   });
 
-  it('loadConfig はメジャーバージョンが異なる設定でエラーを投げる', () => {
+  it('loadConfig throws when the config has a different major version', () => {
     const invalidConfig: PortMuxConfig = {
       ...baseConfig,
       version: '2.0.0',
@@ -137,7 +137,7 @@ describe('ConfigManager', () => {
   });
 
   describe('mergeGlobalAndProjectConfigs', () => {
-    it('グローバル設定とプロジェクト設定をマージして返す', () => {
+    it('merges and returns the global and project configs', () => {
       const { root: root1 } = createTempProject();
       const anotherGroup = baseConfig.groups.default;
       if (!anotherGroup) {
@@ -177,7 +177,7 @@ describe('ConfigManager', () => {
       }
     });
 
-    it('targetRepository 指定時に他の無効なエントリを無視できる', () => {
+    it('ignores other invalid entries when targetRepository is provided', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
@@ -202,7 +202,7 @@ describe('ConfigManager', () => {
       }
     });
 
-    it('skipInvalid が true の場合は無効なリポジトリをスキップする', () => {
+    it('skips invalid repositories when skipInvalid is true', () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {

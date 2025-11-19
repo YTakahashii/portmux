@@ -59,13 +59,13 @@ describe('PortManager', () => {
   });
 
   describe('checkPortAvailability', () => {
-    it('すべてのポートが使用可能な場合はエラーを投げない', async () => {
+    it('does not throw when every port is available', async () => {
       vi.mocked(checkPortUsed).mockResolvedValue(false);
 
       await expect(PortManager.checkPortAvailability([3000, 3001, 3002])).resolves.toBeUndefined();
     });
 
-    it('ポートが使用中の場合は PortInUseError を投げる', async () => {
+    it('throws PortInUseError when a port is in use', async () => {
       vi.mocked(checkPortUsed).mockImplementation((port) => {
         return Promise.resolve(typeof port === 'number' ? port === 3001 : false);
       });
@@ -73,7 +73,7 @@ describe('PortManager', () => {
       await expect(PortManager.checkPortAvailability([3000, 3001, 3002])).rejects.toThrow(PortInUseError);
     });
 
-    it('複数のポートが使用中の場合、最初のポートでエラーを投げる', async () => {
+    it('throws for the first port when multiple ports are busy', async () => {
       vi.mocked(checkPortUsed).mockImplementation((port) => {
         return Promise.resolve(typeof port === 'number' ? port === 3000 || port === 3001 : false);
       });
@@ -83,7 +83,7 @@ describe('PortManager', () => {
   });
 
   describe('loadReservationsFromState', () => {
-    it('状態ストアからポート予約情報を読み込む', () => {
+    it('loads port reservation data from the state store', () => {
       const states: ProcessState[] = [
         {
           group: 'group-1',
@@ -131,7 +131,7 @@ describe('PortManager', () => {
       });
     });
 
-    it('Running 状態でないプロセスは読み込まない', () => {
+    it('ignores processes that are not in Running status', () => {
       const states: ProcessState[] = [
         {
           group: 'group-1',
@@ -152,7 +152,7 @@ describe('PortManager', () => {
       expect(reservations.size).toBe(0);
     });
 
-    it('PID がない Running 状態のプロセスは読み込まない', () => {
+    it('skips Running processes without a PID', () => {
       const states: ProcessState[] = [
         {
           group: 'group-1',
@@ -168,7 +168,7 @@ describe('PortManager', () => {
       expect(reservations.size).toBe(0);
     });
 
-    it('startedAt がない場合は現在時刻を使用する', () => {
+    it('defaults startedAt to now when missing', () => {
       const states: ProcessState[] = [
         {
           group: 'group-1',
@@ -191,7 +191,7 @@ describe('PortManager', () => {
   });
 
   describe('reconcileFromState', () => {
-    it('PID が死んでいる予約を解放する', () => {
+    it('releases reservations whose PIDs are dead', () => {
       const states: ProcessState[] = [
         {
           group: 'group-1',
@@ -220,7 +220,7 @@ describe('PortManager', () => {
       expect(StateManager.deleteState).toHaveBeenCalledWith('group-2', 'worker');
     });
 
-    it('PID が生存している予約は解放しない', () => {
+    it('keeps reservations when the PID is still alive', () => {
       const states: ProcessState[] = [
         {
           group: 'group-1',
@@ -239,7 +239,7 @@ describe('PortManager', () => {
       expect(StateManager.deleteState).not.toHaveBeenCalled();
     });
 
-    it('PID がない予約は解放しない', () => {
+    it('does not release reservations without a PID', () => {
       const states: ProcessState[] = [
         {
           group: 'group-1',
@@ -259,7 +259,7 @@ describe('PortManager', () => {
   });
 
   describe('planReservation', () => {
-    it('ポート予約の計画を立てる', async () => {
+    it('plans a new port reservation', async () => {
       vi.mocked(checkPortUsed).mockResolvedValue(false);
       vi.mocked(StateManager.listAllStates).mockReturnValue([]);
 
@@ -276,7 +276,7 @@ describe('PortManager', () => {
       expect(plan.warnings).toEqual([]);
     });
 
-    it('既存のプロセスがある場合は警告を追加する', async () => {
+    it('adds a warning when a process already exists', async () => {
       vi.mocked(checkPortUsed).mockResolvedValue(false);
       const states: ProcessState[] = [
         {
@@ -301,7 +301,7 @@ describe('PortManager', () => {
       expect(plan.warnings[0]).toContain('already running');
     });
 
-    it('ポートが使用中の場合は PortInUseError を投げる', async () => {
+    it('throws PortInUseError when a port is in use', async () => {
       vi.mocked(checkPortUsed).mockResolvedValue(true);
       vi.mocked(StateManager.listAllStates).mockReturnValue([]);
 
@@ -316,7 +316,7 @@ describe('PortManager', () => {
   });
 
   describe('commitReservation', () => {
-    it('有効な予約トークンで予約を確定できる', async () => {
+    it('commits a reservation with a valid token', async () => {
       vi.mocked(checkPortUsed).mockResolvedValue(false);
       vi.mocked(StateManager.listAllStates).mockReturnValue([]);
 
@@ -333,7 +333,7 @@ describe('PortManager', () => {
       }).not.toThrow();
     });
 
-    it('無効な予約トークンでエラーを投げる', () => {
+    it('throws for an invalid reservation token', () => {
       expect(() => {
         PortManager.commitReservation('invalid-token');
       }).toThrow('Invalid reservation token: invalid-token');
@@ -341,7 +341,7 @@ describe('PortManager', () => {
   });
 
   describe('releaseReservation', () => {
-    it('予約トークンを指定して予約を解放できる', async () => {
+    it('releases a reservation using its token', async () => {
       vi.mocked(checkPortUsed).mockResolvedValue(false);
       vi.mocked(StateManager.listAllStates).mockReturnValue([]);
 
@@ -363,7 +363,7 @@ describe('PortManager', () => {
       }).toThrow('Invalid reservation token');
     });
 
-    it('予約トークンを指定しない場合は何もしない', () => {
+    it('does nothing when no reservation token is provided', () => {
       expect(() => {
         PortManager.releaseReservation();
       }).not.toThrow();
@@ -371,7 +371,7 @@ describe('PortManager', () => {
   });
 
   describe('releaseReservationByProcess', () => {
-    it('対象の予約を解放し、状態を削除する', async () => {
+    it('releases the target reservation and deletes its state', async () => {
       vi.mocked(checkPortUsed).mockResolvedValue(false);
       vi.mocked(StateManager.listAllStates).mockReturnValue([]);
 
@@ -391,7 +391,7 @@ describe('PortManager', () => {
   });
 
   describe('PortInUseError', () => {
-    it('PortInUseError が正しく作成される', () => {
+    it('constructs PortInUseError properly', () => {
       const error = new PortInUseError(3000);
 
       expect(error).toBeInstanceOf(Error);

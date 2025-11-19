@@ -55,7 +55,7 @@ describe('LockManager', () => {
   });
 
   describe('acquireGlobalLock', () => {
-    it('グローバルロックを取得できる', async () => {
+    it('acquires the global lock', async () => {
       const releaseLock = await LockManager.acquireGlobalLock();
 
       expect(releaseLock).toBeInstanceOf(Function);
@@ -64,13 +64,13 @@ describe('LockManager', () => {
       await releaseLock();
     });
 
-    it('グローバルロックを解放できる', async () => {
+    it('releases the global lock', async () => {
       const releaseLock = await LockManager.acquireGlobalLock();
 
       await expect(releaseLock()).resolves.toBeUndefined();
     });
 
-    it('グローバルロックを取得するとロックディレクトリが作成される', async () => {
+    it('creates the lock directory when acquiring the global lock', async () => {
       const lockDir = getLockDir();
       expect(existsSync(lockDir)).toBe(false);
 
@@ -84,7 +84,7 @@ describe('LockManager', () => {
   });
 
   describe('acquireGroupLock', () => {
-    it('グループロックを取得できる', async () => {
+    it('acquires a group lock', async () => {
       const group = 'test-group';
       const releaseLock = await LockManager.acquireGroupLock(group);
 
@@ -94,14 +94,14 @@ describe('LockManager', () => {
       await releaseLock();
     });
 
-    it('グループロックを解放できる', async () => {
+    it('releases a group lock', async () => {
       const group = 'test-group';
       const releaseLock = await LockManager.acquireGroupLock(group);
 
       await expect(releaseLock()).resolves.toBeUndefined();
     });
 
-    it('グループ名をスラッグ化してロックファイルを作成する', async () => {
+    it('slugifies the group name when creating the lock file', async () => {
       const lockDir = getLockDir();
       const releaseLock1 = await LockManager.acquireGroupLock('My Group');
       expect(existsSync(join(lockDir, 'My-Group.lock'))).toBe(true);
@@ -120,7 +120,7 @@ describe('LockManager', () => {
       await releaseLock4();
     });
 
-    it('グループロックを取得するとロックディレクトリが作成される', async () => {
+    it('creates the lock directory when acquiring a group lock', async () => {
       const lockDir = getLockDir();
       expect(existsSync(lockDir)).toBe(false);
 
@@ -134,7 +134,7 @@ describe('LockManager', () => {
   });
 
   describe('withLock', () => {
-    it('グローバルロックで処理を実行できる', async () => {
+    it('runs the handler under the global lock', async () => {
       let executed = false;
 
       const result = await LockManager.withLock('global', null, () => {
@@ -146,7 +146,7 @@ describe('LockManager', () => {
       expect(result).toBe('test-result');
     });
 
-    it('グループロックで処理を実行できる', async () => {
+    it('runs the handler under a group lock', async () => {
       let executed = false;
 
       const result = await LockManager.withLock('group', 'test-group', () => {
@@ -158,7 +158,7 @@ describe('LockManager', () => {
       expect(result).toBe('test-result');
     });
 
-    it('グループロックでグループ名がnullの場合にエラーを投げる', async () => {
+    it('throws when a group lock is requested without a group name', async () => {
       await expect(
         LockManager.withLock('group', null, () => {
           return Promise.resolve('test-result');
@@ -166,7 +166,7 @@ describe('LockManager', () => {
       ).rejects.toThrow('Group name is required to acquire a group lock');
     });
 
-    it('処理がエラーを投げてもロックを解放する', async () => {
+    it('releases the lock even when the handler throws', async () => {
       // ロックを取得してからエラーを投げる
       await expect(
         LockManager.withLock('global', null, () => {
@@ -179,7 +179,7 @@ describe('LockManager', () => {
       await releaseLock();
     });
 
-    it('複数のロックを順次取得できる', async () => {
+    it('acquires multiple locks sequentially', async () => {
       const releaseLock1 = await LockManager.acquireGlobalLock();
       await releaseLock1();
 
@@ -195,7 +195,7 @@ describe('LockManager', () => {
   });
 
   describe('LockTimeoutError', () => {
-    it('LockTimeoutError が正しく作成される', () => {
+    it('constructs LockTimeoutError properly', () => {
       const lockPath = '/path/to/lock';
       const error = new LockTimeoutError(lockPath);
 
@@ -205,13 +205,13 @@ describe('LockManager', () => {
       expect(error.message).toContain('timed out');
     });
 
-    it('acquireGlobalLock がタイムアウトした場合に LockTimeoutError を投げる', async () => {
+    it('throws LockTimeoutError when acquireGlobalLock times out', async () => {
       vi.mocked(lock).mockRejectedValue(new Error('Lock timeout'));
 
       await expect(LockManager.acquireGlobalLock()).rejects.toThrow(LockTimeoutError);
     });
 
-    it('acquireGroupLock がタイムアウトした場合に LockTimeoutError を投げる', async () => {
+    it('throws LockTimeoutError when acquireGroupLock times out', async () => {
       vi.mocked(lock).mockRejectedValue(new Error('Lock timeout'));
 
       await expect(LockManager.acquireGroupLock('test-group')).rejects.toThrow(LockTimeoutError);
@@ -219,7 +219,7 @@ describe('LockManager', () => {
   });
 
   describe('LockReleaseError', () => {
-    it('ロック解放時にエラーが発生した場合に LockReleaseError を投げる', async () => {
+    it('throws LockReleaseError when releasing fails', async () => {
       const releaseError = new Error('Release failed');
       vi.mocked(lock).mockResolvedValue(() => {
         return Promise.reject(releaseError);
@@ -230,7 +230,7 @@ describe('LockManager', () => {
       await expect(releaseLock()).rejects.toThrow(LockReleaseError);
     });
 
-    it('LockReleaseError が正しく作成される（Error オブジェクトの場合）', () => {
+    it('constructs LockReleaseError properly when given an Error cause', () => {
       const lockPath = '/path/to/lock';
       const cause = new Error('release failed');
       const error = new LockReleaseError(lockPath, cause);
@@ -241,7 +241,7 @@ describe('LockManager', () => {
       expect(error.message).toContain('release failed');
     });
 
-    it('LockReleaseError が正しく作成される（文字列の場合）', () => {
+    it('constructs LockReleaseError properly when given a string cause', () => {
       const lockPath = '/path/to/lock';
       const cause = 'release failed';
       const error = new LockReleaseError(lockPath, cause);

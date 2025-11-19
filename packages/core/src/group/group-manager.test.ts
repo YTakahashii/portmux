@@ -131,7 +131,7 @@ describe('GroupManager', () => {
   });
 
   describe('resolveGroupByName', () => {
-    it('グループ名から設定を解決できる', () => {
+    it('resolves a group definition by its name', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
@@ -155,13 +155,13 @@ describe('GroupManager', () => {
       cleanupTempDir(root);
     });
 
-    it('グローバル設定ファイルが存在しない場合にエラーを投げる', () => {
+    it('throws when the global config file is missing', () => {
       expect(() => {
         GroupManager.resolveGroupByName('test-group');
       }).toThrow(GroupResolutionError);
     });
 
-    it('グループがグローバル設定に見つからない場合にエラーを投げる', () => {
+    it('throws when the group is not defined in the global config', () => {
       createGlobalConfig();
 
       expect(() => {
@@ -169,7 +169,7 @@ describe('GroupManager', () => {
       }).toThrow(GroupResolutionError);
     });
 
-    it('プロジェクト設定ファイルが見つからない場合にエラーを投げる', () => {
+    it('throws when the project config file cannot be found', () => {
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
         repositories: {
@@ -186,7 +186,7 @@ describe('GroupManager', () => {
       }).toThrow(GroupResolutionError);
     });
 
-    it('プロジェクト設定内にグループ定義が見つからない場合にエラーを投げる', () => {
+    it('throws when the group definition is missing inside the project config', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
@@ -208,7 +208,7 @@ describe('GroupManager', () => {
   });
 
   describe('resolveGroupAuto', () => {
-    it('Git worktree からグループを解決できる', () => {
+    it('resolves the group from the Git worktree metadata', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
@@ -247,7 +247,7 @@ describe('GroupManager', () => {
       cleanupTempDir(root);
     });
 
-    it('グローバル設定がない場合はフォールバックモードで最初のグループを使用', () => {
+    it('falls back to the first group when no global config exists', () => {
       const { root, configPath } = createTempProject();
 
       const resolved = GroupManager.resolveGroupAuto(root);
@@ -260,7 +260,7 @@ describe('GroupManager', () => {
       cleanupTempDir(root);
     });
 
-    it('プロジェクト設定ファイルが見つからない場合にエラーを投げる', () => {
+    it('throws when the project config file cannot be found', () => {
       const tempRoot = mkdtempSync(join(systemTmpdir(), 'portmux-group-'));
 
       expect(() => {
@@ -270,7 +270,7 @@ describe('GroupManager', () => {
       cleanupTempDir(tempRoot);
     });
 
-    it('Git 環境ではない場合はパスマッチでグループを解決', () => {
+    it('resolves by path matching when not in a Git environment', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
@@ -301,7 +301,7 @@ describe('GroupManager', () => {
       cleanupTempDir(root);
     });
 
-    it('Git 環境ではない場合、マッチしない場合は最初のグループを使用して警告を出す', () => {
+    it('warns and uses the first group when nothing matches outside Git', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
@@ -336,7 +336,7 @@ describe('GroupManager', () => {
       cleanupTempDir(root);
     });
 
-    it('git worktree が見つからない場合にエラーを投げる', () => {
+    it('throws when no git worktree can be detected', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
@@ -372,7 +372,7 @@ describe('GroupManager', () => {
       cleanupTempDir(root);
     });
 
-    it('git worktree に対応するグループがグローバル設定に見つからない場合にエラーを投げる', () => {
+    it('throws when the git worktree does not map to any global config group', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
@@ -410,7 +410,7 @@ describe('GroupManager', () => {
   });
 
   describe('listAllGroups', () => {
-    it('すべてのグループを列挙できる', () => {
+    it('lists every group', () => {
       const { root: root1 } = createTempProject();
       const devGroup = baseProjectConfig.groups.dev;
       if (!devGroup) {
@@ -447,12 +447,12 @@ describe('GroupManager', () => {
       cleanupTempDir(root2);
     });
 
-    it('グローバル設定が存在しない場合は空配列を返す', () => {
+    it('returns an empty array when the global config is missing', () => {
       const groups = GroupManager.listAllGroups();
       expect(groups).toEqual([]);
     });
 
-    it('エラーが発生したグループはスキップされる', () => {
+    it('skips groups that fail to resolve', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
         version: '1.0.0',
