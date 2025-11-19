@@ -330,7 +330,7 @@ describe('GroupManager', () => {
       expect(resolved.path).toBe(realpathSync(root));
       expect(resolved.projectConfigPath).toBe(configPath);
       expect(resolved.groupDefinitionName).toBe('default');
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('警告'));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Warning'));
 
       warnSpy.mockRestore();
       cleanupTempDir(root);

@@ -40,7 +40,7 @@ describe('psCommand', () => {
 
     await runPs();
 
-    expect(console.log).toHaveBeenCalledWith('実行中のプロセスがありません');
+    expect(console.log).toHaveBeenCalledWith('No running processes');
     expect(console.table).not.toHaveBeenCalled();
     expect(process.exit).not.toHaveBeenCalled();
   });
@@ -78,7 +78,7 @@ describe('psCommand', () => {
     });
 
     await runPs();
-    expect(console.error).toHaveBeenCalledWith('エラー: boom');
+    expect(console.error).toHaveBeenCalledWith('Error: boom');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 });

@@ -10,7 +10,7 @@ import { PortmuxError } from '../errors.js';
 export class PortInUseError extends PortmuxError {
   override readonly name = 'PortInUseError';
   constructor(port: number) {
-    super(`ポート ${String(port)} は既に使用されています`);
+    super(`Port ${String(port)} is already in use`);
   }
 }
 
@@ -156,7 +156,7 @@ export const PortManager = {
 
     if (existingReservation) {
       warnings.push(
-        `プロセス "${request.process}" は既に起動しています。` + `既存のプロセスを停止してから起動してください。`
+        `Process "${request.process}" is already running.` + ` Stop the existing process before starting it again.`
       );
     }
 
@@ -190,7 +190,7 @@ export const PortManager = {
   commitReservation(reservationToken: string): void {
     const reservation = pendingReservations.get(reservationToken);
     if (!reservation) {
-      throw new Error(`無効な予約トークンです: ${reservationToken}`);
+      throw new Error(`Invalid reservation token: ${reservationToken}`);
     }
 
     // 状態ストアに保存（現在は StateManager が処理）

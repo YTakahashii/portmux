@@ -163,7 +163,7 @@ describe('LockManager', () => {
         LockManager.withLock('group', null, () => {
           return Promise.resolve('test-result');
         })
-      ).rejects.toThrow('グループロックの取得にはグループ名が必要です');
+      ).rejects.toThrow('Group name is required to acquire a group lock');
     });
 
     it('処理がエラーを投げてもロックを解放する', async () => {
@@ -202,7 +202,7 @@ describe('LockManager', () => {
       expect(error).toBeInstanceOf(Error);
       expect(error.name).toBe('LockTimeoutError');
       expect(error.message).toContain(lockPath);
-      expect(error.message).toContain('タイムアウト');
+      expect(error.message).toContain('timed out');
     });
 
     it('acquireGlobalLock がタイムアウトした場合に LockTimeoutError を投げる', async () => {

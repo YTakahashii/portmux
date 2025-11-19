@@ -153,14 +153,14 @@ export const GroupManager = {
     }
     if (!merged) {
       throw new GroupResolutionError(
-        `リポジトリ "${repositoryName}" が見つかりません。\n` +
-          `グローバル設定ファイル (${ConfigManager.getGlobalConfigPath()}) が存在しません。`
+        `Repository "${repositoryName}" was not found.\n` +
+          `The global config file (${ConfigManager.getGlobalConfigPath()}) does not exist.`
       );
     }
 
     const mergedRepository = merged.repositories[repositoryName];
     if (!mergedRepository) {
-      throw new GroupResolutionError(`リポジトリ "${repositoryName}" がグローバル設定に見つかりません。`);
+      throw new GroupResolutionError(`Repository "${repositoryName}" was not found in the global config.`);
     }
 
     return {
@@ -188,7 +188,7 @@ export const GroupManager = {
       projectConfigPath = ConfigManager.findConfigFile(startDir);
     } catch {
       throw new GroupResolutionError(
-        `プロジェクト設定ファイル (portmux.config.json) が見つかりません。\n` + `カレントディレクトリ: ${normalizedCwd}`
+        `Project config file (portmux.config.json) was not found.\n` + `Current directory: ${normalizedCwd}`
       );
     }
 
@@ -202,7 +202,7 @@ export const GroupManager = {
       // プロジェクト設定の最初のグループを使用
       const firstGroupName = Object.keys(projectConfig.groups)[0];
       if (!firstGroupName) {
-        throw new GroupResolutionError('プロジェクト設定にグループが定義されていません。');
+        throw new GroupResolutionError('No groups are defined in the project config.');
       }
 
       return {
@@ -235,12 +235,10 @@ export const GroupManager = {
       // 見つからない場合は最初のグループを使用
       const firstGroupName = Object.keys(projectConfig.groups)[0];
       if (!firstGroupName) {
-        throw new GroupResolutionError('プロジェクト設定にグループが定義されていません。');
+        throw new GroupResolutionError('No groups are defined in the project config.');
       }
 
-      console.warn(
-        `警告: グローバル設定でリポジトリが見つかりません。` + `デフォルトのグループ "${firstGroupName}" を使用します。`
-      );
+      console.warn(`Warning: No repository match found in the global config. Using default group "${firstGroupName}".`);
 
       return {
         name: firstGroupName,
@@ -266,7 +264,7 @@ export const GroupManager = {
 
     if (!matchedWorktree) {
       throw new GroupResolutionError(
-        `カレントディレクトリに対応する git worktree が見つかりません。\n` + `カレントディレクトリ: ${normalizedCwd}`
+        `No git worktree matches the current directory.\n` + `Current directory: ${normalizedCwd}`
       );
     }
 
@@ -287,9 +285,9 @@ export const GroupManager = {
     }
 
     throw new GroupResolutionError(
-      `git worktree に対応するリポジトリがグローバル設定に見つかりません。\n` +
-        `worktree パス: ${matchedWorktreePath}\n` +
-        `グローバル設定ファイルにリポジトリを追加してください: ${ConfigManager.getGlobalConfigPath()}`
+      `The repository for this git worktree is not defined in the global config.\n` +
+        `Worktree path: ${matchedWorktreePath}\n` +
+        `Add the repository to the global config file: ${ConfigManager.getGlobalConfigPath()}`
     );
   },
 

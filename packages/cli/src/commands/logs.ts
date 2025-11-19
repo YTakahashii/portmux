@@ -55,7 +55,7 @@ function parseLineCount(value?: string): number {
 
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0) {
-    throw new Error('--lines には 0 以上の整数を指定してください');
+    throw new Error('--lines must be an integer greater than or equal to 0');
   }
   return parsed;
 }
@@ -63,15 +63,14 @@ function parseLineCount(value?: string): number {
 function printAvailableProcesses(): void {
   const states = StateManager.listAllStates();
   if (states.length === 0) {
-    console.log(chalk.yellow('実行中のプロセスがありません'));
+    console.log(chalk.yellow('No running processes'));
     return;
   }
 
-  console.log('利用可能なグループ/プロセス:');
+  console.log('Available groups/processes:');
   for (const state of states) {
     const repositoryLabel = state.groupKey ?? state.group;
-    const repositorySuffix =
-      state.groupKey && state.groupKey !== state.group ? ` (${state.group})` : '';
+    const repositorySuffix = state.groupKey && state.groupKey !== state.group ? ` (${state.group})` : '';
     console.log(`  - ${repositoryLabel}${repositorySuffix}/${state.process}`);
   }
 }
@@ -83,7 +82,7 @@ export function runLogsCommand(
 ): void {
   try {
     if (!groupName || !processName) {
-      console.error(chalk.red('エラー: グループ名とプロセス名を指定してください'));
+      console.error(chalk.red('Error: Please provide both group and process names'));
       printAvailableProcesses();
       process.exit(1);
       return;
@@ -93,29 +92,27 @@ export function runLogsCommand(
     try {
       lineCount = parseLineCount(options.lines);
     } catch (error) {
-      console.error(chalk.red(`エラー: ${error instanceof Error ? error.message : String(error)}`));
+      console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
       process.exit(1);
       return;
     }
 
     const state = StateManager.readState(groupName, processName);
     if (!state) {
-      console.error(
-        chalk.red(`エラー: グループ "${groupName}" のプロセス "${processName}" は実行中ではありません`)
-      );
+      console.error(chalk.red(`Error: Process "${processName}" in group "${groupName}" is not running`));
       process.exit(1);
       return;
     }
 
     if (!state.logPath) {
-      console.error(chalk.red(`エラー: プロセス "${processName}" のログファイルパスが見つかりません`));
+      console.error(chalk.red(`Error: Log file path for process "${processName}" was not found`));
       process.exit(1);
       return;
     }
 
     const logPath = state.logPath;
     if (!existsSync(logPath)) {
-      console.error(chalk.red(`エラー: ログファイルが存在しません: ${logPath}`));
+      console.error(chalk.red(`Error: Log file does not exist: ${logPath}`));
       process.exit(1);
       return;
     }
@@ -135,7 +132,7 @@ export function runLogsCommand(
 
     const watcher = watch(logPath, (eventType) => {
       if (eventType === 'rename') {
-        console.error(chalk.red('エラー: ログファイルが移動または削除されました'));
+        console.error(chalk.red('Error: Log file was moved or deleted'));
         watcher.close();
         process.exit(1);
         return;
@@ -169,33 +166,31 @@ export function runLogsCommand(
 
         stream.on('error', (error) => {
           console.error(
-            chalk.red(`エラー: ログの読み取りに失敗しました: ${error instanceof Error ? error.message : String(error)}`)
+            chalk.red(`Error: Failed to read log file: ${error instanceof Error ? error.message : String(error)}`)
           );
         });
 
         currentPosition = stats.size;
       } catch (error) {
         console.error(
-          chalk.red(
-            `エラー: ログファイルの監視に失敗しました: ${error instanceof Error ? error.message : String(error)}`
-          )
+          chalk.red(`Error: Failed to watch log file: ${error instanceof Error ? error.message : String(error)}`)
         );
       }
     });
   } catch (error) {
-    console.error(chalk.red(`エラー: ${error instanceof Error ? error.message : String(error)}`));
+    console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
     process.exit(1);
   }
 }
 
 function createLogsCommand(): Command {
   return new Command('logs')
-    .description('プロセスのログを表示します')
-    .argument('[group-name]', 'グループ名')
-    .argument('[process-name]', 'プロセス名')
-    .option('-n, --lines <lines>', '末尾から表示する行数 (デフォルト: 50)', '50')
-    .option('--no-follow', 'ログの追尾を無効にします')
-    .option('-t, --timestamps', '各行にタイムスタンプを付与して表示します')
+    .description('Show process logs')
+    .argument('[group-name]', 'Group name')
+    .argument('[process-name]', 'Process name')
+    .option('-n, --lines <lines>', 'Number of trailing lines to display (default: 50)', '50')
+    .option('--no-follow', 'Disable log tailing')
+    .option('-t, --timestamps', 'Print timestamps before each line')
     .action((groupName: string, processName: string, cmdOptions: LogsOptions) => {
       runLogsCommand(groupName, processName, cmdOptions);
     });

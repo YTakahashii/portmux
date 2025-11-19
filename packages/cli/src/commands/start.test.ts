@@ -102,7 +102,7 @@ describe('runStartCommand', () => {
         ports: [3000],
       })
     );
-    expect(console.log).toHaveBeenCalledWith('✓ プロセス "api" を起動しました');
+    expect(console.log).toHaveBeenCalledWith('✓ Started process "api"');
   });
 
   it('falls back to config file when group resolution fails', async () => {
@@ -137,7 +137,7 @@ describe('runStartCommand', () => {
   it('logs error when requested process is not found', async () => {
     await runStartCommand('ws-one', 'missing');
 
-    expect(console.error).toHaveBeenCalledWith('エラー: プロセス "missing" が見つかりません');
+    expect(console.error).toHaveBeenCalledWith('Error: Process "missing" not found');
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(ProcessManager.startProcess).not.toHaveBeenCalled();
   });
@@ -147,7 +147,7 @@ describe('runStartCommand', () => {
 
     await runStartCommand('ws-one');
 
-    expect(console.error).toHaveBeenCalledWith('エラー: プロセス "api" の起動に失敗しました: start failed');
+    expect(console.error).toHaveBeenCalledWith('Error: Failed to start process "api": start failed');
   });
 
   it('exits when config is missing', async () => {
@@ -157,7 +157,7 @@ describe('runStartCommand', () => {
 
     await runStartCommand();
 
-    expect(console.error).toHaveBeenCalledWith('エラー: missing');
+    expect(console.error).toHaveBeenCalledWith('Error: missing');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 });

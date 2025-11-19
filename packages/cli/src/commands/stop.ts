@@ -13,13 +13,13 @@ export async function runStopCommand(groupName?: string, processName?: string): 
       const groups = new Set(allStates.map((s) => s.group));
 
       if (groups.size === 0) {
-        console.log(chalk.yellow('停止するプロセスがありません'));
+        console.log(chalk.yellow('No processes to stop'));
         return;
       }
 
       // 複数のグループがある場合はエラー
       if (groups.size > 1) {
-        console.error(chalk.red('エラー: 複数のグループが実行中です。グループ名を指定してください。'));
+        console.error(chalk.red('Error: Multiple groups are running. Please specify a group name.'));
         process.exit(1);
         return;
       }
@@ -37,8 +37,8 @@ export async function runStopCommand(groupName?: string, processName?: string): 
       console.log(
         chalk.yellow(
           processName
-            ? `プロセス "${processName}" は実行中ではありません`
-            : `グループ "${groupName ?? 'unknown'}" に実行中のプロセスがありません`
+            ? `Process "${processName}" is not running`
+            : `No running processes found in group "${groupName ?? 'unknown'}"`
         )
       );
       return;
@@ -50,10 +50,10 @@ export async function runStopCommand(groupName?: string, processName?: string): 
         try {
           await ProcessManager.stopProcess(state.group, state.process);
 
-          console.log(chalk.green(`✓ プロセス "${state.process}" を停止しました`));
+          console.log(chalk.green(`✓ Stopped process "${state.process}"`));
         } catch (error) {
           if (error instanceof ProcessStopError) {
-            console.error(chalk.red(`エラー: プロセス "${state.process}" の停止に失敗しました: ${error.message}`));
+            console.error(chalk.red(`Error: Failed to stop process "${state.process}": ${error.message}`));
           } else {
             throw error;
           }
@@ -62,10 +62,10 @@ export async function runStopCommand(groupName?: string, processName?: string): 
     });
   } catch (error) {
     if (error instanceof LockTimeoutError) {
-      console.error(chalk.red(`エラー: ${error.message}`));
+      console.error(chalk.red(`Error: ${error.message}`));
       process.exit(1);
     } else {
-      console.error(chalk.red(`エラー: ${error instanceof Error ? error.message : String(error)}`));
+      console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
       process.exit(1);
     }
   }
@@ -73,9 +73,9 @@ export async function runStopCommand(groupName?: string, processName?: string): 
 
 function createStopCommand(): Command {
   return new Command('stop')
-    .description('プロセスを停止します')
-    .argument('[group-name]', 'グループ名')
-    .argument('[process-name]', 'プロセス名（省略時はグループの全プロセスを停止）')
+    .description('Stop processes')
+    .argument('[group-name]', 'Group name')
+    .argument('[process-name]', 'Process name (stops all processes in the group when omitted)')
     .action(async (groupName?: string, processName?: string) => {
       await runStopCommand(groupName, processName);
     });

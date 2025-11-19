@@ -24,7 +24,7 @@ program.addCommand(logsCommand);
 
 // グローバルエラーハンドラー
 process.on('uncaughtException', (error) => {
-  console.error(chalk.red(`エラー: ${error.message}`));
+  console.error(chalk.red(`Error: ${error.message}`));
   if (error.stack && process.env.DEBUG) {
     console.error(error.stack);
   }
@@ -33,7 +33,7 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason) => {
   const message = reason instanceof Error ? reason.message : String(reason);
-  console.error(chalk.red(`エラー: ${message}`));
+  console.error(chalk.red(`Error: ${message}`));
   if (reason instanceof Error && reason.stack && process.env.DEBUG) {
     console.error(reason.stack);
   }

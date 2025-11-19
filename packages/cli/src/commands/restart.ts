@@ -34,12 +34,12 @@ function resolveGroupOrFallback(groupName?: string): ResolvedGroup {
       const targetGroup = groupName ?? groupKeys[0];
 
       if (!targetGroup) {
-        throw new GroupResolutionError('グループが見つかりません');
+        throw new GroupResolutionError('No groups found');
       }
 
       const group = config.groups[targetGroup];
       if (!group) {
-        throw new GroupResolutionError(`グループ "${targetGroup}" が見つかりません`);
+        throw new GroupResolutionError(`Group "${targetGroup}" not found`);
       }
 
       return {
@@ -59,19 +59,15 @@ async function restartProcess(resolvedGroup: ResolvedGroup, processName?: string
   const groupDef = resolvedGroup.projectConfig.groups[targetGroup];
 
   if (!groupDef) {
-    console.error(chalk.red(`エラー: グループ "${targetGroup}" が見つかりません`));
+    console.error(chalk.red(`Error: Group "${targetGroup}" not found`));
     process.exit(1);
   }
 
-  const processes = processName
-    ? groupDef.commands.filter((cmd) => cmd.name === processName)
-    : groupDef.commands;
+  const processes = processName ? groupDef.commands.filter((cmd) => cmd.name === processName) : groupDef.commands;
 
   if (processes.length === 0) {
     console.error(
-      chalk.red(
-        processName ? `エラー: プロセス "${processName}" が見つかりません` : 'エラー: 再起動するプロセスがありません'
-      )
+      chalk.red(processName ? `Error: Process "${processName}" not found` : 'Error: No processes to restart')
     );
     process.exit(1);
   }
@@ -82,7 +78,7 @@ async function restartProcess(resolvedGroup: ResolvedGroup, processName?: string
         const resolvedEnv = cmd.env ? ConfigManager.resolveEnvObject(cmd.env) : {};
         const resolvedCommand = ConfigManager.resolveCommandEnv(cmd.command, cmd.env);
 
-        console.log(chalk.yellow(`● プロセス "${cmd.name}" を再起動します`));
+        console.log(chalk.yellow(`● Restarting process "${cmd.name}"`));
 
         await ProcessManager.restartProcess(targetGroup, cmd.name, resolvedCommand, {
           ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
@@ -92,14 +88,14 @@ async function restartProcess(resolvedGroup: ResolvedGroup, processName?: string
           ...(cmd.ports !== undefined && { ports: cmd.ports }),
         });
 
-        console.log(chalk.green(`✓ プロセス "${cmd.name}" を再起動しました`));
+        console.log(chalk.green(`✓ Restarted process "${cmd.name}"`));
       } catch (error) {
         if (
           error instanceof ProcessRestartError ||
           error instanceof ProcessStartError ||
           error instanceof PortInUseError
         ) {
-          console.error(chalk.red(`エラー: プロセス "${cmd.name}" の再起動に失敗しました: ${error.message}`));
+          console.error(chalk.red(`Error: Failed to restart process "${cmd.name}": ${error.message}`));
         } else {
           throw error;
         }
@@ -114,16 +110,16 @@ export async function runRestartCommand(groupName?: string, processName?: string
     await restartProcess(resolvedGroup, processName);
   } catch (error) {
     if (error instanceof ConfigNotFoundError) {
-      console.error(chalk.red(`エラー: ${error.message}`));
+      console.error(chalk.red(`Error: ${error.message}`));
       process.exit(1);
     } else if (error instanceof LockTimeoutError) {
-      console.error(chalk.red(`エラー: ${error.message}`));
+      console.error(chalk.red(`Error: ${error.message}`));
       process.exit(1);
     } else if (error instanceof GroupResolutionError) {
-      console.error(chalk.red(`エラー: ${error.message}`));
+      console.error(chalk.red(`Error: ${error.message}`));
       process.exit(1);
     } else {
-      console.error(chalk.red(`エラー: ${error instanceof Error ? error.message : String(error)}`));
+      console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
       process.exit(1);
     }
   }
@@ -131,9 +127,9 @@ export async function runRestartCommand(groupName?: string, processName?: string
 
 function createRestartCommand(): Command {
   return new Command('restart')
-    .description('プロセスを再起動します')
-    .argument('[group-name]', 'グループ名（省略時はカレントディレクトリから設定を読む）')
-    .argument('[process-name]', 'プロセス名（省略時はグループの全プロセスを対象）')
+    .description('Restart processes')
+    .argument('[group-name]', 'Group name (defaults to resolving from the current directory)')
+    .argument('[process-name]', 'Process name (targets all processes in the group when omitted)')
     .action(async (groupName?: string, processName?: string) => {
       await runRestartCommand(groupName, processName);
     });

@@ -94,11 +94,11 @@ export const ProcessManager = {
 
         // 警告があれば表示
         for (const warning of plan.warnings) {
-          console.warn(`警告: ${warning}`);
+          console.warn(`Warning: ${warning}`);
         }
       } catch (error) {
         if (error instanceof Error) {
-          throw new ProcessStartError(`ポート予約に失敗しました: ${error.message}`, error);
+          throw new ProcessStartError(`Failed to reserve ports: ${error.message}`, error);
         }
         throw error;
       }
@@ -112,9 +112,7 @@ export const ProcessManager = {
         if (reservationToken) {
           PortManager.releaseReservation(reservationToken);
         }
-        throw new ProcessStartError(
-          `プロセス "${processName}" は既に起動しています (PID: ${String(existingState.pid)})`
-        );
+        throw new ProcessStartError(`Process "${processName}" is already running (PID: ${String(existingState.pid)})`);
       } else {
         // PID が死んでいる場合は状態をクリア
         StateManager.deleteState(group, processName);
@@ -128,7 +126,7 @@ export const ProcessManager = {
         const configPath = ConfigManager.findConfigFile();
         projectRoot = resolve(configPath, '..');
       } catch (error) {
-        throw new ProcessStartError('設定ファイルが見つかりません。projectRoot を指定してください。', error);
+        throw new ProcessStartError('Config file not found. Please specify projectRoot.', error);
       }
     }
 
@@ -161,7 +159,7 @@ export const ProcessManager = {
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
       }
-      throw new ProcessStartError(`ログファイルの作成に失敗しました: ${logPath}`, error);
+      throw new ProcessStartError(`Failed to create log file: ${logPath}`, error);
     }
 
     // プロセスを起動（シェル経由で実行）
@@ -187,7 +185,7 @@ export const ProcessManager = {
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
       }
-      throw new ProcessStartError(`プロセスの起動に失敗しました: ${command}`, error);
+      throw new ProcessStartError(`Failed to start process: ${command}`, error);
     }
 
     // PID を取得
@@ -197,7 +195,7 @@ export const ProcessManager = {
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
       }
-      throw new ProcessStartError('プロセスの PID を取得できませんでした');
+      throw new ProcessStartError('Failed to determine process PID');
     }
 
     // 起動確認（2秒待機 + PID 生存確認）
@@ -208,7 +206,7 @@ export const ProcessManager = {
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
       }
-      throw new ProcessStartError(`プロセスが起動直後に終了しました (PID: ${String(pid)})`);
+      throw new ProcessStartError(`Process exited immediately after launch (PID: ${String(pid)})`);
     }
 
     const startedAt = new Date().toISOString();
@@ -252,7 +250,7 @@ export const ProcessManager = {
     };
 
     if (!state) {
-      throw new ProcessStopError(`プロセス "${processName}" の状態が見つかりません`);
+      throw new ProcessStopError(`State for process "${processName}" was not found`);
     }
 
     try {
@@ -290,7 +288,7 @@ export const ProcessManager = {
       try {
         kill(pid, 'SIGTERM');
       } catch {
-        throw new ProcessStopError(`プロセス "${processName}" (PID: ${String(pid)}) に SIGTERM を送信できませんでした`);
+        throw new ProcessStopError(`Failed to send SIGTERM to process "${processName}" (PID: ${String(pid)})`);
       }
 
       // プロセスが停止するまで待機（最大 timeout ミリ秒）
@@ -331,7 +329,8 @@ export const ProcessManager = {
         cleanup();
       } else {
         throw new ProcessStopError(
-          `プロセス "${processName}" (PID: ${String(pid)}) の停止に失敗しました。` + 'SIGKILL でも終了しませんでした。'
+          `Failed to stop process "${processName}" (PID: ${String(pid)}).` +
+            'The process did not exit even after SIGKILL.'
         );
       }
     } finally {
@@ -403,7 +402,7 @@ export const ProcessManager = {
         await this.stopProcess(group, processName);
       }
     } catch (error) {
-      throw new ProcessRestartError(`プロセス "${processName}" の停止に失敗しました`, error);
+      throw new ProcessRestartError(`Failed to stop process "${processName}"`, error);
     }
 
     try {
@@ -419,7 +418,7 @@ export const ProcessManager = {
         ...(restartPlan.previousState?.ports !== undefined && { ports: restartPlan.previousState.ports }),
       };
       StateManager.writeState(group, processName, errorState);
-      throw new ProcessRestartError(`プロセス "${processName}" の再起動に失敗しました`, error);
+      throw new ProcessRestartError(`Failed to restart process "${processName}"`, error);
     }
   },
 };

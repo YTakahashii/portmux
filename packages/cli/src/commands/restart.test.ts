@@ -91,7 +91,7 @@ describe('runRestartCommand', () => {
     vi.clearAllMocks();
   });
 
-  it('再起動処理を各プロセスに委譲する', async () => {
+  it('delegates restart logic to each process', async () => {
     await runRestartCommand('ws-one');
 
     expect(LockManager.withLock).toHaveBeenCalledWith('group', 'ws-one', expect.any(Function));
@@ -113,16 +113,16 @@ describe('runRestartCommand', () => {
       'node worker.js',
       expect.objectContaining({ env: {}, groupKey: '/repo', projectRoot: '/repo' })
     );
-    expect(console.log).toHaveBeenCalledWith('✓ プロセス "api" を再起動しました');
-    expect(console.log).toHaveBeenCalledWith('✓ プロセス "worker" を再起動しました');
+    expect(console.log).toHaveBeenCalledWith('✓ Restarted process "api"');
+    expect(console.log).toHaveBeenCalledWith('✓ Restarted process "worker"');
   });
 
-  it('ProcessRestartError を捕捉してログ出力する', async () => {
+  it('logs ProcessRestartError failures', async () => {
     vi.mocked(ProcessManager.restartProcess).mockRejectedValueOnce(new ProcessRestartError('restart fail'));
 
     await runRestartCommand('ws-one', 'api');
 
-    expect(console.error).toHaveBeenCalledWith('エラー: プロセス "api" の再起動に失敗しました: restart fail');
+    expect(console.error).toHaveBeenCalledWith('Error: Failed to restart process "api": restart fail');
   });
 
   it('exits when group resolution fails', async () => {
@@ -132,7 +132,7 @@ describe('runRestartCommand', () => {
 
     await runRestartCommand('ws-one');
 
-    expect(console.error).toHaveBeenCalledWith('エラー: missing');
+    expect(console.error).toHaveBeenCalledWith('Error: missing');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
@@ -141,7 +141,7 @@ describe('runRestartCommand', () => {
 
     await runRestartCommand('ws-one');
 
-    expect(console.error).toHaveBeenCalledWith('エラー: timeout');
+    expect(console.error).toHaveBeenCalledWith('Error: timeout');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 });

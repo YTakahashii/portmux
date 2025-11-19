@@ -52,7 +52,7 @@ describe('stopCommand', () => {
 
     await runStopCommand();
 
-    expect(console.log).toHaveBeenCalledWith('停止するプロセスがありません');
+    expect(console.log).toHaveBeenCalledWith('No processes to stop');
     expect(ProcessManager.stopProcess).not.toHaveBeenCalled();
   });
 
@@ -64,9 +64,7 @@ describe('stopCommand', () => {
 
     await runStopCommand();
 
-    expect(console.error).toHaveBeenCalledWith(
-      'エラー: 複数のグループが実行中です。グループ名を指定してください。'
-    );
+    expect(console.error).toHaveBeenCalledWith('Error: Multiple groups are running. Please specify a group name.');
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(ProcessManager.stopProcess).not.toHaveBeenCalled();
   });
@@ -82,8 +80,8 @@ describe('stopCommand', () => {
 
     expect(LockManager.withLock).toHaveBeenCalledWith('group', 'ws1', expect.any(Function));
     expect(ProcessManager.stopProcess).toHaveBeenCalledTimes(2);
-    expect(console.log).toHaveBeenCalledWith('✓ プロセス "api" を停止しました');
-    expect(console.log).toHaveBeenCalledWith('✓ プロセス "worker" を停止しました');
+    expect(console.log).toHaveBeenCalledWith('✓ Stopped process "api"');
+    expect(console.log).toHaveBeenCalledWith('✓ Stopped process "worker"');
   });
 
   it('reports when targeted process is not running', async () => {
@@ -91,7 +89,7 @@ describe('stopCommand', () => {
 
     await runStopCommand('ws1', 'missing');
 
-    expect(console.log).toHaveBeenCalledWith('プロセス "missing" は実行中ではありません');
+    expect(console.log).toHaveBeenCalledWith('Process "missing" is not running');
     expect(ProcessManager.stopProcess).not.toHaveBeenCalled();
   });
 
@@ -101,7 +99,7 @@ describe('stopCommand', () => {
 
     await runStopCommand('ws1');
 
-    expect(console.error).toHaveBeenCalledWith('エラー: プロセス "api" の停止に失敗しました: failed');
+    expect(console.error).toHaveBeenCalledWith('Error: Failed to stop process "api": failed');
   });
 
   it('exits on lock timeout', async () => {
@@ -110,7 +108,7 @@ describe('stopCommand', () => {
 
     await runStopCommand('ws1');
 
-    expect(console.error).toHaveBeenCalledWith('エラー: timeout');
+    expect(console.error).toHaveBeenCalledWith('Error: timeout');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 });

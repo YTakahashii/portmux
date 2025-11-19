@@ -16,7 +16,7 @@ import { PortmuxError } from '../errors.js';
 export class ConfigNotFoundError extends PortmuxError {
   override readonly name = 'ConfigNotFoundError';
   constructor(path: string) {
-    super(`設定ファイルが見つかりません: ${path}`);
+    super(`Config file not found: ${path}`);
   }
 }
 
@@ -27,7 +27,7 @@ export class ConfigParseError extends PortmuxError {
   override readonly name = 'ConfigParseError';
   constructor(path: string, cause: unknown) {
     const message = cause instanceof Error ? cause.message : String(cause);
-    super(`設定ファイルのパースに失敗しました: ${path}\n${message}`);
+    super(`Failed to parse config file: ${path}\n${message}`);
   }
 }
 
@@ -37,7 +37,7 @@ export class ConfigParseError extends PortmuxError {
 export class ConfigValidationError extends PortmuxError {
   override readonly name = 'ConfigValidationError';
   constructor(path: string, details: string) {
-    super(`設定ファイルのバリデーションに失敗しました: ${path}\n${details}`);
+    super(`Config file validation failed: ${path}\n${details}`);
   }
 }
 
@@ -51,10 +51,10 @@ export class VersionMismatchError extends PortmuxError {
     public readonly supportedVersion: string
   ) {
     super(
-      `設定ファイルのバージョンが非互換です。\n` +
-        `設定ファイルバージョン: ${configVersion}\n` +
-        `サポートされているバージョン: ${supportedVersion}\n` +
-        `設定ファイルを更新してください。`
+      `Config file version is incompatible.\n` +
+        `Config version: ${configVersion}\n` +
+        `Supported version: ${supportedVersion}\n` +
+        `Please update the config file.`
     );
   }
 }
@@ -63,7 +63,7 @@ export class VersionMismatchError extends PortmuxError {
 export class DuplicateRepositoryNameError extends PortmuxError {
   override readonly name = 'DuplicateRepositoryNameError';
   constructor(groupName: string) {
-    super(`リポジトリ名が重複しています: ${groupName}\nグローバル設定のリポジトリ名は一意である必要があります。`);
+    super(`Duplicate repository name: ${groupName}\nRepository names in the global config must be unique.`);
   }
 }
 
@@ -76,10 +76,10 @@ export class InvalidRepositoryReferenceError extends PortmuxError {
     public readonly projectConfigPath: string
   ) {
     super(
-      `無効なリポジトリ参照です。\n` +
-        `グローバル設定のリポジトリ "${groupName}" が参照している ` +
-        `プロジェクト設定内のグループ "${referencedGroup}" が見つかりません。\n` +
-        `プロジェクト設定: ${projectConfigPath}`
+      `Invalid repository reference.\n` +
+        `The repository "${groupName}" in the global config references ` +
+        `group "${referencedGroup}" in the project config, but it was not found.\n` +
+        `Project config: ${projectConfigPath}`
     );
   }
 }
@@ -169,7 +169,7 @@ function resolveEnvVariables(value: string, commandEnv: Record<string, string> =
     const resolved = commandEnv[varName] ?? process.env[varName];
 
     if (resolved === undefined) {
-      console.warn(`警告: 環境変数 "${varName}" が定義されていません。空文字列で置換します。`);
+      console.warn(`Warning: Environment variable "${varName}" is not defined. Substituting an empty string.`);
       return '';
     }
 
@@ -228,9 +228,8 @@ export const ConfigManager = {
     // マイナーバージョンが新しい場合は警告（console.warn）
     if (config.minor > supported.minor) {
       console.warn(
-        `警告: 設定ファイルのバージョン (${configVersion}) が ` +
-          `サポートされているバージョン (${SUPPORTED_VERSION}) より新しいです。\n` +
-          `一部の機能が正常に動作しない可能性があります。`
+        `Warning: Config version (${configVersion}) is newer than the supported version (${SUPPORTED_VERSION}).\n` +
+          `Some features may not behave as expected.`
       );
     }
   },
@@ -402,7 +401,7 @@ export const ConfigManager = {
           throw error;
         }
         console.warn(
-          `警告: リポジトリ "${repositoryName}" の設定をマージできませんでした。${error instanceof Error ? error.message : String(error)}`
+          `Warning: Failed to merge configuration for repository "${repositoryName}". ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }

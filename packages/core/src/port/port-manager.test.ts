@@ -298,7 +298,7 @@ describe('PortManager', () => {
       const plan = await PortManager.planReservation(request);
 
       expect(plan.warnings).toHaveLength(1);
-      expect(plan.warnings[0]).toContain('既に起動しています');
+      expect(plan.warnings[0]).toContain('already running');
     });
 
     it('ポートが使用中の場合は PortInUseError を投げる', async () => {
@@ -336,7 +336,7 @@ describe('PortManager', () => {
     it('無効な予約トークンでエラーを投げる', () => {
       expect(() => {
         PortManager.commitReservation('invalid-token');
-      }).toThrow('無効な予約トークンです: invalid-token');
+      }).toThrow('Invalid reservation token: invalid-token');
     });
   });
 
@@ -360,7 +360,7 @@ describe('PortManager', () => {
       // 解放後は commit できないことを確認
       expect(() => {
         PortManager.commitReservation(plan.reservationToken);
-      }).toThrow('無効な予約トークンです');
+      }).toThrow('Invalid reservation token');
     });
 
     it('予約トークンを指定しない場合は何もしない', () => {
@@ -385,7 +385,7 @@ describe('PortManager', () => {
 
       expect(() => {
         PortManager.commitReservation(plan.reservationToken);
-      }).toThrow('無効な予約トークンです');
+      }).toThrow('Invalid reservation token');
       expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
     });
   });
@@ -396,7 +396,7 @@ describe('PortManager', () => {
 
       expect(error).toBeInstanceOf(Error);
       expect(error.name).toBe('PortInUseError');
-      expect(error.message).toBe('ポート 3000 は既に使用されています');
+      expect(error.message).toBe('Port 3000 is already in use');
     });
   });
 });

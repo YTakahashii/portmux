@@ -62,9 +62,7 @@ describe('selectCommand', () => {
 
     await runSelect();
 
-    expect(console.log).toHaveBeenCalledWith(
-      '選択可能なグループがありません。グローバル設定を確認してください。'
-    );
+    expect(console.log).toHaveBeenCalledWith('No selectable groups. Please check your global config.');
     expect(runStartMock).not.toHaveBeenCalled();
   });
 
@@ -93,7 +91,7 @@ describe('selectCommand', () => {
       {
         type: 'list',
         name: 'group',
-        message: '起動するグループを選択してください',
+        message: 'Select a group to start',
         choices: [
           expect.objectContaining({ label: '--- proj ---' }),
           { name: '[Running] repo1 (/path/repo1)', value: 'repo1', short: 'repo1' },
@@ -129,7 +127,7 @@ describe('selectCommand', () => {
 
     await runSelect();
 
-    expect(console.error).toHaveBeenCalledWith('エラー: boom');
+    expect(console.error).toHaveBeenCalledWith('Error: boom');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 });

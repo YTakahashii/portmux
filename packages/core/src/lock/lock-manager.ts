@@ -12,9 +12,9 @@ export class LockTimeoutError extends PortmuxError {
   override readonly name = 'LockTimeoutError';
   constructor(lockPath: string) {
     super(
-      `ロックの取得がタイムアウトしました: ${lockPath}\n` +
-        `他のプロセスがロックを保持している可能性があります。\n` +
-        `しばらく待ってから再試行してください。`
+      `Lock acquisition timed out: ${lockPath}\n` +
+        `Another process may still hold the lock.\n` +
+        `Please wait a moment and try again.`
     );
   }
 }
@@ -26,7 +26,7 @@ export class LockReleaseError extends PortmuxError {
   override readonly name = 'LockReleaseError';
   constructor(lockPath: string, cause: unknown) {
     const message = cause instanceof Error ? cause.message : String(cause);
-    super(`ロックの解放に失敗しました: ${lockPath}\n${message}`);
+    super(`Failed to release lock: ${lockPath}\n${message}`);
   }
 }
 
@@ -182,7 +182,7 @@ export const LockManager = {
       releaseLock = await this.acquireGlobalLock();
     } else {
       if (!group) {
-        throw new Error('グループロックの取得にはグループ名が必要です');
+        throw new Error('Group name is required to acquire a group lock');
       }
       releaseLock = await this.acquireGroupLock(group);
     }

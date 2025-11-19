@@ -247,7 +247,7 @@ describe('ProcessManager', () => {
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(PortManager.planReservation).mockResolvedValue({
         reservationToken: 'test-token',
-        warnings: ['警告: 既に起動しています'],
+        warnings: ['Already running'],
       });
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
       vi.mocked(existsSync).mockReturnValue(false);
@@ -260,7 +260,7 @@ describe('ProcessManager', () => {
         ports: [3000],
       });
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith('警告: 警告: 既に起動しています');
+      expect(consoleWarnSpy).toHaveBeenCalledWith('Warning: Already running');
       consoleWarnSpy.mockRestore();
     });
 

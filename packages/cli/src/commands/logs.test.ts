@@ -43,8 +43,8 @@ describe('runLogsCommand', () => {
 
     runLogsCommand(undefined, undefined, { follow: false });
 
-    expect(console.error).toHaveBeenCalledWith('エラー: グループ名とプロセス名を指定してください');
-    expect(console.log).toHaveBeenCalledWith('利用可能なグループ/プロセス:');
+    expect(console.error).toHaveBeenCalledWith('Error: Please provide both group and process names');
+    expect(console.log).toHaveBeenCalledWith('Available groups/processes:');
     expect(console.log).toHaveBeenCalledWith('  - /repo/path (ws)/api');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
@@ -54,9 +54,7 @@ describe('runLogsCommand', () => {
 
     runLogsCommand('group', 'proc', { follow: false });
 
-    expect(console.error).toHaveBeenCalledWith(
-      'エラー: グループ "group" のプロセス "proc" は実行中ではありません'
-    );
+    expect(console.error).toHaveBeenCalledWith('Error: Process "proc" in group "group" is not running');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
@@ -69,7 +67,7 @@ describe('runLogsCommand', () => {
 
     runLogsCommand('group', 'proc', { follow: false });
 
-    expect(console.error).toHaveBeenCalledWith('エラー: プロセス "proc" のログファイルパスが見つかりません');
+    expect(console.error).toHaveBeenCalledWith('Error: Log file path for process "proc" was not found');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
@@ -84,7 +82,7 @@ describe('runLogsCommand', () => {
 
     runLogsCommand('group', 'proc', { follow: false });
 
-    expect(console.error).toHaveBeenCalledWith(`エラー: ログファイルが存在しません: ${logPath}`);
+    expect(console.error).toHaveBeenCalledWith(`Error: Log file does not exist: ${logPath}`);
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
@@ -133,7 +131,7 @@ describe('runLogsCommand', () => {
 
     runLogsCommand('group', 'proc', { lines: 'abc', follow: false });
 
-    expect(console.error).toHaveBeenCalledWith('エラー: --lines には 0 以上の整数を指定してください');
+    expect(console.error).toHaveBeenCalledWith('Error: --lines must be an integer greater than or equal to 0');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 });

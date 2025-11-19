@@ -51,8 +51,8 @@ export const selectCommand: ReturnType<typeof createSelectCommand> = createSelec
 
 function createSelectCommand(): Command {
   return new Command('select')
-    .description('グループを選択してプロセスを起動します')
-    .option('--all', 'すべてのグループを表示します（Git worktree 以外も含む）')
+    .description('Select a group and start its processes')
+    .option('--all', 'Show all groups, including those outside git worktrees')
     .action(async (options: SelectOptions) => {
       try {
         const includeAll = options.all === true;
@@ -60,7 +60,7 @@ function createSelectCommand(): Command {
         const selections = GroupManager.buildSelectableGroups(worktrees, { includeAll });
 
         if (selections.length === 0) {
-          console.log(chalk.yellow('選択可能なグループがありません。グローバル設定を確認してください。'));
+          console.log(chalk.yellow('No selectable groups. Please check your global config.'));
           return;
         }
 
@@ -69,14 +69,14 @@ function createSelectCommand(): Command {
           {
             type: 'list',
             name: 'group',
-            message: '起動するグループを選択してください',
+            message: 'Select a group to start',
             choices,
           },
         ]);
 
         await runStartCommand(answers.group);
       } catch (error) {
-        console.error(chalk.red(`エラー: ${error instanceof Error ? error.message : String(error)}`));
+        console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
         process.exit(1);
       }
     });
