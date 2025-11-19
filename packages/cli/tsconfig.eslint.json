@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@portmux/core": ["../core/src/index.ts"],
+      "@portmux/core/*": ["../core/src/*"]
+    }
+  }
+}
