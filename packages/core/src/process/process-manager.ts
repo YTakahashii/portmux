@@ -9,17 +9,17 @@ import { openSync, closeSync } from 'fs';
 import { PortmuxError } from '../errors.js';
 
 /**
- * プロセス起動オプション
+ * Process start options
  */
 export interface ProcessStartOptions {
   cwd?: string;
   env?: Record<string, string>;
-  projectRoot?: string; // portmux.config.json が存在するディレクトリ
-  ports?: number[]; // 使用するポート番号の配列
+  projectRoot?: string; // Directory containing portmux.config.json
+  ports?: number[]; // Array of ports to reserve
   groupKey?: string; // Repository path (from global config) for display
 }
 
-/** プロセス起動エラー */
+/** Process start error */
 export class ProcessStartError extends PortmuxError {
   override readonly name = 'ProcessStartError';
   constructor(
@@ -30,12 +30,12 @@ export class ProcessStartError extends PortmuxError {
   }
 }
 
-/** プロセス停止エラー */
+/** Process stop error */
 export class ProcessStopError extends PortmuxError {
   override readonly name = 'ProcessStopError';
 }
 
-/** プロセス再起動エラー */
+/** Process restart error */
 export class ProcessRestartError extends PortmuxError {
   override readonly name = 'ProcessRestartError';
   constructor(
@@ -47,7 +47,7 @@ export class ProcessRestartError extends PortmuxError {
 }
 
 /**
- * プロセス状態情報
+ * Process state info
  */
 export interface ProcessInfo {
   group: string;
@@ -59,17 +59,17 @@ export interface ProcessInfo {
 }
 
 /**
- * プロセス管理を行うオブジェクト
+ * Process management object
  */
 export const ProcessManager = {
   /**
-   * プロセスを起動する
+   * Start a process
    *
-   * @param group グループ名
-   * @param processName プロセス名
-   * @param command 実行するコマンド
-   * @param options 起動オプション
-   * @throws ProcessStartError 起動に失敗した場合
+   * @param group Group name
+   * @param processName Process name
+   * @param command Command to execute
+   * @param options Start options
+   * @throws ProcessStartError When the start fails
    */
   async startProcess(
     group: string,
@@ -77,10 +77,10 @@ export const ProcessManager = {
     command: string,
     options: ProcessStartOptions = {}
   ): Promise<void> {
-    // 状態整合性チェック
+    // Ensure the state store and active reservations are in sync
     PortManager.reconcileFromState();
 
-    // ポート予約の計画を立てる
+    // Plan port reservations
     let reservationToken: string | undefined;
     if (options.ports && options.ports.length > 0) {
       try {
@@ -92,7 +92,7 @@ export const ProcessManager = {
 
         reservationToken = plan.reservationToken;
 
-        // 警告があれば表示
+        // Surface any warnings
         for (const warning of plan.warnings) {
           console.warn(`Warning: ${warning}`);
         }
@@ -104,22 +104,22 @@ export const ProcessManager = {
       }
     }
 
-    // 既存のプロセスをチェック
+    // Check whether the process is already running
     const existingState = StateManager.readState(group, processName);
     if (existingState?.status === 'Running') {
       if (existingState.pid && isPidAlive(existingState.pid)) {
-        // ポート予約を解放
+        // Release reserved ports
         if (reservationToken) {
           PortManager.releaseReservation(reservationToken);
         }
         throw new ProcessStartError(`Process "${processName}" is already running (PID: ${String(existingState.pid)})`);
       } else {
-        // PID が死んでいる場合は状態をクリア
+        // Clean up stale state for dead PIDs
         StateManager.deleteState(group, processName);
       }
     }
 
-    // プロジェクトルートを取得（設定ファイルから）
+    // Determine the project root (from the config file)
     let projectRoot = options.projectRoot;
     if (!projectRoot) {
       try {
@@ -130,7 +130,7 @@ export const ProcessManager = {
       }
     }
 
-    // cwd の解決（相対パスはプロジェクトルート基準）
+    // Resolve cwd (relative paths are based on the project root)
     let cwd = projectRoot;
     if (options.cwd) {
       if (options.cwd.startsWith('/')) {
@@ -140,18 +140,18 @@ export const ProcessManager = {
       }
     }
 
-    // 環境変数のマージ
-    // options.env には設定ファイルで定義された環境変数が含まれる
-    // ConfigManager で解決済みの値がここに渡される想定
+    // Merge environment variables
+    // options.env contains env vars defined in the config file
+    // ConfigManager resolves their values before passing them here
     const env = {
       ...process.env,
       ...options.env,
     };
 
-    // ログファイルの準備
+    // Prepare the log file
     const logPath = StateManager.generateLogPath(group, processName);
 
-    // ログファイルのファイルディスクリプタを取得
+    // Open the log file descriptor
     let logFd: number;
     try {
       logFd = openSync(logPath, 'a', 0o600);
@@ -162,47 +162,46 @@ export const ProcessManager = {
       throw new ProcessStartError(`Failed to create log file: ${logPath}`, error);
     }
 
-    // プロセスを起動（シェル経由で実行）
+    // Spawn the child process through the shell
     let childProcess: ChildProcess;
     try {
-      // shell オプションを true にすることで、シェル経由でコマンドを実行
-      // これにより、複雑なコマンド（引用符、パイプなど）にも対応できる
+      // The shell option allows complex commands (quotes, pipes, etc.)
       childProcess = spawn(command, {
         cwd,
         env,
         detached: true,
-        stdio: ['ignore', logFd, logFd], // stdout/stderr をログファイルへ直接書き込む
-        shell: true, // シェル経由で実行
+        stdio: ['ignore', logFd, logFd], // Write stdout/stderr directly into the log file
+        shell: true, // Run via shell
       });
 
-      // プロセスを独立したプロセスグループに分離
+      // Detach the child into its own process group
       childProcess.unref();
-      // 親プロセス側のログファイルディスクリプタは不要なため即時クローズ
+      // Close the parent's log file descriptor
       closeSync(logFd);
     } catch (error) {
       closeSync(logFd);
-      // ポート予約を解放
+      // Release reserved ports on failure
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
       }
       throw new ProcessStartError(`Failed to start process: ${command}`, error);
     }
 
-    // PID を取得
+    // Capture the PID
     const pid = childProcess.pid;
     if (!pid) {
-      // ポート予約を解放
+      // Release reserved ports
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
       }
       throw new ProcessStartError('Failed to determine process PID');
     }
 
-    // 起動確認（2秒待機 + PID 生存確認）
+    // Confirm the process is running (wait 2s and verify the PID)
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     if (!isPidAlive(pid)) {
-      // ポート予約を解放
+      // Release reserved ports
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
       }
@@ -211,12 +210,12 @@ export const ProcessManager = {
 
     const startedAt = new Date().toISOString();
 
-    // ポート予約を確定
+    // Commit the port reservation
     if (reservationToken) {
       PortManager.commitReservation(reservationToken);
     }
 
-    // 状態を保存
+    // Persist the state
     const state: ProcessState = {
       group,
       groupKey: options.groupKey ?? group,
@@ -231,12 +230,12 @@ export const ProcessManager = {
   },
 
   /**
-   * プロセスを停止する
+   * Stop a process
    *
-   * @param group グループ名
-   * @param processName プロセス名
-   * @param timeout タイムアウト時間（ミリ秒、デフォルト: 10000）
-   * @throws ProcessStopError 停止に失敗した場合
+   * @param group Group name
+   * @param processName Process name
+   * @param timeout Timeout in milliseconds (default: 10000)
+   * @throws ProcessStopError When the stop fails
    */
   async stopProcess(group: string, processName: string, timeout = 10000): Promise<void> {
     const state = StateManager.readState(group, processName);
@@ -255,14 +254,14 @@ export const ProcessManager = {
 
     try {
       if (state.status === 'Stopped') {
-        // 既に停止している場合は状態を削除
+        // Remove the state when it is already stopped
         StateManager.deleteState(group, processName);
         cleanup();
         return;
       }
 
       if (!state.pid) {
-        // PID が記録されていない場合は状態を削除して終了
+        // Without a recorded PID just remove the state
         StateManager.deleteState(group, processName);
         cleanup();
         return;
@@ -270,7 +269,7 @@ export const ProcessManager = {
 
       const pid = state.pid;
 
-      // プロセスが既に死んでいる場合は状態を更新して終了
+      // Update the state when the process is already dead
       if (!isPidAlive(pid)) {
         const stoppedState: ProcessState = {
           ...state,
@@ -278,46 +277,46 @@ export const ProcessManager = {
           stoppedAt: new Date().toISOString(),
         };
         StateManager.writeState(group, processName, stoppedState);
-        // 状態ファイルを削除（停止済みは保持しない）
+        // Remove state files for stopped processes
         StateManager.deleteState(group, processName);
         cleanup();
         return;
       }
 
-      // SIGTERM を送信
+      // Send SIGTERM
       try {
         kill(pid, 'SIGTERM');
       } catch {
         throw new ProcessStopError(`Failed to send SIGTERM to process "${processName}" (PID: ${String(pid)})`);
       }
 
-      // プロセスが停止するまで待機（最大 timeout ミリ秒）
+      // Wait for the process to stop (up to timeout ms)
       const startTime = Date.now();
       while (Date.now() - startTime < timeout) {
         if (!isPidAlive(pid)) {
-          // 停止した
+          // Process exited
           const stoppedState: ProcessState = {
             ...state,
             status: 'Stopped',
             stoppedAt: new Date().toISOString(),
           };
           StateManager.writeState(group, processName, stoppedState);
-          // 状態ファイルを削除
+          // Delete the state file
           StateManager.deleteState(group, processName);
           cleanup();
           return;
         }
-        await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms 待機
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Wait 100 ms
       }
 
-      // タイムアウトした場合は SIGKILL を送信
+      // Send SIGKILL if the timeout expired
       try {
         kill(pid, 'SIGKILL');
       } catch {
-        // SIGKILL が失敗しても、プロセスが既に終了している可能性がある
+        // Even if SIGKILL fails, the process might have exited already
       }
 
-      // 最終確認
+      // Final check
       if (!isPidAlive(pid)) {
         const stoppedState: ProcessState = {
           ...state,
@@ -339,27 +338,27 @@ export const ProcessManager = {
   },
 
   /**
-   * すべてのプロセスの状態一覧を取得する
+   * List every process state
    *
-   * @returns プロセス情報の配列
+   * @returns Array of process info
    */
   listProcesses(): ProcessInfo[] {
     const states = StateManager.listAllStates();
     const processes: ProcessInfo[] = [];
 
     for (const state of states) {
-      // PID の生存確認
+      // Confirm the PID is still alive
       let status: ProcessStatus = state.status;
       if (state.status === 'Running' && state.pid) {
         if (!isPidAlive(state.pid)) {
-          // 死んでいる場合は状態を更新
+          // Update the state when the process is dead
           const updatedState: ProcessState = {
             ...state,
             status: 'Stopped',
             stoppedAt: new Date().toISOString(),
           };
           StateManager.writeState(state.group, state.process, updatedState);
-          // 状態ファイルを削除
+          // Remove the stale state file
           StateManager.deleteState(state.group, state.process);
           status = 'Stopped';
         }
@@ -379,13 +378,13 @@ export const ProcessManager = {
   },
 
   /**
-   * プロセスを再起動する
+   * Restart a process
    *
-   * @param group グループ名
-   * @param processName プロセス名
-   * @param command 実行するコマンド
-   * @param options 起動オプション
-   * @throws ProcessRestartError 再起動に失敗した場合
+   * @param group Group name
+   * @param processName Process name
+   * @param command Command to execute
+   * @param options Start options
+   * @throws ProcessRestartError When the restart fails
    */
   async restartProcess(
     group: string,

@@ -357,7 +357,7 @@ describe('PortManager', () => {
         PortManager.releaseReservation(plan.reservationToken);
       }).not.toThrow();
 
-      // 解放後は commit できないことを確認
+      // Ensure commit fails once the reservation is released
       expect(() => {
         PortManager.commitReservation(plan.reservationToken);
       }).toThrow('Invalid reservation token');

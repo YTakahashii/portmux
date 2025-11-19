@@ -19,7 +19,7 @@ export const CommandSchema = z.object({
   command: z.string().min(1, 'Command is required'),
   ports: z.array(z.number().int().positive()).optional(),
   cwd: z.string().optional(),
-  env: z.record(z.string(), z.string()).optional(), // 後回しだがパススルー用に定義
+  env: z.record(z.string(), z.string()).optional(), // Placeholder for passthrough support handled later
 });
 
 /** Group definition schema. */

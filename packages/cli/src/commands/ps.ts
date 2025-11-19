@@ -14,7 +14,7 @@ function createPsCommand(): Command {
         return;
       }
 
-      // テーブル形式で表示
+      // Display rows as a table
       const tableData = processes.map((p) => ({
         Repository: p.groupKey ?? '-',
         Group: p.group,
@@ -25,7 +25,7 @@ function createPsCommand(): Command {
 
       console.table(tableData);
 
-      // ステータスに色を付けて表示（console.table の後に補足表示）
+      // Add colored status summaries after console.table output
       processes.forEach((p) => {
         if (p.status === 'Running') {
           const pidText = p.pid !== undefined ? String(p.pid) : 'unknown';

@@ -5,28 +5,28 @@ import { kill } from 'process';
 import { platform } from 'os';
 
 /**
- * PID が生存しているか確認する
+ * Check whether the PID is alive.
  *
- * @param pid プロセスID
- * @returns 生存している場合は true、そうでない場合は false
+ * @param pid Process ID
+ * @returns true if the process exists, false otherwise
  */
 export function isPidAlive(pid: number): boolean {
   try {
-    // signal 0 を送信すると、プロセスの存在確認のみを行う
-    // プロセスが存在しない場合はエラーが発生する
+    // Sending signal 0 only checks for the process without killing it
+    // An error means the process does not exist
     kill(pid, 0);
     return true;
   } catch {
-    // ESRCH (No such process) エラーの場合はプロセスが存在しない
+    // ESRCH (No such process) means the PID is gone
     return false;
   }
 }
 
 /**
- * PID のコマンドラインを取得
+ * Read the command line for a PID.
  *
- * @param pid プロセスID
- * @returns コマンドライン（取得できない場合は null）
+ * @param pid Process ID
+ * @returns Command line string, or null when unavailable
  */
 export function getCommandLine(pid: number): string | null {
   const os = platform();
@@ -40,7 +40,7 @@ export function getCommandLine(pid: number): string | null {
       }
 
       const cmdline = readFileSync(cmdlinePath, 'utf-8');
-      // null 文字で区切られているため、スペースに置換
+      // Replace null separators with spaces
       return cmdline.replace(/\0/g, ' ').trim();
     } else if (os === 'darwin') {
       // macOS: ps -p <pid> -o command
@@ -57,7 +57,7 @@ export function getCommandLine(pid: number): string | null {
         stdio: ['ignore', 'pipe', 'ignore'],
       });
 
-      // ヘッダー行を除去
+      // Drop the header row
       const lines = output.split('\n').filter((line) => line.trim() && !line.startsWith('CommandLine'));
       return lines[0]?.trim() ?? null;
     }
@@ -69,12 +69,12 @@ export function getCommandLine(pid: number): string | null {
 }
 
 /**
- * PID が指定されたコマンドで起動されたものか確認
- * コマンドラインの一致を確認することで、PID の再利用を検出する
+ * Verify that a PID was started by the expected command.
+ * Comparing command lines helps detect PID reuse.
  *
- * @param pid プロセスID
- * @param expectedCommand 期待されるコマンド
- * @returns 一致する場合は true、そうでない場合は false
+ * @param pid Process ID
+ * @param expectedCommand Command to compare against
+ * @returns true when the commands match, false otherwise
  */
 export function verifyPidCommand(pid: number, expectedCommand: string): boolean {
   const actualCommand = getCommandLine(pid);
@@ -83,25 +83,24 @@ export function verifyPidCommand(pid: number, expectedCommand: string): boolean 
     return false;
   }
 
-  // 完全一致または部分一致で確認
-  // シェル経由で実行される場合、実際のコマンドラインには sh -c などが含まれるため部分一致で確認
+  // Accept full or partial matches because shells may prepend wrappers like sh -c
   return actualCommand.includes(expectedCommand) || expectedCommand.includes(actualCommand);
 }
 
 /**
- * PID が生存しており、かつ指定されたコマンドで起動されたものか確認
+ * Check whether a PID is alive and optionally matches the expected command.
  *
- * @param pid プロセスID
- * @param expectedCommand 期待されるコマンド（省略時は生存確認のみ）
- * @returns 生存しており、コマンドも一致する場合は true、そうでない場合は false
+ * @param pid Process ID
+ * @param expectedCommand Expected command (omit to only check liveness)
+ * @returns true when alive and matching, false otherwise
  */
 export function isPidAliveAndValid(pid: number, expectedCommand?: string): boolean {
-  // まず生存確認
+  // Check liveness first
   if (!isPidAlive(pid)) {
     return false;
   }
 
-  // コマンドの確認（指定されている場合のみ）
+  // Verify the command only when provided
   if (expectedCommand) {
     return verifyPidCommand(pid, expectedCommand);
   }

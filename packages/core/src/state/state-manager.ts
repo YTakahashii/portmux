@@ -4,12 +4,12 @@ import { homedir } from 'os';
 import { join } from 'path';
 
 /**
- * プロセスの状態
+ * Process status values
  */
 export type ProcessStatus = 'Running' | 'Stopped' | 'Error';
 
 /**
- * プロセス状態のデータ構造
+ * Structure persisted for process state
  */
 export interface ProcessState {
   group: string;
@@ -18,10 +18,10 @@ export interface ProcessState {
   status: ProcessStatus;
   pid?: number;
   error?: string;
-  startedAt?: string; // ISO 8601形式の日時文字列
-  stoppedAt?: string; // ISO 8601形式の日時文字列
-  logPath?: string; // ログファイルのパス
-  ports?: number[]; // 使用しているポート番号
+  startedAt?: string; // ISO 8601 timestamp
+  stoppedAt?: string; // ISO 8601 timestamp
+  logPath?: string; // Path to the log file
+  ports?: number[]; // Ports currently in use
 }
 
 function getPortmuxDir(): string {
@@ -29,22 +29,22 @@ function getPortmuxDir(): string {
 }
 
 /**
- * 状態ファイルのベースディレクトリ
+ * Base directory for state files
  */
 export function getStateDir(): string {
   return join(getPortmuxDir(), 'state');
 }
 
 /**
- * ログファイルのベースディレクトリ
+ * Base directory for log files
  */
 export function getLogDir(): string {
   return join(getPortmuxDir(), 'logs');
 }
 
 /**
- * 文字列をスラッグ化（ファイル名として安全な形式に変換）
- * 特殊文字をハイフンに置換し、連続するハイフンを1つにまとめる
+ * Convert strings into filesystem-safe slugs.
+ * Replace special characters with hyphens and collapse repeats.
  */
 function slugify(str: string): string {
   return str
@@ -54,7 +54,7 @@ function slugify(str: string): string {
 }
 
 /**
- * 状態ファイルのパスを取得
+ * Build the path to a state file
  */
 function getStateFilePath(group: string, process: string): string {
   const groupSlug = slugify(group);
@@ -64,7 +64,7 @@ function getStateFilePath(group: string, process: string): string {
 }
 
 /**
- * 状態ディレクトリを確保（存在しない場合は作成）
+ * Ensure the state directory exists
  */
 function ensureStateDir(): void {
   const stateDir = getStateDir();
@@ -74,7 +74,7 @@ function ensureStateDir(): void {
 }
 
 /**
- * ログディレクトリを確保（存在しない場合は作成）
+ * Ensure the log directory exists
  */
 function ensureLogDir(): void {
   const logDir = getLogDir();
@@ -84,8 +84,8 @@ function ensureLogDir(): void {
 }
 
 /**
- * ログファイルのパスを生成
- * ファイル名: <group-slug>-<process-slug>-<hash>.log
+ * Generate a log file path.
+ * Filename format: <group-slug>-<process-slug>-<hash>.log
  */
 function generateLogPath(group: string, process: string): string {
   ensureLogDir();
@@ -93,7 +93,7 @@ function generateLogPath(group: string, process: string): string {
   const groupSlug = slugify(group);
   const processSlug = slugify(process);
 
-  // ハッシュを付与（同一名でも衝突を避ける）
+  // Use a hash suffix to avoid collisions for identical names
   const hash = Date.now().toString(36);
   const filename = `${groupSlug}-${processSlug}-${hash}.log`;
 
@@ -101,26 +101,26 @@ function generateLogPath(group: string, process: string): string {
 }
 
 /**
- * プロセス状態を管理するオブジェクト
+ * Process state manager
  */
 export const StateManager = {
   /**
-   * ログファイルのパスを生成
+   * Generate a log file path
    *
-   * @param group グループ名
-   * @param process プロセス名
-   * @returns ログファイルのパス
+   * @param group Group name
+   * @param process Process name
+   * @returns Path to the log file
    */
   generateLogPath(group: string, process: string): string {
     return generateLogPath(group, process);
   },
 
   /**
-   * 状態を読み込む
+   * Read a process state
    *
-   * @param group グループ名
-   * @param process プロセス名
-   * @returns プロセス状態（存在しない場合は null）
+   * @param group Group name
+   * @param process Process name
+   * @returns Process state or null when absent
    */
   readState(group: string, process: string): ProcessState | null {
     const filePath = getStateFilePath(group, process);
@@ -133,17 +133,17 @@ export const StateManager = {
       const content = readFileSync(filePath, 'utf-8');
       return JSON.parse(content) as ProcessState;
     } catch {
-      // ファイルが破損している場合は null を返す
+      // Return null when the file is corrupted
       return null;
     }
   },
 
   /**
-   * 状態を書き込む
+   * Persist a process state
    *
-   * @param group グループ名
-   * @param process プロセス名
-   * @param state プロセス状態
+   * @param group Group name
+   * @param process Process name
+   * @param state Process state data
    */
   writeState(group: string, process: string, state: ProcessState): void {
     ensureStateDir();
@@ -154,10 +154,10 @@ export const StateManager = {
   },
 
   /**
-   * 状態を削除する
+   * Delete a stored state record
    *
-   * @param group グループ名
-   * @param process プロセス名
+   * @param group Group name
+   * @param process Process name
    */
   deleteState(group: string, process: string): void {
     const filePath = getStateFilePath(group, process);
@@ -168,9 +168,9 @@ export const StateManager = {
   },
 
   /**
-   * すべての状態ファイルを読み込む
+   * Read every state file
    *
-   * @returns すべてのプロセス状態の配列
+   * @returns Array of all process states
    */
   listAllStates(): ProcessState[] {
     ensureStateDir();
@@ -196,12 +196,12 @@ export const StateManager = {
           const state = JSON.parse(content) as ProcessState;
           states.push(state);
         } catch {
-          // 破損したファイルはスキップ
+          // Skip corrupted files
           continue;
         }
       }
     } catch {
-      // ディレクトリが読めない場合は空配列を返す
+      // Return an empty array when the directory cannot be read
       return states;
     }
 

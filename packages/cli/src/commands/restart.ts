@@ -25,7 +25,7 @@ function resolveGroupOrFallback(groupName?: string): ResolvedGroup {
     return GroupManager.resolveGroupAuto();
   } catch (error) {
     if (error instanceof GroupResolutionError) {
-      // フォールバック: start と同じ挙動でプロジェクト設定を直接読む
+      // Fallback: read the project config directly just like the start command
       const configPath = ConfigManager.findConfigFile();
       const config = ConfigManager.loadConfig(configPath);
       const projectRoot = resolve(configPath, '..');

@@ -7,7 +7,7 @@ export const stopCommand: ReturnType<typeof createStopCommand> = createStopComma
 
 export async function runStopCommand(groupName?: string, processName?: string): Promise<void> {
   try {
-    // グループ名が指定されていない場合は、状態ストアから全プロセスを取得
+    // When no group name is provided, read every process from the state store
     if (!groupName) {
       const allStates = StateManager.listAllStates();
       const groups = new Set(allStates.map((s) => s.group));
@@ -17,7 +17,7 @@ export async function runStopCommand(groupName?: string, processName?: string): 
         return;
       }
 
-      // 複数のグループがある場合はエラー
+      // Error if multiple groups are running
       if (groups.size > 1) {
         console.error(chalk.red('Error: Multiple groups are running. Please specify a group name.'));
         process.exit(1);
@@ -27,7 +27,7 @@ export async function runStopCommand(groupName?: string, processName?: string): 
       groupName = Array.from(groups)[0];
     }
 
-    // 停止するプロセスを決定
+    // Determine which processes should be stopped
     const allStates = StateManager.listAllStates();
     const processesToStop = processName
       ? allStates.filter((s) => s.group === groupName && s.process === processName)
@@ -44,7 +44,7 @@ export async function runStopCommand(groupName?: string, processName?: string): 
       return;
     }
 
-    // ロックを取得して各プロセスを停止
+    // Acquire a lock and stop each process
     await LockManager.withLock('group', groupName ?? null, async () => {
       for (const state of processesToStop) {
         try {

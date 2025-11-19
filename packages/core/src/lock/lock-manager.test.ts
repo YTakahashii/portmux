@@ -35,7 +35,7 @@ describe('LockManager', () => {
     const lockDir = getLockDir();
     rmSync(lockDir, { recursive: true, force: true });
     vi.mocked(lock).mockClear();
-    // デフォルトでは実際の lock 関数を使う
+    // Use the real lock function by default
     vi.mocked(lock).mockImplementation(async (path: string) => {
       const actual = await vi.importActual<typeof import('proper-lockfile')>('proper-lockfile');
       const result = await actual.lock(path, {
@@ -167,14 +167,14 @@ describe('LockManager', () => {
     });
 
     it('releases the lock even when the handler throws', async () => {
-      // ロックを取得してからエラーを投げる
+      // Acquire the lock and then throw
       await expect(
         LockManager.withLock('global', null, () => {
           return Promise.reject(new Error('test error'));
         })
       ).rejects.toThrow('test error');
 
-      // ロックが解放されたことを確認（再度ロックを取得できる）
+      // Verify the lock was released by acquiring it again
       const releaseLock = await LockManager.acquireGlobalLock();
       await releaseLock();
     });

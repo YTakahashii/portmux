@@ -11,7 +11,7 @@ import { homedir } from 'os';
 import { PortmuxError } from '../errors.js';
 
 /**
- * 設定ファイルが見つからない場合のエラー
+ * Error thrown when a config file cannot be found
  */
 export class ConfigNotFoundError extends PortmuxError {
   override readonly name = 'ConfigNotFoundError';
@@ -21,7 +21,7 @@ export class ConfigNotFoundError extends PortmuxError {
 }
 
 /**
- * 設定ファイルのJSONパースエラー
+ * Error thrown when a config file cannot be parsed as JSON
  */
 export class ConfigParseError extends PortmuxError {
   override readonly name = 'ConfigParseError';
@@ -32,7 +32,7 @@ export class ConfigParseError extends PortmuxError {
 }
 
 /**
- * 設定ファイルのスキーマバリデーションエラー
+ * Error thrown when config data fails schema validation
  */
 export class ConfigValidationError extends PortmuxError {
   override readonly name = 'ConfigValidationError';
@@ -42,7 +42,7 @@ export class ConfigValidationError extends PortmuxError {
 }
 
 /**
- * バージョン非互換エラー
+ * Error for incompatible config versions
  */
 export class VersionMismatchError extends PortmuxError {
   override readonly name = 'VersionMismatchError';
@@ -85,12 +85,12 @@ export class InvalidRepositoryReferenceError extends PortmuxError {
 }
 
 /**
- * サポートされている設定ファイルのバージョン
+ * Supported configuration version
  */
 const SUPPORTED_VERSION = '1.0.0';
 
 /**
- * 参照済みのリポジトリとプロジェクト設定をまとめたマージ結果
+ * Result of merging resolved repositories and their project configs
  */
 export interface MergedRepositoryConfig {
   name: string;
@@ -106,7 +106,7 @@ export interface MergedGlobalConfig {
 }
 
 /**
- * バージョン文字列をパースして major, minor, patch を返す
+ * Parse a version string into major/minor/patch components
  */
 function parseVersion(version: string): { major: number; minor: number; patch: number } {
   const parts = version.split('.');
@@ -118,7 +118,7 @@ function parseVersion(version: string): { major: number; minor: number; patch: n
 }
 
 /**
- * パスを正規化（シンボリックリンクを解決）
+ * Normalize paths (resolve symbolic links)
  */
 function normalizePath(path: string): string {
   try {
@@ -129,7 +129,7 @@ function normalizePath(path: string): string {
 }
 
 /**
- * リポジトリ名の一意性を検証
+ * Ensure repository names are unique
  */
 function ensureUniqueRepositoryNames(globalConfig: GlobalConfig): void {
   const repositoryNames = new Set<string>();
@@ -142,7 +142,7 @@ function ensureUniqueRepositoryNames(globalConfig: GlobalConfig): void {
 }
 
 /**
- * リポジトリが参照するグループが存在するか検証
+ * Verify that the referenced group exists in the project config
  */
 function validateRepositoryReference(
   repositoryName: string,
@@ -156,16 +156,16 @@ function validateRepositoryReference(
 }
 
 /**
- * 環境変数を解決する
- * ${VAR} 形式の変数を process.env から置換
+ * Resolve environment variables in a string.
+ * Replaces ${VAR} placeholders using process.env
  *
- * @param value 置換対象の文字列
- * @param commandEnv コマンド定義の env
- * @returns 解決済みの文字列
+ * @param value String containing placeholders
+ * @param commandEnv Command-level env definitions
+ * @returns Resolved string
  */
 function resolveEnvVariables(value: string, commandEnv: Record<string, string> = {}): string {
   return value.replace(/\$\{([^}]+)\}/g, (_match, varName: string) => {
-    // 優先順位: 1. commandEnv, 2. process.env
+    // Priority: 1) commandEnv, 2) process.env
     const resolved = commandEnv[varName] ?? process.env[varName];
 
     if (resolved === undefined) {
@@ -178,22 +178,22 @@ function resolveEnvVariables(value: string, commandEnv: Record<string, string> =
 }
 
 /**
- * 設定ファイルを管理するオブジェクト
+ * Configuration manager
  */
 export const ConfigManager = {
   /**
-   * グローバル設定ファイルのパスを取得
+   * Get the global config file path
    */
   getGlobalConfigPath(): string {
     return join(homedir(), '.config', 'portmux', 'config.json');
   },
 
   /**
-   * カレントディレクトリから親ディレクトリを遡って portmux.config.json を探す
+   * Walk parent directories upward from startDir to find portmux.config.json
    *
-   * @param startDir 検索を開始するディレクトリ（デフォルト: process.cwd()）
-   * @returns 設定ファイルのパス
-   * @throws ConfigNotFoundError 設定ファイルが見つからない場合
+   * @param startDir Directory to start from (default: process.cwd())
+   * @returns Resolved config path
+   * @throws ConfigNotFoundError When the config file cannot be located
    */
   findConfigFile(startDir: string = process.cwd()): string {
     let currentDir = resolve(startDir);
@@ -211,21 +211,21 @@ export const ConfigManager = {
   },
 
   /**
-   * バージョンをチェックして互換性を検証
+   * Validate version compatibility
    *
-   * @param configVersion 設定ファイルのバージョン
-   * @throws VersionMismatchError メジャーバージョンが異なる場合
+   * @param configVersion Version declared in the config file
+   * @throws VersionMismatchError When the major versions differ
    */
   validateVersion(configVersion: string): void {
     const config = parseVersion(configVersion);
     const supported = parseVersion(SUPPORTED_VERSION);
 
-    // メジャーバージョンが異なる場合はエラー
+    // Throw when majors do not match
     if (config.major !== supported.major) {
       throw new VersionMismatchError(configVersion, SUPPORTED_VERSION);
     }
 
-    // マイナーバージョンが新しい場合は警告（console.warn）
+    // Warn when the config minor version is newer
     if (config.minor > supported.minor) {
       console.warn(
         `Warning: Config version (${configVersion}) is newer than the supported version (${SUPPORTED_VERSION}).\n` +
@@ -235,21 +235,21 @@ export const ConfigManager = {
   },
 
   /**
-   * グローバル設定ファイルを読み込む
+   * Load the global configuration file
    *
-   * @returns グローバル設定（存在しない場合は null）
-   * @throws ConfigParseError JSONパースに失敗した場合
-   * @throws ConfigValidationError スキーマバリデーションに失敗した場合
+   * @returns Global config, or null if the file does not exist
+   * @throws ConfigParseError When JSON parsing fails
+   * @throws ConfigValidationError When schema validation fails
    */
   loadGlobalConfig(): GlobalConfig | null {
     const path = this.getGlobalConfigPath();
 
-    // ファイルが存在しない場合は null を返す
+    // Return null when the file is missing
     if (!existsSync(path)) {
       return null;
     }
 
-    // ファイルの読み込み
+    // Read the file
     let rawContent: string;
     try {
       rawContent = readFileSync(path, 'utf-8');
@@ -257,7 +257,7 @@ export const ConfigManager = {
       throw new ConfigParseError(path, error);
     }
 
-    // JSONパース
+    // Parse JSON
     let jsonData: unknown;
     try {
       jsonData = JSON.parse(rawContent);
@@ -265,37 +265,37 @@ export const ConfigManager = {
       throw new ConfigParseError(path, error);
     }
 
-    // Zodバリデーション
+    // Validate with Zod
     const result = GlobalConfigSchema.safeParse(jsonData);
     if (!result.success) {
       const details = result.error.issues.map((err) => `${err.path.map(String).join('.')}: ${err.message}`).join('\n');
       throw new ConfigValidationError(path, details);
     }
 
-    // バージョン検証
+    // Verify version compatibility
     this.validateVersion(result.data.version);
 
     return result.data;
   },
 
   /**
-   * プロジェクト設定ファイルを読み込んでバリデーションを行う
+   * Load and validate a project configuration file
    *
-   * @param configPath 設定ファイルのパス（省略時は自動検索）
-   * @returns バリデーション済みの設定オブジェクト
-   * @throws ConfigNotFoundError ファイルが存在しない場合
-   * @throws ConfigParseError JSONパースに失敗した場合
-   * @throws ConfigValidationError スキーマバリデーションに失敗した場合
+   * @param configPath Path to the config (auto-detected when omitted)
+   * @returns Validated configuration object
+   * @throws ConfigNotFoundError When the file does not exist
+   * @throws ConfigParseError When JSON parsing fails
+   * @throws ConfigValidationError When schema validation fails
    */
   loadConfig(configPath?: string): PortMuxConfig {
     const path = configPath ?? this.findConfigFile();
 
-    // ファイルの存在確認
+    // Verify the file exists
     if (!existsSync(path)) {
       throw new ConfigNotFoundError(path);
     }
 
-    // ファイルの読み込み
+    // Read file contents
     let rawContent: string;
     try {
       rawContent = readFileSync(path, 'utf-8');
@@ -303,7 +303,7 @@ export const ConfigManager = {
       throw new ConfigParseError(path, error);
     }
 
-    // JSONパース
+    // Parse JSON
     let jsonData: unknown;
     try {
       jsonData = JSON.parse(rawContent);
@@ -311,14 +311,14 @@ export const ConfigManager = {
       throw new ConfigParseError(path, error);
     }
 
-    // Zodバリデーション
+    // Validate with Zod
     const result = PortMuxConfigSchema.safeParse(jsonData);
     if (!result.success) {
       const details = result.error.issues.map((err) => `${err.path.map(String).join('.')}: ${err.message}`).join('\n');
       throw new ConfigValidationError(path, details);
     }
 
-    // バージョン検証
+    // Verify version compatibility
     this.validateVersion(result.data.version);
 
     return result.data;
@@ -336,19 +336,19 @@ export const ConfigManager = {
   validateGlobalConfig(globalConfig: GlobalConfig, projectConfig: PortMuxConfig, projectConfigPath: string): void {
     ensureUniqueRepositoryNames(globalConfig);
 
-    // 外部参照の整合性チェック
+    // Verify external references
     for (const [repositoryName, repository] of Object.entries(globalConfig.repositories)) {
       validateRepositoryReference(repositoryName, repository.group, projectConfig, projectConfigPath);
     }
   },
 
   /**
-   * グローバル設定とプロジェクト設定を統合して返す
+   * Merge global and project configurations
    *
-   * - targetRepository を指定すると、そのエントリのみを対象にマージする
-   * - skipInvalid が true の場合、存在しないプロジェクト設定やグループ参照のエントリはスキップする
+   * - When targetRepository is provided, merge only that entry
+   * - When skipInvalid is true, skip repositories with missing configs or group references
    *
-   * @returns マージ済み設定。グローバル設定ファイルが存在しない場合は null
+   * @returns Merged settings, or null when the global config file is missing
    */
   mergeGlobalAndProjectConfigs(options?: {
     targetRepository?: string;
@@ -410,22 +410,22 @@ export const ConfigManager = {
   },
 
   /**
-   * コマンド文字列内の環境変数を解決
+   * Resolve environment variables inside a command string
    *
-   * @param command コマンド文字列
-   * @param commandEnv コマンド定義の env
-   * @returns 解決済みのコマンド文字列
+   * @param command Command string
+   * @param commandEnv Env definitions within the command
+   * @returns Resolved command string
    */
   resolveCommandEnv(command: string, commandEnv: Record<string, string> = {}): string {
     return resolveEnvVariables(command, commandEnv);
   },
 
   /**
-   * 環境変数オブジェクトを解決
-   * env の値に ${VAR} が含まれている場合、再帰的に解決
+   * Resolve environment variable objects recursively
+   * When a value contains ${VAR}, replace it with the corresponding value
    *
-   * @param commandEnv コマンド定義の env
-   * @returns 解決済みの環境変数オブジェクト
+   * @param commandEnv Env definitions within the command
+   * @returns Fully resolved env object
    */
   resolveEnvObject(commandEnv: Record<string, string> = {}): Record<string, string> {
     const resolved: Record<string, string> = {};

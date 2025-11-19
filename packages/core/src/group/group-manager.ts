@@ -7,14 +7,14 @@ import { StateManager } from '../state/state-manager.js';
 import { PortmuxError } from '../errors.js';
 
 /**
- * グループ解決エラー
+ * Error thrown when a group cannot be resolved
  */
 export class GroupResolutionError extends PortmuxError {
   override readonly name = 'GroupResolutionError';
 }
 
 /**
- * グループ情報
+ * Resolved group information
  */
 export interface ResolvedGroup {
   name: string;
@@ -25,7 +25,7 @@ export interface ResolvedGroup {
 }
 
 /**
- * Git worktree 情報
+ * Data returned for each git worktree
  */
 export interface GitWorktreeInfo {
   path: string;
@@ -42,7 +42,7 @@ export interface GroupSelection {
 }
 
 /**
- * .git ファイルまたはディレクトリを探して Git リポジトリのルートを特定
+ * Locate the git repository root by finding a .git directory or file
  */
 function findGitRoot(startDir: string): string | null {
   let currentDir = resolve(startDir);
@@ -60,7 +60,7 @@ function findGitRoot(startDir: string): string | null {
 }
 
 /**
- * git worktree list の実行と解析
+ * Run and parse `git worktree list`
  */
 function getGitWorktrees(gitRoot: string): GitWorktreeInfo[] {
   try {
@@ -76,7 +76,7 @@ function getGitWorktrees(gitRoot: string): GitWorktreeInfo[] {
 }
 
 /**
- * git worktree list --porcelain の出力をパース
+ * Parse the output of `git worktree list --porcelain`
  */
 export function parseGitWorktreeList(output: string): GitWorktreeInfo[] {
   const worktrees: GitWorktreeInfo[] = [];
@@ -106,7 +106,7 @@ export function parseGitWorktreeList(output: string): GitWorktreeInfo[] {
 }
 
 /**
- * パスを正規化（シンボリックリンクを解決）
+ * Normalize a path (resolve symbolic links)
  */
 function normalizePath(path: string): string {
   try {
@@ -117,7 +117,7 @@ function normalizePath(path: string): string {
 }
 
 /**
- * 実行中グループの集合を返す
+ * Return the set of currently running groups
  */
 function getRunningGroupNames(): Set<string> {
   const states = StateManager.listAllStates();
@@ -126,7 +126,7 @@ function getRunningGroupNames(): Set<string> {
 }
 
 /**
- * プロジェクト名をパスから導出
+ * Derive the project name from a path
  */
 function getProjectName(path: string): string {
   const name = basename(path);
@@ -134,7 +134,7 @@ function getProjectName(path: string): string {
 }
 
 /**
- * グループを管理するオブジェクト
+ * Group manager
  */
 export const GroupManager = {
   /**
@@ -173,16 +173,16 @@ export const GroupManager = {
   },
 
   /**
-   * カレントディレクトリから自動的にグループを解決
+   * Resolve a group automatically starting from the current directory.
    *
-   * @param startDir 開始ディレクトリ（デフォルト: process.cwd()）
-   * @returns 解決されたグループ情報
-   * @throws GroupResolutionError グループが見つからない場合
+   * @param startDir Directory to start from (default: process.cwd())
+   * @returns Resolved group information
+   * @throws GroupResolutionError When the group cannot be found
    */
   resolveGroupAuto(startDir: string = process.cwd()): ResolvedGroup {
     const normalizedCwd = normalizePath(startDir);
 
-    // プロジェクト設定ファイルを探す
+    // Locate the project config file
     let projectConfigPath: string;
     try {
       projectConfigPath = ConfigManager.findConfigFile(startDir);
@@ -195,11 +195,10 @@ export const GroupManager = {
     const projectConfig = ConfigManager.loadConfig(projectConfigPath);
     const projectRoot = normalizePath(dirname(projectConfigPath));
 
-    // グローバル設定を読み込み
+    // Load the global configuration
     const mergedConfig = ConfigManager.mergeGlobalAndProjectConfigs({ skipInvalid: true });
     if (!mergedConfig) {
-      // グローバル設定がない場合はフォールバックモード
-      // プロジェクト設定の最初のグループを使用
+      // Fall back to the first group when no global config exists
       const firstGroupName = Object.keys(projectConfig.groups)[0];
       if (!firstGroupName) {
         throw new GroupResolutionError('No groups are defined in the project config.');
@@ -214,11 +213,10 @@ export const GroupManager = {
       };
     }
 
-    // Git リポジトリのルートを探す
+    // Determine the git repository root
     const gitRoot = findGitRoot(startDir);
     if (!gitRoot) {
-      // Git 環境ではない場合はフォールバックモード
-      // カレントディレクトリとマッチするリポジトリを探す
+      // In non-git environments, try to match the current directory
       for (const mergedRepository of Object.values(mergedConfig.repositories)) {
         const groupPath = mergedRepository.path;
         if (groupPath === normalizedCwd || groupPath === projectRoot) {
@@ -232,7 +230,7 @@ export const GroupManager = {
         }
       }
 
-      // 見つからない場合は最初のグループを使用
+      // Default to the first group when we cannot find a match
       const firstGroupName = Object.keys(projectConfig.groups)[0];
       if (!firstGroupName) {
         throw new GroupResolutionError('No groups are defined in the project config.');
@@ -249,10 +247,10 @@ export const GroupManager = {
       };
     }
 
-    // git worktree list を実行
+    // Invoke `git worktree list`
     const worktrees = getGitWorktrees(gitRoot);
 
-    // カレントディレクトリとマッチする worktree を探す
+    // Find the worktree that matches the current directory
     let matchedWorktree: GitWorktreeInfo | null = null;
     for (const worktree of worktrees) {
       const worktreePath = normalizePath(worktree.path);
@@ -270,7 +268,7 @@ export const GroupManager = {
 
     const matchedWorktreePath = normalizePath(matchedWorktree.path);
 
-    // グローバル設定でマッチするリポジトリを探す
+    // Locate the matching repository in the global config
     for (const mergedRepository of Object.values(mergedConfig.repositories)) {
       const groupPath = mergedRepository.path;
       if (groupPath === matchedWorktreePath) {
@@ -292,9 +290,9 @@ export const GroupManager = {
   },
 
   /**
-   * すべてのグループを列挙
+   * Enumerate every group
    *
-   * @returns すべてのグループ情報の配列
+   * @returns Array of resolved group info
    */
   listAllGroups(): ResolvedGroup[] {
     const mergedConfig = ConfigManager.mergeGlobalAndProjectConfigs({ skipInvalid: true });
@@ -318,11 +316,11 @@ export const GroupManager = {
   },
 
   /**
-   * 対話選択用のグループ一覧を生成
+   * Build a list of groups suitable for interactive selection
    *
-   * @param worktrees git worktree list の結果
-   * @param options includeAll が true の場合は worktree に含まれないグループも表示
-   * @returns 選択肢に利用できるグループ情報
+   * @param worktrees Result of git worktree list
+   * @param options When includeAll is true, show groups not present in any worktree
+   * @returns Selectable group information
    */
   buildSelectableGroups(
     worktrees: GitWorktreeInfo[],

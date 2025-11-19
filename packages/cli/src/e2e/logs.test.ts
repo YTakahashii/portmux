@@ -80,7 +80,7 @@ describe('logs command integration', () => {
   it('prints log output for a running process without following', async () => {
     await runStartCommand('app');
 
-    // 書き込みとログ生成の反映を待つ
+    // Wait for writes and log generation to settle
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     runLogsCommand('app', 'svc', { lines: '10', follow: false, timestamps: false });

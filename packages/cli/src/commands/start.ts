@@ -19,19 +19,19 @@ export const startCommand: ReturnType<typeof createStartCommand> = createStartCo
 
 export async function runStartCommand(groupName?: string, processName?: string): Promise<void> {
   try {
-    // グループを解決
+    // Resolve the target group
     let resolvedGroup: ResolvedGroup;
     try {
       if (groupName) {
-        // グループ名が指定されている場合はグローバル設定から検索
+        // When a group name is provided, look it up from the global config
         resolvedGroup = GroupManager.resolveGroupByName(groupName);
       } else {
-        // 指定されていない場合は自動解決
+        // Otherwise resolve automatically
         resolvedGroup = GroupManager.resolveGroupAuto();
       }
     } catch (error) {
       if (error instanceof GroupResolutionError) {
-        // GroupManager で解決できない場合は従来の方法でフォールバック
+        // Fall back to the legacy approach when GroupManager resolution fails
         const configPath = ConfigManager.findConfigFile();
         const config = ConfigManager.loadConfig(configPath);
         const projectRoot = resolve(configPath, '..');
@@ -71,7 +71,7 @@ export async function runStartCommand(groupName?: string, processName?: string):
       process.exit(1);
     }
 
-    // 起動するプロセスを決定
+    // Determine which processes should be started
     const processesToStart = processName ? group.commands.filter((cmd) => cmd.name === processName) : group.commands;
 
     if (processesToStart.length === 0) {
@@ -81,15 +81,15 @@ export async function runStartCommand(groupName?: string, processName?: string):
       process.exit(1);
     }
 
-    // ロックを取得して各プロセスを起動
+    // Acquire a lock and start each process
     await LockManager.withLock('group', resolvedGroup.name, async () => {
       for (const cmd of processesToStart) {
         try {
-          // 環境変数を解決
+          // Resolve environment variables
           const resolvedEnv = cmd.env ? ConfigManager.resolveEnvObject(cmd.env) : {};
           const resolvedCommand = ConfigManager.resolveCommandEnv(cmd.command, cmd.env);
 
-          // プロセスを起動（PortManager の予約 API は ProcessManager 内で使用される）
+          // Start the process (ProcessManager uses PortManager reservation APIs internally)
           await ProcessManager.startProcess(targetGroup, cmd.name, resolvedCommand, {
             ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
             env: resolvedEnv,

@@ -6,7 +6,7 @@ import { lock } from 'proper-lockfile';
 import { PortmuxError } from '../errors.js';
 
 /**
- * ロックタイムアウトエラー
+ * Lock timeout error
  */
 export class LockTimeoutError extends PortmuxError {
   override readonly name = 'LockTimeoutError';
@@ -20,7 +20,7 @@ export class LockTimeoutError extends PortmuxError {
 }
 
 /**
- * ロック解放エラー
+ * Lock release error
  */
 export class LockReleaseError extends PortmuxError {
   override readonly name = 'LockReleaseError';
@@ -31,24 +31,24 @@ export class LockReleaseError extends PortmuxError {
 }
 
 /**
- * ロックの種類
+ * Types of locks
  */
 export type LockType = 'global' | 'group';
 
 /**
- * ロック管理の設定
+ * Lock manager settings
  */
-const LOCK_TIMEOUT = 30000; // 30秒
+const LOCK_TIMEOUT = 30000; // 30 seconds
 
 /**
- * ロックベースディレクトリのパスを取得
+ * Base directory for lock files
  */
 function getLockBaseDir(): string {
   return join(homedir(), '.config', 'portmux', 'locks');
 }
 
 /**
- * ロックディレクトリを確保（存在しない場合は作成）
+ * Ensure the lock directory exists
  */
 function ensureLockDir(): void {
   const lockBaseDir = getLockBaseDir();
@@ -58,13 +58,13 @@ function ensureLockDir(): void {
 }
 
 /**
- * グローバルロックファイルのパスを取得
+ * Path to the global lock file
  */
 function getGlobalLockPath(): string {
   ensureLockDir();
   const lockPath = join(getLockBaseDir(), 'global.lock');
 
-  // ロックファイルが存在しない場合は作成
+  // Create the lock file if needed
   if (!existsSync(lockPath)) {
     writeFileSync(lockPath, '', 'utf-8');
   }
@@ -73,12 +73,12 @@ function getGlobalLockPath(): string {
 }
 
 /**
- * グループロックファイルのパスを取得
+ * Path to a group lock file
  */
 function getGroupLockPath(group: string): string {
   ensureLockDir();
 
-  // グループ名をスラッグ化
+  // Slugify the group name
   const slug = group
     .replace(/[^a-zA-Z0-9-]/g, '-')
     .replace(/-+/g, '-')
@@ -86,7 +86,7 @@ function getGroupLockPath(group: string): string {
 
   const lockPath = join(getLockBaseDir(), `${slug}.lock`);
 
-  // ロックファイルが存在しない場合は作成
+  // Create the lock file if needed
   if (!existsSync(lockPath)) {
     writeFileSync(lockPath, '', 'utf-8');
   }
@@ -95,19 +95,19 @@ function getGroupLockPath(group: string): string {
 }
 
 /**
- * ロック解放関数の型
+ * Type for functions that release a lock
  */
 export type ReleaseLockFn = () => Promise<void>;
 
 /**
- * ロック管理を行うオブジェクト
+ * Lock manager
  */
 export const LockManager = {
   /**
-   * グローバルロックを取得
+   * Acquire the global lock
    *
-   * @returns ロック解放関数
-   * @throws LockTimeoutError タイムアウトした場合
+   * @returns Release function for the lock
+   * @throws LockTimeoutError When acquisition times out
    */
   async acquireGlobalLock(): Promise<ReleaseLockFn> {
     const lockPath = getGlobalLockPath();
@@ -135,11 +135,11 @@ export const LockManager = {
   },
 
   /**
-   * グループロックを取得
+   * Acquire a group lock
    *
-   * @param group グループ名
-   * @returns ロック解放関数
-   * @throws LockTimeoutError タイムアウトした場合
+   * @param group Group name
+   * @returns Release function for the lock
+   * @throws LockTimeoutError When acquisition times out
    */
   async acquireGroupLock(group: string): Promise<ReleaseLockFn> {
     const lockPath = getGroupLockPath(group);
@@ -167,13 +167,13 @@ export const LockManager = {
   },
 
   /**
-   * ロックされた処理を実行
-   * ロックを取得してから処理を実行し、最後に必ずロックを解放する
+   * Run a function within a lock.
+   * Always release the lock after the handler completes.
    *
-   * @param lockType ロックの種類
-   * @param group グループ名（グループロックの場合）
-   * @param fn 実行する処理
-   * @returns 処理の結果
+   * @param lockType Lock type
+   * @param group Group name (required for group locks)
+   * @param fn Handler to execute
+   * @returns Result of the handler
    */
   async withLock<T>(lockType: LockType, group: string | null, fn: () => Promise<T>): Promise<T> {
     let releaseLock: ReleaseLockFn;

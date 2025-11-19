@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import { PortmuxError } from '../errors.js';
 
 /**
- * ポートが使用中の場合のエラー
+ * Error thrown when a port is already in use
  */
 export class PortInUseError extends PortmuxError {
   override readonly name = 'PortInUseError';
@@ -15,7 +15,7 @@ export class PortInUseError extends PortmuxError {
 }
 
 /**
- * ポート予約リクエスト
+ * Port reservation request
  */
 export interface PortReservationRequest {
   group: string;
@@ -24,7 +24,7 @@ export interface PortReservationRequest {
 }
 
 /**
- * ポート予約プラン
+ * Port reservation plan
  */
 export interface PortReservationPlan {
   reservationToken: string;
@@ -32,7 +32,7 @@ export interface PortReservationPlan {
 }
 
 /**
- * ポート予約メタデータ
+ * Port reservation metadata
  */
 export interface PortReservationMetadata {
   pid: number;
@@ -40,7 +40,7 @@ export interface PortReservationMetadata {
 }
 
 /**
- * ポート予約情報（状態ストアに保存）
+ * Port reservation info persisted in the state store
  */
 export interface PortReservation {
   group: string;
@@ -52,19 +52,19 @@ export interface PortReservation {
 }
 
 /**
- * 一時的なポート予約情報（commitまでの保留中）
+ * Pending port reservations that live until commit
  */
 const pendingReservations = new Map<string, PortReservation>();
 
 /**
- * ポート管理を行うオブジェクト
+ * Port management object
  */
 export const PortManager = {
   /**
-   * ポートの使用可能性をチェックする
+   * Check whether the requested ports are available
    *
-   * @param ports チェックするポート番号の配列
-   * @throws PortInUseError 使用中のポートがある場合
+   * @param ports Array of ports to check
+   * @throws PortInUseError When a requested port is already in use
    */
   async checkPortAvailability(ports: number[]): Promise<void> {
     const unavailablePorts: number[] = [];
@@ -85,7 +85,7 @@ export const PortManager = {
   },
 
   /**
-   * 状態ストアの予約とリクエストが競合しないかの確認
+   * Verify that existing state does not conflict with the request
    */
   checkReservationConflicts(existing: Map<string, PortReservation>, request: PortReservationRequest): void {
     for (const reservation of existing.values()) {
@@ -97,7 +97,7 @@ export const PortManager = {
   },
 
   /**
-   * 状態ストアからポート予約情報を読み込む
+   * Load port reservation info from the state store
    */
   loadReservationsFromState(): Map<string, PortReservation> {
     const reservations = new Map<string, PortReservation>();
@@ -123,33 +123,33 @@ export const PortManager = {
   },
 
   /**
-   * 孤立したポート予約を解放（PID が死んでいる場合）
+   * Release orphaned port reservations when the PID has died
    */
   reconcileFromState(): void {
     const reservations = this.loadReservationsFromState();
 
     for (const reservation of reservations.values()) {
       if (reservation.pid && !isPidAlive(reservation.pid)) {
-        // PID が死んでいる場合は状態を削除
+        // Remove the state when its PID is no longer alive
         StateManager.deleteState(reservation.group, reservation.process);
       }
     }
   },
 
   /**
-   * ポート予約の計画を立てる（2フェーズコミットの Phase 1）
+   * Plan a port reservation (two-phase commit phase 1)
    *
-   * @param request ポート予約リクエスト
-   * @returns ポート予約プラン
-   * @throws PortInUseError ポートが使用中の場合
+   * @param request Port reservation request
+   * @returns Port reservation plan
+   * @throws PortInUseError When a requested port is already in use
    */
   async planReservation(request: PortReservationRequest): Promise<PortReservationPlan> {
     const warnings: string[] = [];
 
-    // ポートの使用可能性をチェック
+    // Check port availability
     await this.checkPortAvailability(request.ports);
 
-    // 状態ストアから既存の予約を読み込み
+    // Load existing reservations from the state store
     const existingReservations = this.loadReservationsFromState();
     const existingKey = `${request.group}:${request.process}`;
     const existingReservation = existingReservations.get(existingKey);
@@ -160,13 +160,13 @@ export const PortManager = {
       );
     }
 
-    // 既存予約とのポート競合を確認（状態ストアベース）
+    // Ensure there are no conflicts with existing reservations
     this.checkReservationConflicts(existingReservations, request);
 
-    // 予約トークンを生成
+    // Generate a reservation token
     const reservationToken = randomBytes(16).toString('hex');
 
-    // 一時予約を作成
+    // Create a pending reservation entry
     const reservation: PortReservation = {
       group: request.group,
       process: request.process,
@@ -183,9 +183,9 @@ export const PortManager = {
   },
 
   /**
-   * ポート予約を確定する（2フェーズコミットの Phase 2）
+   * Commit the reservation (two-phase commit phase 2)
    *
-   * @param reservationToken 予約トークン
+   * @param reservationToken Reservation token
    */
   commitReservation(reservationToken: string): void {
     const reservation = pendingReservations.get(reservationToken);
@@ -193,17 +193,17 @@ export const PortManager = {
       throw new Error(`Invalid reservation token: ${reservationToken}`);
     }
 
-    // 状態ストアに保存（現在は StateManager が処理）
-    // 将来的にはポート情報も状態ストアに保存する
+    // StateManager currently persists the state for us
+    // We may store explicit port info there in the future
 
-    // 一時予約を削除
+    // Remove the pending reservation
     pendingReservations.delete(reservationToken);
   },
 
   /**
-   * ポート予約を解放する
+   * Release a pending reservation
    *
-   * @param reservationToken 予約トークン（保留中の場合）
+   * @param reservationToken Reservation token (only for pending reservations)
    */
   releaseReservation(reservationToken?: string): void {
     if (reservationToken) {
@@ -212,17 +212,17 @@ export const PortManager = {
   },
 
   /**
-   * グループ・プロセス名でポート予約を解放
+   * Release a reservation by group and process names
    */
   releaseReservationByProcess(group: string, process: string): void {
-    // 保留中の予約を削除
+    // Remove pending reservations
     for (const [token, reservation] of pendingReservations.entries()) {
       if (reservation.group === group && reservation.process === process) {
         pendingReservations.delete(token);
       }
     }
 
-    // 状態ストアから削除（StateManager も保持しているためクリアしておく）
+    // Remove the entry from the state store because StateManager retains it
     StateManager.deleteState(group, process);
   },
 };

@@ -22,7 +22,7 @@ program.addCommand(psCommand);
 program.addCommand(selectCommand);
 program.addCommand(logsCommand);
 
-// グローバルエラーハンドラー
+// Global error handler
 process.on('uncaughtException', (error) => {
   console.error(chalk.red(`Error: ${error.message}`));
   if (error.stack && process.env.DEBUG) {

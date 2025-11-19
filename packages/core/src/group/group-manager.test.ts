@@ -16,8 +16,8 @@ vi.mock('os', async () => {
   };
 });
 
-// child_process と fs のモック用変数（vi.mock の外で定義）
-// vi.mock はホイスティングされるため、vi.hoisted で初期化
+// Store mock references for child_process and fs outside of vi.mock blocks
+// vi.mock is hoisted, so initialize via vi.hoisted
 const mockStore: {
   execSync: ReturnType<typeof vi.fn>;
   existsSync: ReturnType<typeof vi.fn>;
@@ -121,7 +121,7 @@ describe('GroupManager', () => {
     vi.restoreAllMocks();
     mockStore.execSync.mockClear();
     mockStore.existsSync.mockClear();
-    // デフォルトでは実際の existsSync を使う
+    // Use the real existsSync by default
     mockStore.existsSync.mockImplementation(callActualExistsSync);
     rmSync(join(testHomeDir, '.config'), { recursive: true, force: true });
   });
@@ -221,7 +221,7 @@ describe('GroupManager', () => {
       };
       createGlobalConfig(globalConfig);
 
-      // execSync をモック（encoding: 'utf-8' の場合は文字列を返す）
+      // Mock execSync so encoding: 'utf-8' returns a string
       mockStore.execSync.mockImplementation((_command: string, options?: { encoding?: string }) => {
         if (options?.encoding === 'utf-8') {
           return `worktree ${root}\nHEAD abc123\nbranch refs/heads/main\n\n`;
@@ -229,7 +229,7 @@ describe('GroupManager', () => {
         return Buffer.from(`worktree ${root}\nHEAD abc123\nbranch refs/heads/main\n\n`);
       });
 
-      // findGitRoot が root を返すようにモック
+      // Mock findGitRoot so it returns root
       mockStore.existsSync.mockImplementation((path: string) => {
         if (typeof path === 'string' && path.includes('.git')) {
           return path === join(root, '.git');
@@ -283,7 +283,7 @@ describe('GroupManager', () => {
       };
       createGlobalConfig(globalConfig);
 
-      // findGitRoot が null を返すようにモック
+      // Mock findGitRoot so it returns null
       mockStore.existsSync.mockImplementation((path: string) => {
         if (typeof path === 'string' && path.includes('.git')) {
           return false;
@@ -314,7 +314,7 @@ describe('GroupManager', () => {
       };
       createGlobalConfig(globalConfig);
 
-      // findGitRoot が null を返すようにモック
+      // Mock findGitRoot so it returns null
       mockStore.existsSync.mockImplementation((path: string) => {
         if (typeof path === 'string' && path.includes('.git')) {
           return false;
@@ -349,7 +349,7 @@ describe('GroupManager', () => {
       };
       createGlobalConfig(globalConfig);
 
-      // findGitRoot が root を返すようにモック
+      // Mock findGitRoot so it returns root
       mockStore.existsSync.mockImplementation((path: string) => {
         if (typeof path === 'string' && path.includes('.git')) {
           return path === join(root, '.git');
@@ -357,7 +357,7 @@ describe('GroupManager', () => {
         return callActualExistsSync(path);
       });
 
-      // execSync が空の結果を返すようにモック
+      // Mock execSync so it returns an empty result
       mockStore.execSync.mockImplementation((_command: string, options?: { encoding?: string }) => {
         if (options?.encoding === 'utf-8') {
           return '';
@@ -385,7 +385,7 @@ describe('GroupManager', () => {
       };
       createGlobalConfig(globalConfig);
 
-      // findGitRoot が root を返すようにモック
+      // Mock findGitRoot so it returns root
       mockStore.existsSync.mockImplementation((path: string) => {
         if (typeof path === 'string' && path.includes('.git')) {
           return path === join(root, '.git');
@@ -393,7 +393,7 @@ describe('GroupManager', () => {
         return callActualExistsSync(path);
       });
 
-      // execSync をモック（encoding: 'utf-8' の場合は文字列を返す）
+      // Mock execSync so encoding: 'utf-8' returns a string
       mockStore.execSync.mockImplementation((_command: string, options?: { encoding?: string }) => {
         if (options?.encoding === 'utf-8') {
           return `worktree ${root}\nHEAD abc123\nbranch refs/heads/main\n\n`;

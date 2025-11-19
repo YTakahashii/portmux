@@ -552,7 +552,7 @@ describe('ProcessManager', () => {
       vi.mocked(StateManager.readState).mockReturnValue(state);
       vi.mocked(isPidAlive).mockReturnValue(true);
       vi.mocked(kill).mockReturnValue(true);
-      // 2回目の isPidAlive 呼び出しで false を返す（停止した）
+      // Return false on the second isPidAlive call to simulate the process stopping
       vi.mocked(isPidAlive).mockReturnValueOnce(true).mockReturnValueOnce(false);
 
       await ProcessManager.stopProcess('group-1', 'api');
@@ -664,17 +664,17 @@ describe('ProcessManager', () => {
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
-      // 最初の呼び出しで true、その後も true を返し続ける（停止しない）
+      // Return true on every call so the process never stops
       vi.mocked(isPidAlive).mockImplementation(() => {
         return true;
       });
       vi.mocked(kill).mockReturnValue(true);
 
-      // タイムアウトを短く設定
+      // Use a short timeout
       await expect(ProcessManager.stopProcess('group-1', 'api', 100)).rejects.toThrow(ProcessStopError);
 
       expect(kill).toHaveBeenCalledWith(1234, 'SIGTERM');
-      // SIGKILL も呼ばれるはず（タイムアウト後）
+      // SIGKILL should be invoked after the timeout
       expect(kill).toHaveBeenCalledWith(1234, 'SIGKILL');
       expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
     });
@@ -689,7 +689,7 @@ describe('ProcessManager', () => {
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
-      vi.mocked(isPidAlive).mockReturnValue(true); // 常に生存している
+      vi.mocked(isPidAlive).mockReturnValue(true); // Always alive
       vi.mocked(kill).mockReturnValue(true);
 
       await expect(ProcessManager.stopProcess('group-1', 'api', 100)).rejects.toThrow(ProcessStopError);
