@@ -4,7 +4,7 @@ PortMux is a CLI for running multiple group processes in the background while ke
 
 ## Install
 
-- Global install (recommended): `pnpm add -g @portmux/cli` or `npm install -g @portmux/cli`, then use the `portmux` command.
+- Global install (recommended): `pnpm add -g @portmux/cli` or `npm install -g @portmux/cli`, then use the `portmux` command (you can also run it via `npx @portmux/cli`).
 - From this repository:
   1. `pnpm install`
   2. `pnpm build`
