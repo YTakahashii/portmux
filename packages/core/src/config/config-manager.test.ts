@@ -1,4 +1,4 @@
-import { ConfigManager, VersionMismatchError } from './config-manager.js';
+import { ConfigManager } from './config-manager.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 
@@ -7,7 +7,6 @@ import { dirname, join } from 'path';
 import { tmpdir } from 'os';
 
 const baseConfig: PortMuxConfig = {
-  version: '1.0.0',
   groups: {
     default: {
       description: 'Default group',
@@ -89,18 +88,6 @@ describe('ConfigManager', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('MISSING'));
   });
 
-  it('validateVersion throws when the major version differs', () => {
-    expect(() => {
-      ConfigManager.validateVersion('2.0.0');
-    }).toThrow(VersionMismatchError);
-  });
-
-  it('validateVersion warns when the minor version is newer than supported', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    ConfigManager.validateVersion('1.2.0');
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('1.2.0'));
-  });
-
   it('findConfigFile walks up parent directories to locate the config file', () => {
     const { root, nestedDir, configPath } = createTempProject();
     try {
@@ -121,21 +108,6 @@ describe('ConfigManager', () => {
     }
   });
 
-  it('loadConfig throws when the config has a different major version', () => {
-    const invalidConfig: PortMuxConfig = {
-      ...baseConfig,
-      version: '2.0.0',
-    };
-    const { root, configPath } = createTempProject(invalidConfig);
-    try {
-      expect(() => {
-        ConfigManager.loadConfig(configPath);
-      }).toThrow(VersionMismatchError);
-    } finally {
-      cleanupTempDir(root);
-    }
-  });
-
   describe('mergeGlobalAndProjectConfigs', () => {
     it('merges and returns the global and project configs', () => {
       const { root: root1 } = createTempProject();
@@ -151,7 +123,6 @@ describe('ConfigManager', () => {
       });
 
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           'group-1': { path: root1, group: 'default' },
           'group-2': { path: root2, group: 'another' },
@@ -180,7 +151,6 @@ describe('ConfigManager', () => {
     it('ignores other invalid entries when targetRepository is provided', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           valid: { path: root, group: 'default' },
           invalid: { path: '/does-not-exist', group: 'default' },
@@ -206,7 +176,6 @@ describe('ConfigManager', () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           valid: { path: root, group: 'default' },
           invalid: { path: '/does-not-exist', group: 'default' },

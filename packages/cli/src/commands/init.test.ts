@@ -61,7 +61,6 @@ describe('runInitCommand', () => {
     const projectConfig = JSON.parse(readFileSync(join(tempDir, 'portmux.config.json'), 'utf-8'));
     expect(projectConfig).toEqual({
       $schema: 'node_modules/@portmux/cli/schemas/portmux.config.schema.json',
-      version: '1.0.0',
       groups: {
         app: {
           description: 'demo group',
@@ -80,7 +79,6 @@ describe('runInitCommand', () => {
 
     const globalConfig = JSON.parse(readFileSync(globalConfigPath, 'utf-8'));
     expect(globalConfig).toEqual({
-      version: '1.0.0',
       repositories: {
         app: {
           path: tempDir,
@@ -93,7 +91,6 @@ describe('runInitCommand', () => {
   it('skips global update when repository exists without force', async () => {
     mkdirSync(dirname(globalConfigPath), { recursive: true });
     const existingGlobal = {
-      version: '1.0.0',
       repositories: {
         app: { path: '/existing/path', group: 'default' },
       },
@@ -122,7 +119,6 @@ describe('runInitCommand', () => {
   it('overwrites global repository when force is enabled', async () => {
     mkdirSync(dirname(globalConfigPath), { recursive: true });
     const existingGlobal = {
-      version: '1.0.0',
       repositories: {
         app: { path: '/old', group: 'legacy' },
       },

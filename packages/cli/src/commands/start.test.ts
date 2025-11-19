@@ -56,7 +56,6 @@ describe('runStartCommand', () => {
     projectConfigPath: '/repo/portmux.config.json',
     groupDefinitionName: 'ws-one',
     projectConfig: {
-      version: '1.0.0',
       groups: {
         'ws-one': {
           description: '',
@@ -111,7 +110,6 @@ describe('runStartCommand', () => {
     });
     vi.mocked(ConfigManager.findConfigFile).mockReturnValue('/group/portmux.config.json');
     vi.mocked(ConfigManager.loadConfig).mockReturnValue({
-      version: '1.0.0',
       groups: {
         default: {
           description: '',

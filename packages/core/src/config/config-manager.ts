@@ -41,24 +41,6 @@ export class ConfigValidationError extends PortmuxError {
   }
 }
 
-/**
- * Error for incompatible config versions
- */
-export class VersionMismatchError extends PortmuxError {
-  override readonly name = 'VersionMismatchError';
-  constructor(
-    public readonly configVersion: string,
-    public readonly supportedVersion: string
-  ) {
-    super(
-      `Config file version is incompatible.\n` +
-        `Config version: ${configVersion}\n` +
-        `Supported version: ${supportedVersion}\n` +
-        `Please update the config file.`
-    );
-  }
-}
-
 /** Duplicate repository name error. */
 export class DuplicateRepositoryNameError extends PortmuxError {
   override readonly name = 'DuplicateRepositoryNameError';
@@ -85,11 +67,6 @@ export class InvalidRepositoryReferenceError extends PortmuxError {
 }
 
 /**
- * Supported configuration version
- */
-const SUPPORTED_VERSION = '1.0.0';
-
-/**
  * Result of merging resolved repositories and their project configs
  */
 export interface MergedRepositoryConfig {
@@ -103,18 +80,6 @@ export interface MergedRepositoryConfig {
 export interface MergedGlobalConfig {
   globalConfig: GlobalConfig;
   repositories: Record<string, MergedRepositoryConfig>;
-}
-
-/**
- * Parse a version string into major/minor/patch components
- */
-function parseVersion(version: string): { major: number; minor: number; patch: number } {
-  const parts = version.split('.');
-  return {
-    major: parseInt(parts[0] ?? '0', 10),
-    minor: parseInt(parts[1] ?? '0', 10),
-    patch: parseInt(parts[2] ?? '0', 10),
-  };
 }
 
 /**
@@ -211,30 +176,6 @@ export const ConfigManager = {
   },
 
   /**
-   * Validate version compatibility
-   *
-   * @param configVersion Version declared in the config file
-   * @throws VersionMismatchError When the major versions differ
-   */
-  validateVersion(configVersion: string): void {
-    const config = parseVersion(configVersion);
-    const supported = parseVersion(SUPPORTED_VERSION);
-
-    // Throw when majors do not match
-    if (config.major !== supported.major) {
-      throw new VersionMismatchError(configVersion, SUPPORTED_VERSION);
-    }
-
-    // Warn when the config minor version is newer
-    if (config.minor > supported.minor) {
-      console.warn(
-        `Warning: Config version (${configVersion}) is newer than the supported version (${SUPPORTED_VERSION}).\n` +
-          `Some features may not behave as expected.`
-      );
-    }
-  },
-
-  /**
    * Load the global configuration file
    *
    * @returns Global config, or null if the file does not exist
@@ -271,9 +212,6 @@ export const ConfigManager = {
       const details = result.error.issues.map((err) => `${err.path.map(String).join('.')}: ${err.message}`).join('\n');
       throw new ConfigValidationError(path, details);
     }
-
-    // Verify version compatibility
-    this.validateVersion(result.data.version);
 
     return result.data;
   },
@@ -317,9 +255,6 @@ export const ConfigManager = {
       const details = result.error.issues.map((err) => `${err.path.map(String).join('.')}: ${err.message}`).join('\n');
       throw new ConfigValidationError(path, details);
     }
-
-    // Verify version compatibility
-    this.validateVersion(result.data.version);
 
     return result.data;
   },

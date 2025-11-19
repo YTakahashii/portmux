@@ -4,7 +4,6 @@ import { z } from 'zod';
  * Schema definitions for PortMux configuration files.
  *
  * Minimal support includes:
- * - version: required
  * - groups: required
  *   - commands: name and command are required
  *   - ports and cwd are optional
@@ -41,7 +40,6 @@ export const RunnerSchema = z.object({
 export const PortMuxConfigSchema = z
   .object({
     $schema: z.string().optional(),
-    version: z.string().min(1, 'version is required'),
     runner: RunnerSchema.optional(),
     groups: z.record(z.string(), GroupSchema),
   })
@@ -61,7 +59,6 @@ export const RepositorySchema = z.object({
  * Global configuration schema.
  */
 export const GlobalConfigSchema = z.object({
-  version: z.string().min(1, 'version is required'),
   repositories: z.record(z.string(), RepositorySchema),
 });
 

@@ -32,7 +32,6 @@ describe('basic CLI workflow (init → start → ps → restart → stop)', () =
     const command = 'node -e "setInterval(() => {}, 2000)"';
 
     const projectConfig = {
-      version: '1.0.0',
       groups: {
         [groupName]: {
           description: '',
@@ -43,7 +42,6 @@ describe('basic CLI workflow (init → start → ps → restart → stop)', () =
     writeFileSync(projectConfigPath, `${JSON.stringify(projectConfig, null, 2)}\n`);
 
     const globalConfig = {
-      version: '1.0.0',
       repositories: {
         [groupName]: { path: tempDir, group: groupName },
       },

@@ -9,11 +9,6 @@
       "type": "string",
       "description": "Optional local or remote JSON Schema reference for editor intellisense."
     },
-    "version": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Configuration version."
-    },
     "runner": {
       "$ref": "#/$defs/runner"
     },
@@ -29,7 +24,7 @@
       "additionalProperties": false
     }
   },
-  "required": ["version", "groups"],
+  "required": ["groups"],
   "$defs": {
     "runner": {
       "type": "object",

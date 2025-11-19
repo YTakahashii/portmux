@@ -253,7 +253,6 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
     const { name: groupName, group } = await buildGroupConfig();
     const projectConfig: PortMuxConfig = {
       $schema: localSchemaPath,
-      version: '1.0.0',
       groups: {
         [groupName]: group,
       },
@@ -276,7 +275,6 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
     };
 
     let globalConfig: GlobalConfig = {
-      version: '1.0.0',
       repositories: {},
     };
     let hasExistingGlobal = false;

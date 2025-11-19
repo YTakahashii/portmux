@@ -58,7 +58,6 @@ describe('runRestartCommand', () => {
     projectConfigPath: '/repo/portmux.config.json',
     groupDefinitionName: 'ws-one',
     projectConfig: {
-      version: '1.0.0',
       groups: {
         'ws-one': {
           description: '',

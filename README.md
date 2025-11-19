@@ -17,7 +17,6 @@ PortMux is a CLI for running multiple group processes in the background while ke
    ```json
    {
      "$schema": "node_modules/@portmux/cli/schemas/portmux.config.schema.json",
-     "version": "1.0.0",
      "groups": {
        "app": {
          "description": "Demo group",
@@ -62,7 +61,6 @@ PortMux is a CLI for running multiple group processes in the background while ke
 ### Project config: `portmux.config.json`
 
 - `$schema` (optional): Point to `node_modules/@portmux/cli/schemas/portmux.config.schema.json` for editor IntelliSense.
-- `version` (required): Currently supported version is `1.0.0`. A mismatched major version raises an error.
 - `runner.mode` (optional): Currently only `background` is supported.
 - `groups` (required): Object keyed by group name.
   - `description`: Group description.
@@ -74,7 +72,6 @@ PortMux is a CLI for running multiple group processes in the background while ke
 
 ### Global config: `~/.config/portmux/config.json`
 
-- `version`: Use the same `1.0.0` as the project config.
 - `repositories`: Map keyed by repository alias.
   - `path`: Absolute path to the project root.
   - `group`: Group name in `portmux.config.json`.

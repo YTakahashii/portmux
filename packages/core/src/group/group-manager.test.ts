@@ -57,7 +57,6 @@ vi.mock('fs', async () => {
 const globalConfigPath = join(testHomeDir, '.config', 'portmux', 'config.json');
 
 const baseProjectConfig: PortMuxConfig = {
-  version: '1.0.0',
   groups: {
     default: {
       description: 'Default group',
@@ -83,7 +82,6 @@ const baseProjectConfig: PortMuxConfig = {
 };
 
 const baseGlobalConfig: GlobalConfig = {
-  version: '1.0.0',
   repositories: {
     'group-1': {
       path: '/tmp/group-1',
@@ -134,7 +132,6 @@ describe('GroupManager', () => {
     it('resolves a group definition by its name', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           'test-group': {
             path: root,
@@ -171,7 +168,6 @@ describe('GroupManager', () => {
 
     it('throws when the project config file cannot be found', () => {
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           'test-group': {
             path: '/non-existent-path',
@@ -189,7 +185,6 @@ describe('GroupManager', () => {
     it('throws when the group definition is missing inside the project config', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           'test-group': {
             path: root,
@@ -211,7 +206,6 @@ describe('GroupManager', () => {
     it('resolves the group from the Git worktree metadata', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           'test-group': {
             path: root,
@@ -273,7 +267,6 @@ describe('GroupManager', () => {
     it('resolves by path matching when not in a Git environment', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           'test-group': {
             path: root,
@@ -304,7 +297,6 @@ describe('GroupManager', () => {
     it('warns and uses the first group when nothing matches outside Git', () => {
       const { root, configPath } = createTempProject();
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           'test-group': {
             path: '/different-path',
@@ -339,7 +331,6 @@ describe('GroupManager', () => {
     it('throws when no git worktree can be detected', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           'test-group': {
             path: root,
@@ -375,7 +366,6 @@ describe('GroupManager', () => {
     it('throws when the git worktree does not map to any global config group', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           'test-group': {
             path: '/different-path',
@@ -424,7 +414,6 @@ describe('GroupManager', () => {
       });
 
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           'group-1': {
             path: root1,
@@ -455,7 +444,6 @@ describe('GroupManager', () => {
     it('skips groups that fail to resolve', () => {
       const { root } = createTempProject();
       const globalConfig: GlobalConfig = {
-        version: '1.0.0',
         repositories: {
           'valid-group': {
             path: root,
