@@ -237,7 +237,7 @@ export async function runInitCommand(options: InitOptions): Promise<void> {
   const projectConfigPath = resolve(process.cwd(), 'portmux.config.json');
   const globalConfigPath = ConfigManager.getGlobalConfigPath();
   const projectRoot = resolve(process.cwd());
-  const localSchemaPath = 'node_modules/portmux/schemas/portmux.config.schema.json';
+  const localSchemaPath = 'node_modules/@portmux/cli/schemas/portmux.config.schema.json';
 
   try {
     if (!isInsideGitRepository()) {

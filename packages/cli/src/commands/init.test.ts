@@ -60,7 +60,7 @@ describe('runInitCommand', () => {
 
     const projectConfig = JSON.parse(readFileSync(join(tempDir, 'portmux.config.json'), 'utf-8'));
     expect(projectConfig).toEqual({
-      $schema: 'node_modules/portmux/schemas/portmux.config.schema.json',
+      $schema: 'node_modules/@portmux/cli/schemas/portmux.config.schema.json',
       groups: {
         app: {
           description: 'demo group',

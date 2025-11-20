@@ -1,5 +1,5 @@
 {
-  "name": "portmux",
+  "name": "@portmux/cli",
   "version": "0.0.1",
   "description": "CLI for PortMux",
   "type": "module",
