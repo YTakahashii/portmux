@@ -16,7 +16,7 @@ PortMux is a CLI for running multiple group processes in the background while ke
 2. Edit the generated config or add commands. Example:
    ```json
    {
-     "$schema": "node_modules/portmux/schemas/portmux.config.schema.json",
+     "$schema": "node_modules/@portmux/cli/schemas/portmux.config.schema.json",
      "groups": {
        "app": {
          "description": "Demo group",
@@ -60,7 +60,7 @@ PortMux is a CLI for running multiple group processes in the background while ke
 
 ### Project config: `portmux.config.json`
 
-- `$schema` (optional): Point to `node_modules/portmux/schemas/portmux.config.schema.json` for editor IntelliSense.
+- `$schema` (optional): Point to `node_modules/@portmux/cli/schemas/portmux.config.schema.json` for editor IntelliSense.
 - `runner.mode` (optional): Currently only `background` is supported.
 - `groups` (required): Object keyed by group name.
   - `description`: Group description.
@@ -86,3 +86,10 @@ PortMux is a CLI for running multiple group processes in the background while ke
 
 - `stdout`/`stderr` are written to files under `~/.config/portmux/logs/`. Use `portmux logs` to view them.
 - Process states, PIDs, and reserved ports are stored in a persistent state store and read by `ps` and `logs`.
+
+## Release Workflow
+
+- Every feature or bug-fix PR that modifies behavior must run `pnpm changeset` and commit the generated markdown. Those entries accumulate on `main`.
+- The `Release` workflow (`.github/workflows/release.yml`) runs on every push to `main`. If there are pending changesets, `changesets/action@v1` opens/updates a “chore: release packages” PR against `main`. When no pending changesets remain (i.e., the release PR has been merged), the same workflow detects `hasChangesets == false` and continues to run `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm changeset publish`, and `git push --follow-tags`.
+- Repository settings → Actions → General → Workflow permissions must enable “Allow GitHub Actions to create and approve pull requests” so the Release workflow can open PRs.
+- npm Trusted Publishing is enabled. Link this GitHub repo to the `@portmux` org on npm so the workflow can publish without an `NPM_TOKEN`. The default `GITHUB_TOKEN` (with `contents: write`) pushes release tags.
