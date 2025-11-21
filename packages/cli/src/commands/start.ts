@@ -14,17 +14,29 @@ import {
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { resolve } from 'path';
+import { buildGroupInstanceId, buildGroupLabel } from '../utils/group-instance.js';
+
+interface StartInvokeOptions {
+  worktreePath?: string;
+  worktreeLabel?: string;
+}
 
 export const startCommand: ReturnType<typeof createStartCommand> = createStartCommand();
 
-export async function runStartCommand(groupName?: string, processName?: string): Promise<void> {
+export async function runStartCommand(
+  groupName?: string,
+  processName?: string,
+  invokeOptions?: StartInvokeOptions
+): Promise<void> {
   try {
     // Resolve the target group
     let resolvedGroup: ResolvedGroup;
     try {
       if (groupName) {
         // When a group name is provided, look it up from the global config
-        resolvedGroup = GroupManager.resolveGroupByName(groupName);
+        const resolutionOptions =
+          invokeOptions?.worktreePath !== undefined ? { worktreePath: invokeOptions.worktreePath } : undefined;
+        resolvedGroup = GroupManager.resolveGroupByName(groupName, resolutionOptions);
       } else {
         // Otherwise resolve automatically
         resolvedGroup = GroupManager.resolveGroupAuto();
@@ -71,6 +83,9 @@ export async function runStartCommand(groupName?: string, processName?: string):
       process.exit(1);
     }
 
+    const groupInstanceId = buildGroupInstanceId(resolvedGroup.name, targetGroup, projectRoot);
+    const groupLabel = buildGroupLabel(resolvedGroup.name, invokeOptions?.worktreeLabel);
+
     // Determine which processes should be started
     const processesToStart = processName ? group.commands.filter((cmd) => cmd.name === processName) : group.commands;
 
@@ -82,7 +97,7 @@ export async function runStartCommand(groupName?: string, processName?: string):
     }
 
     // Acquire a lock and start each process
-    await LockManager.withLock('group', resolvedGroup.name, async () => {
+    await LockManager.withLock('group', groupInstanceId, async () => {
       for (const cmd of processesToStart) {
         try {
           // Resolve environment variables
@@ -90,11 +105,16 @@ export async function runStartCommand(groupName?: string, processName?: string):
           const resolvedCommand = ConfigManager.resolveCommandEnv(cmd.command, cmd.env);
 
           // Start the process (ProcessManager uses PortManager reservation APIs internally)
-          await ProcessManager.startProcess(targetGroup, cmd.name, resolvedCommand, {
+          await ProcessManager.startProcess(groupInstanceId, cmd.name, resolvedCommand, {
             ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
             env: resolvedEnv,
-            groupKey: resolvedGroup.path,
             projectRoot,
+            groupKey: projectRoot,
+            groupLabel,
+            repositoryName: resolvedGroup.name,
+            groupDefinitionName: targetGroup,
+            worktreePath: projectRoot,
+            ...(invokeOptions?.worktreeLabel !== undefined && { branch: invokeOptions.worktreeLabel }),
             ...(cmd.ports !== undefined && { ports: cmd.ports }),
           });
 

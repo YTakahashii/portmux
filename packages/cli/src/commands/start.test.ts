@@ -10,6 +10,11 @@ import {
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { runStartCommand } from './start.js';
 
+vi.mock('../utils/group-instance.js', () => ({
+  buildGroupInstanceId: vi.fn(() => 'group-instance-id'),
+  buildGroupLabel: vi.fn(() => 'repo-label'),
+}));
+
 vi.mock('@portmux/core', () => {
   class ConfigNotFoundError extends Error {}
   class GroupResolutionError extends Error {}
@@ -88,9 +93,9 @@ describe('runStartCommand', () => {
   it('starts all processes in the resolved group', async () => {
     await runStartCommand('ws-one');
 
-    expect(LockManager.withLock).toHaveBeenCalledWith('group', 'ws-one', expect.any(Function));
+    expect(LockManager.withLock).toHaveBeenCalledWith('group', 'group-instance-id', expect.any(Function));
     expect(ProcessManager.startProcess).toHaveBeenCalledWith(
-      'ws-one',
+      'group-instance-id',
       'api',
       'npm start',
       expect.objectContaining({
@@ -99,6 +104,10 @@ describe('runStartCommand', () => {
         groupKey: '/repo',
         projectRoot: '/repo',
         ports: [3000],
+        groupLabel: 'repo-label',
+        repositoryName: 'ws-one',
+        groupDefinitionName: 'ws-one',
+        worktreePath: '/repo',
       })
     );
     expect(console.log).toHaveBeenCalledWith('✓ Started process "api"');
@@ -122,7 +131,7 @@ describe('runStartCommand', () => {
 
     expect(ConfigManager.findConfigFile).toHaveBeenCalled();
     expect(ProcessManager.startProcess).toHaveBeenCalledWith(
-      'default',
+      'group-instance-id',
       'worker',
       'node worker.js',
       expect.objectContaining({
@@ -146,6 +155,23 @@ describe('runStartCommand', () => {
     await runStartCommand('ws-one');
 
     expect(console.error).toHaveBeenCalledWith('Error: Failed to start process "api": start failed');
+  });
+
+  it('passes worktree override to group resolution and process manager', async () => {
+    await runStartCommand('ws-one', undefined, { worktreePath: '/alt', worktreeLabel: 'feature' });
+
+    expect(GroupManager.resolveGroupByName).toHaveBeenCalledWith('ws-one', {
+      worktreePath: '/alt',
+    });
+    expect(ProcessManager.startProcess).toHaveBeenCalledWith(
+      'group-instance-id',
+      'api',
+      'npm start',
+      expect.objectContaining({
+        worktreePath: '/repo',
+        branch: 'feature',
+      })
+    );
   });
 
   it('exits when config is missing', async () => {

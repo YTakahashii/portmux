@@ -200,6 +200,28 @@ describe('GroupManager', () => {
 
       cleanupTempDir(root);
     });
+
+    it('loads configuration from a custom worktree path when provided', () => {
+      const { root: mainRoot } = createTempProject();
+      const { root: worktreeRoot, configPath: worktreeConfigPath } = createTempProject();
+      const globalConfig: GlobalConfig = {
+        repositories: {
+          'test-group': {
+            path: mainRoot,
+            group: 'default',
+          },
+        },
+      };
+      createGlobalConfig(globalConfig);
+
+      const resolved = GroupManager.resolveGroupByName('test-group', { worktreePath: worktreeRoot });
+
+      expect(resolved.path).toBe(realpathSync(worktreeRoot));
+      expect(resolved.projectConfigPath).toBe(realpathSync(worktreeConfigPath));
+
+      cleanupTempDir(mainRoot);
+      cleanupTempDir(worktreeRoot);
+    });
   });
 
   describe('resolveGroupAuto', () => {

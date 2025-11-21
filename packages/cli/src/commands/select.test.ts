@@ -8,11 +8,6 @@ vi.mock('@portmux/core', () => ({
   GroupManager: {
     buildSelectableGroups: vi.fn(),
   },
-  parseGitWorktreeList: vi.fn(),
-}));
-
-vi.mock('child_process', () => ({
-  execSync: vi.fn(),
 }));
 
 vi.mock('inquirer', () => ({
@@ -71,19 +66,30 @@ describe('selectCommand', () => {
       {
         projectName: 'proj',
         repositoryName: 'repo1',
-        path: '/path/repo1',
+        repositoryPath: '/path/repo1',
+        worktreePath: '/path/repo1',
         isRunning: true,
         groupDefinitionName: 'default',
+        hasConfig: true,
+        isPrimary: true,
       },
       {
         projectName: 'proj',
         repositoryName: 'repo2',
-        path: '/path/repo2',
+        repositoryPath: '/path/repo2',
+        worktreePath: '/path/repo2',
         isRunning: false,
         groupDefinitionName: 'default',
+        branchLabel: 'feature',
+        hasConfig: true,
+        isPrimary: false,
       },
     ]);
-    promptMock.mockResolvedValue({ group: 'repo2' });
+    promptMock.mockResolvedValue({
+      repositoryName: 'repo2',
+      worktreePath: '/path/repo2',
+      branchLabel: 'feature',
+    });
 
     await runSelect();
 
@@ -93,13 +99,25 @@ describe('selectCommand', () => {
         name: 'group',
         message: 'Select a group to start',
         choices: [
-          expect.objectContaining({ label: '--- proj ---' }),
-          { name: '[Running] repo1 (/path/repo1)', value: 'repo1', short: 'repo1' },
-          { name: 'repo2 (/path/repo2)', value: 'repo2', short: 'repo2' },
+          expect.objectContaining({ label: '--- repo1 ---' }),
+          {
+            name: '[Running] repo1 (/path/repo1)',
+            short: 'repo1',
+            value: { repositoryName: 'repo1', worktreePath: '/path/repo1', branchLabel: undefined },
+          },
+          expect.objectContaining({ label: '--- repo2 ---' }),
+          {
+            name: 'repo2:feature (/path/repo2)',
+            short: 'repo2:feature',
+            value: { repositoryName: 'repo2', worktreePath: '/path/repo2', branchLabel: 'feature' },
+          },
         ],
       },
     ]);
-    expect(runStartMock).toHaveBeenCalledWith('repo2');
+    expect(runStartMock).toHaveBeenCalledWith('repo2', undefined, {
+      worktreePath: '/path/repo2',
+      worktreeLabel: 'feature',
+    });
   });
 
   it('passes --all to include all groups', async () => {
@@ -107,17 +125,23 @@ describe('selectCommand', () => {
       {
         projectName: 'proj',
         repositoryName: 'repo',
-        path: '/path/repo',
+        repositoryPath: '/path/repo',
+        worktreePath: '/path/repo',
         isRunning: false,
         groupDefinitionName: 'default',
+        hasConfig: true,
+        isPrimary: true,
       },
     ]);
-    promptMock.mockResolvedValue({ group: 'repo' });
+    promptMock.mockResolvedValue({ repositoryName: 'repo', worktreePath: '/path/repo' });
 
     await runSelect(['--all']);
 
-    expect(buildSelectableGroups).toHaveBeenCalledWith([], { includeAll: true });
-    expect(runStartMock).toHaveBeenCalledWith('repo');
+    expect(buildSelectableGroups).toHaveBeenCalledWith({ includeAll: true });
+    expect(runStartMock).toHaveBeenCalledWith('repo', undefined, {
+      worktreePath: '/path/repo',
+      worktreeLabel: undefined,
+    });
   });
 
   it('exits on error', async () => {

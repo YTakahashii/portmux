@@ -48,14 +48,18 @@ describe('psCommand', () => {
   it('prints process table and colored summary for running and error statuses', async () => {
     listProcesses.mockReturnValue([
       {
-        groupKey: 'repo1',
-        group: 'ws-one',
+        groupKey: '/repo/main',
+        group: 'instance-one',
+        groupLabel: 'repo-one:main',
+        repositoryName: 'repo-one',
+        groupDefinitionName: 'ws-one',
         process: 'api',
         status: 'Running' as const,
         pid: 123,
+        worktreePath: '/repo/main',
       },
       {
-        group: 'ws-two',
+        group: 'instance-two',
         process: 'worker',
         status: 'Error' as const,
       },
@@ -64,11 +68,11 @@ describe('psCommand', () => {
     await runPs();
 
     expect(console.table).toHaveBeenCalledWith([
-      { Repository: 'repo1', Group: 'ws-one', Process: 'api', Status: 'Running', PID: 123 },
-      { Repository: '-', Group: 'ws-two', Process: 'worker', Status: 'Error', PID: '-' },
+      { Repository: 'repo-one:main (/repo/main)', Group: 'ws-one', Process: 'api', Status: 'Running', PID: 123 },
+      { Repository: 'instance-two', Group: 'instance-two', Process: 'worker', Status: 'Error', PID: '-' },
     ]);
-    expect(console.log).toHaveBeenCalledWith('  ✓ repo1 (ws-one)/api (PID: 123)');
-    expect(console.log).toHaveBeenCalledWith('  ✗ ws-two/worker');
+    expect(console.log).toHaveBeenCalledWith('  ✓ repo-one:main (/repo/main)/api (PID: 123)');
+    expect(console.log).toHaveBeenCalledWith('  ✗ instance-two/worker');
     expect(process.exit).not.toHaveBeenCalled();
   });
 

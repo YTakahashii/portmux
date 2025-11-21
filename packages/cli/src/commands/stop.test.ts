@@ -65,6 +65,7 @@ describe('stopCommand', () => {
     await runStopCommand();
 
     expect(console.error).toHaveBeenCalledWith('Error: Multiple groups are running. Please specify a group name.');
+    expect(console.error).toHaveBeenCalledWith('Available groups:\n  - ws1 [ws1]\n  - ws2 [ws2]');
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(ProcessManager.stopProcess).not.toHaveBeenCalled();
   });
@@ -80,8 +81,8 @@ describe('stopCommand', () => {
 
     expect(LockManager.withLock).toHaveBeenCalledWith('group', 'ws1', expect.any(Function));
     expect(ProcessManager.stopProcess).toHaveBeenCalledTimes(2);
-    expect(console.log).toHaveBeenCalledWith('✓ Stopped process "api"');
-    expect(console.log).toHaveBeenCalledWith('✓ Stopped process "worker"');
+    expect(console.log).toHaveBeenCalledWith('✓ Stopped process "api" (ws1)');
+    expect(console.log).toHaveBeenCalledWith('✓ Stopped process "worker" (ws1)');
   });
 
   it('reports when targeted process is not running', async () => {

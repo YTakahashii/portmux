@@ -1,7 +1,6 @@
-import { GroupManager, parseGitWorktreeList, type GitWorktreeInfo, type GroupSelection } from '@portmux/core';
+import { GroupManager, type GroupSelection } from '@portmux/core';
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { execSync } from 'child_process';
 import inquirer, { type ChoiceCollection } from 'inquirer';
 import { runStartCommand } from './start.js';
 
@@ -10,38 +9,35 @@ interface SelectOptions {
 }
 
 interface GroupAnswer {
-  group: string;
-}
-
-function getGitWorktrees(): GitWorktreeInfo[] {
-  try {
-    const output = execSync('git worktree list --porcelain', {
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    return parseGitWorktreeList(output);
-  } catch {
-    // Fallback to config-only mode when git command is unavailable.
-    return [];
-  }
+  repositoryName: string;
+  worktreePath: string;
+  branchLabel?: string;
 }
 
 function buildChoices(selections: GroupSelection[]): ChoiceCollection<GroupAnswer> {
   const choices: ChoiceCollection<GroupAnswer> = [];
-  let currentProject: string | null = null;
+  let currentRepository: string | null = null;
 
   for (const selection of selections) {
-    if (currentProject !== selection.projectName) {
-      currentProject = selection.projectName;
-      choices.push(new inquirer.Separator(`--- ${selection.projectName} ---`));
+    if (currentRepository !== selection.repositoryName) {
+      currentRepository = selection.repositoryName;
+      choices.push(new inquirer.Separator(`--- ${selection.repositoryName} ---`));
     }
 
     const runningLabel = selection.isRunning ? '[Running] ' : '';
-    choices.push({
-      name: `${runningLabel}${selection.repositoryName} (${selection.path})`,
-      value: selection.repositoryName,
-      short: selection.repositoryName,
-    });
+    const branchLabel = selection.branchLabel ? `:${selection.branchLabel}` : '';
+    const configSuffix = selection.hasConfig ? '' : ' [Missing config]';
+    const choice = {
+      name: `${runningLabel}${selection.repositoryName}${branchLabel} (${selection.worktreePath})${configSuffix}`,
+      short: `${selection.repositoryName}${branchLabel}`,
+      value: {
+        repositoryName: selection.repositoryName,
+        worktreePath: selection.worktreePath,
+        branchLabel: selection.branchLabel,
+      },
+      ...(selection.hasConfig ? {} : { disabled: 'Missing portmux.config.json' }),
+    };
+    choices.push(choice);
   }
 
   return choices;
@@ -56,8 +52,7 @@ function createSelectCommand(): Command {
     .action(async (options: SelectOptions) => {
       try {
         const includeAll = options.all === true;
-        const worktrees = includeAll ? [] : getGitWorktrees();
-        const selections = GroupManager.buildSelectableGroups(worktrees, { includeAll });
+        const selections = GroupManager.buildSelectableGroups({ includeAll });
 
         if (selections.length === 0) {
           console.log(chalk.yellow('No selectable groups. Please check your global config.'));
@@ -74,7 +69,14 @@ function createSelectCommand(): Command {
           },
         ]);
 
-        await runStartCommand(answers.group);
+        const startOptions: { worktreePath?: string; worktreeLabel?: string } = {
+          worktreePath: answers.worktreePath,
+        };
+        if (answers.branchLabel !== undefined) {
+          startOptions.worktreeLabel = answers.branchLabel;
+        }
+
+        await runStartCommand(answers.repositoryName, undefined, startOptions);
       } catch (error) {
         console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
         process.exit(1);
