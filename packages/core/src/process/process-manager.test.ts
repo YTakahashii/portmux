@@ -6,7 +6,7 @@ import { ProcessManager, ProcessRestartError, ProcessStartError, ProcessStopErro
 import { spawn, type ChildProcess } from 'child_process';
 import { kill } from 'process';
 import { StateManager, type ProcessState } from '../state/state-manager.js';
-import { isPidAlive } from '../state/pid-checker.js';
+import { isPidAlive, isPidAliveAndValid } from '../state/pid-checker.js';
 import { ConfigManager } from '../config/config-manager.js';
 import { PortManager } from '../port/port-manager.js';
 import { existsSync, openSync, closeSync } from 'fs';
@@ -58,6 +58,7 @@ vi.mock('../state/pid-checker.js', async () => {
   return {
     ...actual,
     isPidAlive: vi.fn(),
+    isPidAliveAndValid: vi.fn(),
   };
 });
 
@@ -108,6 +109,7 @@ describe('ProcessManager', () => {
     vi.mocked(StateManager.listAllStates).mockClear();
     vi.mocked(StateManager.generateLogPath).mockClear();
     vi.mocked(isPidAlive).mockClear();
+    vi.mocked(isPidAliveAndValid).mockClear();
     vi.mocked(ConfigManager.findConfigFile).mockClear();
     vi.mocked(PortManager.reconcileFromState).mockClear();
     vi.mocked(PortManager.planReservation).mockClear();
@@ -165,6 +167,7 @@ describe('ProcessManager', () => {
           status: 'Running',
           pid: 1234,
           logPath: join(testHomeDir, 'test.log'),
+          command: 'npm start',
         })
       );
     });
@@ -275,7 +278,7 @@ describe('ProcessManager', () => {
 
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(existingState);
-      vi.mocked(isPidAlive).mockReturnValue(true);
+      vi.mocked(isPidAliveAndValid).mockReturnValue(true);
 
       await expect(
         ProcessManager.startProcess('group-1', 'api', 'npm start', {
@@ -302,7 +305,7 @@ describe('ProcessManager', () => {
 
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(existingState);
-      vi.mocked(isPidAlive).mockImplementation((pid: number) => pid !== 1234);
+      vi.mocked(isPidAliveAndValid).mockImplementation((pid: number) => pid !== 1234);
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
       vi.mocked(existsSync).mockReturnValue(false);
@@ -547,13 +550,13 @@ describe('ProcessManager', () => {
         status: 'Running',
         pid: 1234,
         startedAt: '2024-01-01T00:00:00.000Z',
+        command: 'npm start',
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
-      vi.mocked(isPidAlive).mockReturnValue(true);
       vi.mocked(kill).mockReturnValue(true);
-      // Return false on the second isPidAlive call to simulate the process stopping
-      vi.mocked(isPidAlive).mockReturnValueOnce(true).mockReturnValueOnce(false);
+      // Return false on the second isPidAliveAndValid call to simulate the process stopping
+      vi.mocked(isPidAliveAndValid).mockReturnValueOnce(true).mockReturnValueOnce(false);
 
       await ProcessManager.stopProcess('group-1', 'api');
 
@@ -615,10 +618,11 @@ describe('ProcessManager', () => {
         status: 'Running',
         pid: 1234,
         startedAt: '2024-01-01T00:00:00.000Z',
+        command: 'npm start',
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
-      vi.mocked(isPidAlive).mockReturnValue(false);
+      vi.mocked(isPidAliveAndValid).mockReturnValue(false);
 
       await ProcessManager.stopProcess('group-1', 'api');
 
@@ -635,6 +639,34 @@ describe('ProcessManager', () => {
       expect(kill).not.toHaveBeenCalled();
     });
 
+    it('cleans up when the PID command no longer matches', async () => {
+      const state: ProcessState = {
+        group: 'group-1',
+        process: 'api',
+        status: 'Running',
+        pid: 1234,
+        startedAt: '2024-01-01T00:00:00.000Z',
+        command: 'npm start',
+      };
+
+      vi.mocked(StateManager.readState).mockReturnValue(state);
+      vi.mocked(isPidAliveAndValid).mockReturnValue(false);
+
+      await ProcessManager.stopProcess('group-1', 'api');
+
+      expect(kill).not.toHaveBeenCalled();
+      expect(StateManager.writeState).toHaveBeenCalledWith(
+        'group-1',
+        'api',
+        expect.objectContaining({
+          status: 'Stopped',
+          stoppedAt: expect.any(String),
+        })
+      );
+      expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
+    });
+
     it('throws when sending SIGTERM fails', async () => {
       const state: ProcessState = {
         group: 'group-1',
@@ -645,7 +677,7 @@ describe('ProcessManager', () => {
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
-      vi.mocked(isPidAlive).mockReturnValue(true);
+      vi.mocked(isPidAliveAndValid).mockReturnValue(true);
       vi.mocked(kill).mockImplementation(() => {
         throw new Error('Permission denied');
       });
@@ -661,13 +693,12 @@ describe('ProcessManager', () => {
         status: 'Running',
         pid: 1234,
         startedAt: '2024-01-01T00:00:00.000Z',
+        command: 'npm start',
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
       // Return true on every call so the process never stops
-      vi.mocked(isPidAlive).mockImplementation(() => {
-        return true;
-      });
+      vi.mocked(isPidAliveAndValid).mockImplementation(() => true);
       vi.mocked(kill).mockReturnValue(true);
 
       // Use a short timeout
@@ -686,10 +717,11 @@ describe('ProcessManager', () => {
         status: 'Running',
         pid: 1234,
         startedAt: '2024-01-01T00:00:00.000Z',
+        command: 'npm start',
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
-      vi.mocked(isPidAlive).mockReturnValue(true); // Always alive
+      vi.mocked(isPidAliveAndValid).mockReturnValue(true); // Always alive
       vi.mocked(kill).mockReturnValue(true);
 
       await expect(ProcessManager.stopProcess('group-1', 'api', 100)).rejects.toThrow(ProcessStopError);
@@ -721,7 +753,7 @@ describe('ProcessManager', () => {
       ];
 
       vi.mocked(StateManager.listAllStates).mockReturnValue(states);
-      vi.mocked(isPidAlive).mockReturnValue(true);
+      vi.mocked(isPidAliveAndValid).mockReturnValue(true);
 
       const processes = ProcessManager.listProcesses();
 
@@ -763,7 +795,7 @@ describe('ProcessManager', () => {
       ];
 
       vi.mocked(StateManager.listAllStates).mockReturnValue(states);
-      vi.mocked(isPidAlive).mockImplementation((pid: number) => pid === 1234);
+      vi.mocked(isPidAliveAndValid).mockImplementation((pid: number) => pid === 1234);
 
       const processes = ProcessManager.listProcesses();
 
@@ -796,7 +828,7 @@ describe('ProcessManager', () => {
 
       expect(processes).toHaveLength(1);
       expect(processes[0]?.status).toBe('Stopped');
-      expect(isPidAlive).not.toHaveBeenCalled();
+      expect(isPidAliveAndValid).not.toHaveBeenCalled();
     });
 
     it('returns Running states without a PID as-is', () => {
@@ -814,7 +846,7 @@ describe('ProcessManager', () => {
 
       expect(processes).toHaveLength(1);
       expect(processes[0]?.status).toBe('Running');
-      expect(isPidAlive).not.toHaveBeenCalled();
+      expect(isPidAliveAndValid).not.toHaveBeenCalled();
     });
   });
 
