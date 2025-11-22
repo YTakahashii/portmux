@@ -60,7 +60,7 @@ function createSelectCommand(): Command {
         }
 
         const choices = buildChoices(selections);
-        const answers = await inquirer.prompt<GroupAnswer>([
+        const { group } = await inquirer.prompt<{ group: GroupAnswer }>([
           {
             type: 'list',
             name: 'group',
@@ -70,13 +70,13 @@ function createSelectCommand(): Command {
         ]);
 
         const startOptions: { worktreePath?: string; worktreeLabel?: string } = {
-          worktreePath: answers.worktreePath,
+          worktreePath: group.worktreePath,
         };
-        if (answers.branchLabel !== undefined) {
-          startOptions.worktreeLabel = answers.branchLabel;
+        if (group.branchLabel !== undefined) {
+          startOptions.worktreeLabel = group.branchLabel;
         }
 
-        await runStartCommand(answers.repositoryName, undefined, startOptions);
+        await runStartCommand(group.repositoryName, undefined, startOptions);
       } catch (error) {
         console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
         process.exit(1);

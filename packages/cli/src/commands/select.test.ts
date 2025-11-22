@@ -86,9 +86,11 @@ describe('selectCommand', () => {
       },
     ]);
     promptMock.mockResolvedValue({
-      repositoryName: 'repo2',
-      worktreePath: '/path/repo2',
-      branchLabel: 'feature',
+      group: {
+        repositoryName: 'repo2',
+        worktreePath: '/path/repo2',
+        branchLabel: 'feature',
+      },
     });
 
     await runSelect();
@@ -133,7 +135,9 @@ describe('selectCommand', () => {
         isPrimary: true,
       },
     ]);
-    promptMock.mockResolvedValue({ repositoryName: 'repo', worktreePath: '/path/repo' });
+    promptMock.mockResolvedValue({
+      group: { repositoryName: 'repo', worktreePath: '/path/repo' },
+    });
 
     await runSelect(['--all']);
 
