@@ -6,7 +6,7 @@ import { ProcessManager, ProcessRestartError, ProcessStartError, ProcessStopErro
 import { spawn, type ChildProcess } from 'child_process';
 import { kill } from 'process';
 import { StateManager, type ProcessState } from '../state/state-manager.js';
-import { isPidAlive, isPidAliveAndValid } from '../state/pid-checker.js';
+import { getCommandLine, getProcessStartTime, isPidAlive, isPidAliveAndValid } from '../state/pid-checker.js';
 import { ConfigManager } from '../config/config-manager.js';
 import { PortManager } from '../port/port-manager.js';
 import { existsSync, openSync, closeSync } from 'fs';
@@ -59,6 +59,8 @@ vi.mock('../state/pid-checker.js', async () => {
     ...actual,
     isPidAlive: vi.fn(),
     isPidAliveAndValid: vi.fn(),
+    getCommandLine: vi.fn(),
+    getProcessStartTime: vi.fn(),
   };
 });
 
@@ -110,6 +112,8 @@ describe('ProcessManager', () => {
     vi.mocked(StateManager.generateLogPath).mockClear();
     vi.mocked(isPidAlive).mockClear();
     vi.mocked(isPidAliveAndValid).mockClear();
+    vi.mocked(getCommandLine).mockClear();
+    vi.mocked(getProcessStartTime).mockClear();
     vi.mocked(ConfigManager.findConfigFile).mockClear();
     vi.mocked(PortManager.reconcileFromState).mockClear();
     vi.mocked(PortManager.planReservation).mockClear();
@@ -119,6 +123,9 @@ describe('ProcessManager', () => {
     vi.mocked(existsSync).mockClear();
     vi.mocked(openSync).mockClear();
     vi.mocked(closeSync).mockClear();
+
+    vi.mocked(getCommandLine).mockReturnValue('npm start');
+    vi.mocked(getProcessStartTime).mockReturnValue(null);
   });
 
   afterAll(() => {
@@ -555,8 +562,8 @@ describe('ProcessManager', () => {
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
       vi.mocked(kill).mockReturnValue(true);
-      // Return false on the second isPidAliveAndValid call to simulate the process stopping
-      vi.mocked(isPidAliveAndValid).mockReturnValueOnce(true).mockReturnValueOnce(false);
+      // Second call remains true for the pre-check, third returns false after SIGTERM
+      vi.mocked(isPidAliveAndValid).mockReturnValueOnce(true).mockReturnValueOnce(true).mockReturnValueOnce(false);
 
       await ProcessManager.stopProcess('group-1', 'api');
 
@@ -656,6 +663,61 @@ describe('ProcessManager', () => {
 
       expect(kill).not.toHaveBeenCalled();
       expect(StateManager.writeState).toHaveBeenCalledWith(
+        'group-1',
+        'api',
+        expect.objectContaining({
+          status: 'Stopped',
+          stoppedAt: expect.any(String),
+        })
+      );
+      expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
+    });
+
+    it('refreshes the recorded command when the process execs into another binary', async () => {
+      const state: ProcessState = {
+        group: 'group-1',
+        process: 'api',
+        status: 'Running',
+        pid: 1234,
+        startedAt: '2024-01-01T00:00:00.000Z',
+        command: 'doctor start api',
+      };
+
+      const resolvedCommand = '/usr/bin/ruby bin/rails server';
+      const originalCommand = state.command;
+      vi.mocked(StateManager.readState).mockReturnValue(state);
+      vi.mocked(getProcessStartTime).mockReturnValue(new Date('2024-01-01T00:00:01.000Z'));
+      vi.mocked(getCommandLine).mockReturnValue(resolvedCommand);
+      vi.mocked(kill).mockReturnValue(true);
+
+      let resolvedCommandChecks = 0;
+      vi.mocked(isPidAliveAndValid).mockImplementation((_pid, expectedCommand) => {
+        if (expectedCommand === originalCommand) {
+          return false;
+        }
+
+        if (expectedCommand === resolvedCommand) {
+          resolvedCommandChecks += 1;
+          return resolvedCommandChecks === 1;
+        }
+
+        return false;
+      });
+
+      await ProcessManager.stopProcess('group-1', 'api');
+
+      expect(StateManager.writeState).toHaveBeenNthCalledWith(
+        1,
+        'group-1',
+        'api',
+        expect.objectContaining({
+          command: resolvedCommand,
+        })
+      );
+      expect(kill).toHaveBeenCalledWith(1234, 'SIGTERM');
+      expect(StateManager.writeState).toHaveBeenNthCalledWith(
+        2,
         'group-1',
         'api',
         expect.objectContaining({
@@ -811,6 +873,57 @@ describe('ProcessManager', () => {
         })
       );
       expect(StateManager.deleteState).toHaveBeenCalledWith('group-2', 'worker');
+    });
+
+    it('refreshes command signatures for running processes', () => {
+      const state: ProcessState = {
+        group: 'group-1',
+        process: 'api',
+        status: 'Running',
+        pid: 1234,
+        startedAt: '2024-01-01T00:00:00.000Z',
+        command: 'doctor start api',
+      };
+
+      const resolvedCommand = '/usr/bin/ruby bin/rails server';
+      const originalCommand = state.command;
+
+      vi.mocked(StateManager.listAllStates).mockReturnValue([state]);
+      vi.mocked(getProcessStartTime).mockReturnValue(new Date('2024-01-01T00:00:01.000Z'));
+      vi.mocked(getCommandLine).mockReturnValue(resolvedCommand);
+
+      let checks = 0;
+      vi.mocked(isPidAliveAndValid).mockImplementation((_pid, expectedCommand) => {
+        if (expectedCommand === originalCommand) {
+          return false;
+        }
+
+        if (expectedCommand === resolvedCommand) {
+          checks += 1;
+          return checks === 1;
+        }
+
+        return false;
+      });
+
+      const processes = ProcessManager.listProcesses();
+
+      expect(StateManager.writeState).toHaveBeenCalledWith(
+        'group-1',
+        'api',
+        expect.objectContaining({
+          command: resolvedCommand,
+        })
+      );
+      expect(StateManager.deleteState).not.toHaveBeenCalled();
+      expect(processes).toEqual([
+        expect.objectContaining({
+          group: 'group-1',
+          process: 'api',
+          status: 'Running',
+          pid: 1234,
+        }),
+      ]);
     });
 
     it('returns processes without a PID as-is', () => {

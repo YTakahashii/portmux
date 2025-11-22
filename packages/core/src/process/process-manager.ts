@@ -2,11 +2,52 @@ import { spawn, ChildProcess } from 'child_process';
 import { resolve } from 'path';
 import { kill } from 'process';
 import { StateManager, type ProcessState, type ProcessStatus } from '../state/state-manager.js';
-import { isPidAlive, isPidAliveAndValid } from '../state/pid-checker.js';
+import { getCommandLine, getProcessStartTime, isPidAlive, isPidAliveAndValid } from '../state/pid-checker.js';
 import { ConfigManager } from '../config/config-manager.js';
 import { PortManager } from '../port/port-manager.js';
 import { openSync, closeSync } from 'fs';
 import { PortmuxError } from '../errors.js';
+
+const COMMAND_REFRESH_WINDOW_MS = 60_000;
+
+function refreshCommandSignature(group: string, processName: string, state: ProcessState): boolean {
+  if (!state.pid || !state.startedAt || !state.command) {
+    return false;
+  }
+
+  if (isPidAliveAndValid(state.pid, state.command)) {
+    return false;
+  }
+
+  const processStartTime = getProcessStartTime(state.pid);
+  if (!processStartTime) {
+    return false;
+  }
+
+  const startedAtMs = Date.parse(state.startedAt);
+  if (Number.isNaN(startedAtMs)) {
+    return false;
+  }
+
+  const diffMs = Math.abs(processStartTime.getTime() - startedAtMs);
+  if (diffMs > COMMAND_REFRESH_WINDOW_MS) {
+    return false;
+  }
+
+  const actualCommand = getCommandLine(state.pid);
+  if (!actualCommand) {
+    return false;
+  }
+
+  const refreshedState: ProcessState = {
+    ...state,
+    command: actualCommand,
+  };
+
+  StateManager.writeState(group, processName, refreshedState);
+  Object.assign(state, refreshedState);
+  return true;
+}
 
 /**
  * Process start options
@@ -218,6 +259,7 @@ export const ProcessManager = {
       throw new ProcessStartError(`Process exited immediately after launch (PID: ${String(pid)})`);
     }
 
+    const recordedCommand = getCommandLine(pid) ?? command;
     const startedAt = new Date().toISOString();
 
     // Commit the port reservation
@@ -235,7 +277,7 @@ export const ProcessManager = {
       ...(options.worktreePath !== undefined && { worktreePath: options.worktreePath }),
       ...(options.branch !== undefined && { branch: options.branch }),
       process: processName,
-      command,
+      command: recordedCommand,
       status: 'Running',
       pid,
       startedAt,
@@ -284,6 +326,9 @@ export const ProcessManager = {
       }
 
       const pid = state.pid;
+
+      refreshCommandSignature(group, processName, state);
+
       const matchesRecordedProcess = (): boolean => isPidAliveAndValid(pid, state.command);
 
       // Update the state when the process is already dead or replaced
@@ -368,16 +413,19 @@ export const ProcessManager = {
       let status: ProcessStatus = state.status;
       if (state.status === 'Running' && state.pid) {
         if (!isPidAliveAndValid(state.pid, state.command)) {
-          // Update the state when the process is dead
-          const updatedState: ProcessState = {
-            ...state,
-            status: 'Stopped',
-            stoppedAt: new Date().toISOString(),
-          };
-          StateManager.writeState(state.group, state.process, updatedState);
-          // Remove the stale state file
-          StateManager.deleteState(state.group, state.process);
-          status = 'Stopped';
+          const refreshed = refreshCommandSignature(state.group, state.process, state);
+          if (!refreshed && !isPidAliveAndValid(state.pid, state.command)) {
+            // Update the state when the process is dead
+            const updatedState: ProcessState = {
+              ...state,
+              status: 'Stopped',
+              stoppedAt: new Date().toISOString(),
+            };
+            StateManager.writeState(state.group, state.process, updatedState);
+            // Remove the stale state file
+            StateManager.deleteState(state.group, state.process);
+            status = 'Stopped';
+          }
         }
       }
 
