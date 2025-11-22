@@ -22,6 +22,7 @@ export interface ProcessState {
   process: string;
   status: ProcessStatus;
   pid?: number;
+  command?: string;
   error?: string;
   startedAt?: string; // ISO 8601 timestamp
   stoppedAt?: string; // ISO 8601 timestamp

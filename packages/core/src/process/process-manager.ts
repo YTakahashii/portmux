@@ -2,7 +2,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { resolve } from 'path';
 import { kill } from 'process';
 import { StateManager, type ProcessState, type ProcessStatus } from '../state/state-manager.js';
-import { isPidAlive } from '../state/pid-checker.js';
+import { isPidAlive, isPidAliveAndValid } from '../state/pid-checker.js';
 import { ConfigManager } from '../config/config-manager.js';
 import { PortManager } from '../port/port-manager.js';
 import { openSync, closeSync } from 'fs';
@@ -117,7 +117,7 @@ export const ProcessManager = {
     // Check whether the process is already running
     const existingState = StateManager.readState(group, processName);
     if (existingState?.status === 'Running') {
-      if (existingState.pid && isPidAlive(existingState.pid)) {
+      if (existingState.pid && isPidAliveAndValid(existingState.pid, existingState.command)) {
         // Release reserved ports
         if (reservationToken) {
           PortManager.releaseReservation(reservationToken);
@@ -235,6 +235,7 @@ export const ProcessManager = {
       ...(options.worktreePath !== undefined && { worktreePath: options.worktreePath }),
       ...(options.branch !== undefined && { branch: options.branch }),
       process: processName,
+      command,
       status: 'Running',
       pid,
       startedAt,
@@ -283,9 +284,10 @@ export const ProcessManager = {
       }
 
       const pid = state.pid;
+      const matchesRecordedProcess = (): boolean => isPidAliveAndValid(pid, state.command);
 
-      // Update the state when the process is already dead
-      if (!isPidAlive(pid)) {
+      // Update the state when the process is already dead or replaced
+      if (!matchesRecordedProcess()) {
         const stoppedState: ProcessState = {
           ...state,
           status: 'Stopped',
@@ -308,7 +310,7 @@ export const ProcessManager = {
       // Wait for the process to stop (up to timeout ms)
       const startTime = Date.now();
       while (Date.now() - startTime < timeout) {
-        if (!isPidAlive(pid)) {
+        if (!matchesRecordedProcess()) {
           // Process exited
           const stoppedState: ProcessState = {
             ...state,
@@ -332,7 +334,7 @@ export const ProcessManager = {
       }
 
       // Final check
-      if (!isPidAlive(pid)) {
+      if (!matchesRecordedProcess()) {
         const stoppedState: ProcessState = {
           ...state,
           status: 'Stopped',
@@ -365,7 +367,7 @@ export const ProcessManager = {
       // Confirm the PID is still alive
       let status: ProcessStatus = state.status;
       if (state.status === 'Running' && state.pid) {
-        if (!isPidAlive(state.pid)) {
+        if (!isPidAliveAndValid(state.pid, state.command)) {
           // Update the state when the process is dead
           const updatedState: ProcessState = {
             ...state,
