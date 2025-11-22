@@ -17,6 +17,11 @@ export interface ProcessStartOptions {
   projectRoot?: string; // Directory containing portmux.config.json
   ports?: number[]; // Array of ports to reserve
   groupKey?: string; // Repository path (from global config) for display
+  groupLabel?: string; // Human readable label (e.g., repo:branch)
+  repositoryName?: string;
+  groupDefinitionName?: string;
+  worktreePath?: string;
+  branch?: string;
 }
 
 /** Process start error */
@@ -52,6 +57,11 @@ export class ProcessRestartError extends PortmuxError {
 export interface ProcessInfo {
   group: string;
   groupKey?: string;
+  groupLabel?: string;
+  repositoryName?: string;
+  groupDefinitionName?: string;
+  worktreePath?: string;
+  branch?: string;
   process: string;
   status: ProcessStatus;
   pid?: number;
@@ -218,7 +228,12 @@ export const ProcessManager = {
     // Persist the state
     const state: ProcessState = {
       group,
-      groupKey: options.groupKey ?? group,
+      groupKey: options.groupKey ?? options.worktreePath ?? group,
+      ...(options.groupLabel !== undefined && { groupLabel: options.groupLabel }),
+      ...(options.repositoryName !== undefined && { repositoryName: options.repositoryName }),
+      ...(options.groupDefinitionName !== undefined && { groupDefinitionName: options.groupDefinitionName }),
+      ...(options.worktreePath !== undefined && { worktreePath: options.worktreePath }),
+      ...(options.branch !== undefined && { branch: options.branch }),
       process: processName,
       status: 'Running',
       pid,
@@ -367,6 +382,11 @@ export const ProcessManager = {
       processes.push({
         group: state.group,
         ...(state.groupKey !== undefined && { groupKey: state.groupKey }),
+        ...(state.groupLabel !== undefined && { groupLabel: state.groupLabel }),
+        ...(state.repositoryName !== undefined && { repositoryName: state.repositoryName }),
+        ...(state.groupDefinitionName !== undefined && { groupDefinitionName: state.groupDefinitionName }),
+        ...(state.worktreePath !== undefined && { worktreePath: state.worktreePath }),
+        ...(state.branch !== undefined && { branch: state.branch }),
         process: state.process,
         status,
         ...(state.pid !== undefined && { pid: state.pid }),
@@ -410,6 +430,11 @@ export const ProcessManager = {
       const errorState: ProcessState = {
         group,
         groupKey: options.groupKey ?? restartPlan.previousState?.groupKey ?? group,
+        ...(options.groupLabel !== undefined && { groupLabel: options.groupLabel }),
+        ...(options.repositoryName !== undefined && { repositoryName: options.repositoryName }),
+        ...(options.groupDefinitionName !== undefined && { groupDefinitionName: options.groupDefinitionName }),
+        ...(options.worktreePath !== undefined && { worktreePath: options.worktreePath }),
+        ...(options.branch !== undefined && { branch: options.branch }),
         process: processName,
         status: 'Error',
         error: error instanceof Error ? error.message : String(error),

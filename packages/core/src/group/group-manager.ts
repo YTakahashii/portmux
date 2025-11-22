@@ -35,10 +35,14 @@ export interface GitWorktreeInfo {
 
 export interface GroupSelection {
   repositoryName: string;
+  repositoryPath: string;
   projectName: string;
-  path: string;
+  worktreePath: string;
   groupDefinitionName: string;
   isRunning: boolean;
+  branchLabel?: string;
+  hasConfig: boolean;
+  isPrimary: boolean;
 }
 
 /**
@@ -102,6 +106,14 @@ export function parseGitWorktreeList(output: string): GitWorktreeInfo[] {
     }
   }
 
+  if (currentWorktree.path) {
+    worktrees.push({
+      path: currentWorktree.path,
+      head: currentWorktree.head ?? '',
+      branch: currentWorktree.branch ?? '',
+    });
+  }
+
   return worktrees;
 }
 
@@ -119,10 +131,39 @@ function normalizePath(path: string): string {
 /**
  * Return the set of currently running groups
  */
-function getRunningGroupNames(): Set<string> {
+function buildRunningKey(repositoryName: string, worktreePath: string): string {
+  return `${repositoryName}::${worktreePath}`;
+}
+
+function getRunningWorktrees(): Set<string> {
   const states = StateManager.listAllStates();
-  const running = states.filter((state) => state.status === 'Running').map((state) => state.group);
-  return new Set(running);
+  const running = new Set<string>();
+
+  for (const state of states) {
+    if (state.status !== 'Running') {
+      continue;
+    }
+    const repositoryName = state.repositoryName ?? state.group;
+    const worktreePath = state.worktreePath ?? state.groupKey;
+    if (!repositoryName || !worktreePath) {
+      continue;
+    }
+    running.add(buildRunningKey(repositoryName, worktreePath));
+  }
+
+  return running;
+}
+
+function formatBranchLabel(branch?: string): string | undefined {
+  if (!branch) {
+    return undefined;
+  }
+
+  if (branch === '(detached HEAD)') {
+    return 'detached';
+  }
+
+  return branch.replace(/^refs\/heads\//, '');
 }
 
 /**
@@ -144,7 +185,7 @@ export const GroupManager = {
    * @returns Resolved group information
    * @throws GroupResolutionError When the group cannot be resolved
    */
-  resolveGroupByName(repositoryName: string): ResolvedGroup {
+  resolveGroupByName(repositoryName: string, options?: { worktreePath?: string }): ResolvedGroup {
     let merged = null;
     try {
       merged = ConfigManager.mergeGlobalAndProjectConfigs({ targetRepository: repositoryName });
@@ -163,11 +204,34 @@ export const GroupManager = {
       throw new GroupResolutionError(`Repository "${repositoryName}" was not found in the global config.`);
     }
 
+    let projectConfig = mergedRepository.projectConfig;
+    let projectConfigPath = mergedRepository.projectConfigPath;
+    let projectPath = mergedRepository.path;
+
+    if (options?.worktreePath) {
+      const candidatePath = normalizePath(options.worktreePath);
+      const candidateConfigPath = join(candidatePath, 'portmux.config.json');
+      if (!existsSync(candidateConfigPath)) {
+        throw new GroupResolutionError(
+          `Project config file was not found in the selected worktree.\n` + `Expected at: ${candidateConfigPath}`
+        );
+      }
+      projectConfig = ConfigManager.loadConfig(candidateConfigPath);
+      if (!projectConfig.groups[mergedRepository.groupDefinitionName]) {
+        throw new GroupResolutionError(
+          `Group "${mergedRepository.groupDefinitionName}" is not defined in the selected worktree config.`
+        );
+      }
+
+      projectConfigPath = candidateConfigPath;
+      projectPath = candidatePath;
+    }
+
     return {
       name: repositoryName,
-      path: mergedRepository.path,
-      projectConfig: mergedRepository.projectConfig,
-      projectConfigPath: mergedRepository.projectConfigPath,
+      path: projectPath,
+      projectConfig,
+      projectConfigPath,
       groupDefinitionName: mergedRepository.groupDefinitionName,
     };
   },
@@ -322,44 +386,95 @@ export const GroupManager = {
    * @param options When includeAll is true, show groups not present in any worktree
    * @returns Selectable group information
    */
-  buildSelectableGroups(
-    worktrees: GitWorktreeInfo[],
-    options?: {
-      includeAll?: boolean;
-    }
-  ): GroupSelection[] {
+  buildSelectableGroups(options?: { includeAll?: boolean }): GroupSelection[] {
     const mergedConfig = ConfigManager.mergeGlobalAndProjectConfigs({ skipInvalid: true });
     if (!mergedConfig) {
       return [];
     }
 
     const includeAll = options?.includeAll ?? false;
-    const normalizedWorktreePaths = new Set(worktrees.map((worktree) => normalizePath(worktree.path)));
-    const runningGroups = getRunningGroupNames();
+    const runningGroups = getRunningWorktrees();
     const selections: GroupSelection[] = [];
 
     for (const mergedRepository of Object.values(mergedConfig.repositories)) {
-      const normalizedPath = mergedRepository.path;
-
-      if (!includeAll && normalizedWorktreePaths.size > 0 && !normalizedWorktreePaths.has(normalizedPath)) {
-        continue;
+      const normalizedRepositoryPath = normalizePath(mergedRepository.path);
+      let repositoryWorktrees: GitWorktreeInfo[] = [];
+      try {
+        repositoryWorktrees = getGitWorktrees(normalizedRepositoryPath);
+      } catch {
+        repositoryWorktrees = [];
       }
 
-      selections.push({
-        repositoryName: mergedRepository.name,
-        projectName: getProjectName(normalizedPath),
-        path: normalizedPath,
-        groupDefinitionName: mergedRepository.groupDefinitionName,
-        isRunning: runningGroups.has(mergedRepository.name),
-      });
+      const seenPaths = new Set<string>();
+      const worktreeEntries =
+        repositoryWorktrees.length > 0
+          ? repositoryWorktrees
+          : [{ path: normalizedRepositoryPath, head: '', branch: '' }];
+
+      for (const worktree of worktreeEntries) {
+        const normalizedWorktreePath = normalizePath(worktree.path);
+        if (seenPaths.has(normalizedWorktreePath)) {
+          continue;
+        }
+        seenPaths.add(normalizedWorktreePath);
+
+        const configPath = join(normalizedWorktreePath, 'portmux.config.json');
+        const hasConfig = existsSync(configPath);
+        if (!includeAll && !hasConfig) {
+          continue;
+        }
+
+        const runningKey = buildRunningKey(mergedRepository.name, normalizedWorktreePath);
+
+        const branchLabel = formatBranchLabel(worktree.branch);
+        selections.push({
+          repositoryName: mergedRepository.name,
+          repositoryPath: normalizedRepositoryPath,
+          projectName: getProjectName(normalizedWorktreePath),
+          worktreePath: normalizedWorktreePath,
+          groupDefinitionName: mergedRepository.groupDefinitionName,
+          isRunning: runningGroups.has(runningKey),
+          hasConfig,
+          isPrimary: normalizedWorktreePath === normalizedRepositoryPath,
+          ...(branchLabel !== undefined && { branchLabel }),
+        });
+      }
+
+      if (!seenPaths.has(normalizedRepositoryPath)) {
+        const configPath = join(normalizedRepositoryPath, 'portmux.config.json');
+        const hasConfig = existsSync(configPath);
+        if (includeAll || hasConfig) {
+          const runningKey = buildRunningKey(mergedRepository.name, normalizedRepositoryPath);
+          selections.push({
+            repositoryName: mergedRepository.name,
+            repositoryPath: normalizedRepositoryPath,
+            projectName: getProjectName(normalizedRepositoryPath),
+            worktreePath: normalizedRepositoryPath,
+            groupDefinitionName: mergedRepository.groupDefinitionName,
+            isRunning: runningGroups.has(runningKey),
+            hasConfig,
+            isPrimary: true,
+          });
+        }
+      }
     }
 
     selections.sort((a, b) => {
+      const repoCompare = a.repositoryName.localeCompare(b.repositoryName);
+      if (repoCompare !== 0) {
+        return repoCompare;
+      }
+      const branchA = a.branchLabel ?? '';
+      const branchB = b.branchLabel ?? '';
+      const branchCompare = branchA.localeCompare(branchB);
+      if (branchCompare !== 0) {
+        return branchCompare;
+      }
       const projectCompare = a.projectName.localeCompare(b.projectName);
       if (projectCompare !== 0) {
         return projectCompare;
       }
-      return a.repositoryName.localeCompare(b.repositoryName);
+      return a.worktreePath.localeCompare(b.worktreePath);
     });
 
     return selections;

@@ -14,6 +14,11 @@ export type ProcessStatus = 'Running' | 'Stopped' | 'Error';
 export interface ProcessState {
   group: string;
   groupKey?: string;
+  groupLabel?: string;
+  repositoryName?: string;
+  groupDefinitionName?: string;
+  worktreePath?: string;
+  branch?: string;
   process: string;
   status: ProcessStatus;
   pid?: number;

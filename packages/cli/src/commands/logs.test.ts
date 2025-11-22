@@ -7,7 +7,6 @@ import { runLogsCommand } from './logs.js';
 
 vi.mock('@portmux/core', () => ({
   StateManager: {
-    readState: vi.fn(),
     listAllStates: vi.fn(),
   },
 }));
@@ -15,11 +14,11 @@ vi.mock('@portmux/core', () => ({
 vi.mock('chalk', () => ({
   default: {
     red: (msg: string) => msg,
+    yellow: (msg: string) => msg,
   },
 }));
 
 describe('runLogsCommand', () => {
-  const readState = vi.mocked(StateManager.readState);
   const listAllStates = vi.mocked(StateManager.listAllStates);
   let tempDir: string;
 
@@ -45,25 +44,22 @@ describe('runLogsCommand', () => {
 
     expect(console.error).toHaveBeenCalledWith('Error: Please provide both group and process names');
     expect(console.log).toHaveBeenCalledWith('Available groups/processes:');
-    expect(console.log).toHaveBeenCalledWith('  - /repo/path (ws)/api');
+    expect(console.log).toHaveBeenCalledWith('  - ws (/repo/path)/api');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it('exits with error when state is not found', () => {
-    readState.mockReturnValue(null);
+    listAllStates.mockReturnValue([]);
 
     runLogsCommand('group', 'proc', { follow: false });
 
-    expect(console.error).toHaveBeenCalledWith('Error: Process "proc" in group "group" is not running');
+    expect(console.error).toHaveBeenCalledWith('Error: Group "group" is not running');
+    expect(console.log).toHaveBeenCalledWith('No running processes');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it('exits with error when logPath is missing', () => {
-    readState.mockReturnValue({
-      group: 'group',
-      process: 'proc',
-      status: 'Running' as const,
-    });
+    listAllStates.mockReturnValue([{ group: 'group', process: 'proc', status: 'Running' as const }]);
 
     runLogsCommand('group', 'proc', { follow: false });
 
@@ -73,12 +69,7 @@ describe('runLogsCommand', () => {
 
   it('exits with error when log file does not exist', () => {
     const logPath = join(tempDir, 'missing.log');
-    readState.mockReturnValue({
-      group: 'group',
-      process: 'proc',
-      status: 'Running' as const,
-      logPath,
-    });
+    listAllStates.mockReturnValue([{ group: 'group', process: 'proc', status: 'Running' as const, logPath }]);
 
     runLogsCommand('group', 'proc', { follow: false });
 
@@ -89,12 +80,7 @@ describe('runLogsCommand', () => {
   it('prints tail lines without following', () => {
     const logPath = join(tempDir, 'app.log');
     writeFileSync(logPath, ['line1', 'line2', 'line3'].join('\n'));
-    readState.mockReturnValue({
-      group: 'group',
-      process: 'proc',
-      status: 'Running' as const,
-      logPath,
-    });
+    listAllStates.mockReturnValue([{ group: 'group', process: 'proc', status: 'Running' as const, logPath }]);
 
     runLogsCommand('group', 'proc', { lines: '2', follow: false, timestamps: false });
 
@@ -106,12 +92,7 @@ describe('runLogsCommand', () => {
   it('adds timestamps when requested', () => {
     const logPath = join(tempDir, 'app.log');
     writeFileSync(logPath, 'only-line\n');
-    readState.mockReturnValue({
-      group: 'group',
-      process: 'proc',
-      status: 'Running' as const,
-      logPath,
-    });
+    listAllStates.mockReturnValue([{ group: 'group', process: 'proc', status: 'Running' as const, logPath }]);
 
     runLogsCommand('group', 'proc', { lines: '1', follow: false, timestamps: true });
 
@@ -122,12 +103,7 @@ describe('runLogsCommand', () => {
   it('rejects invalid line count', () => {
     const logPath = join(tempDir, 'app.log');
     writeFileSync(logPath, 'line\n');
-    readState.mockReturnValue({
-      group: 'group',
-      process: 'proc',
-      status: 'Running' as const,
-      logPath,
-    });
+    listAllStates.mockReturnValue([{ group: 'group', process: 'proc', status: 'Running' as const, logPath }]);
 
     runLogsCommand('group', 'proc', { lines: 'abc', follow: false });
 

@@ -14,6 +14,7 @@ import {
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { resolve } from 'path';
+import { buildGroupInstanceId, buildGroupLabel } from '../utils/group-instance.js';
 
 export const restartCommand: ReturnType<typeof createRestartCommand> = createRestartCommand();
 
@@ -72,7 +73,10 @@ async function restartProcess(resolvedGroup: ResolvedGroup, processName?: string
     process.exit(1);
   }
 
-  await LockManager.withLock('group', resolvedGroup.name, async () => {
+  const groupInstanceId = buildGroupInstanceId(resolvedGroup.name, targetGroup, resolvedGroup.path);
+  const groupLabel = buildGroupLabel(resolvedGroup.name);
+
+  await LockManager.withLock('group', groupInstanceId, async () => {
     for (const cmd of processes) {
       try {
         const resolvedEnv = cmd.env ? ConfigManager.resolveEnvObject(cmd.env) : {};
@@ -80,11 +84,15 @@ async function restartProcess(resolvedGroup: ResolvedGroup, processName?: string
 
         console.log(chalk.yellow(`● Restarting process "${cmd.name}"`));
 
-        await ProcessManager.restartProcess(targetGroup, cmd.name, resolvedCommand, {
+        await ProcessManager.restartProcess(groupInstanceId, cmd.name, resolvedCommand, {
           ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
           env: resolvedEnv,
           groupKey: resolvedGroup.path,
           projectRoot: resolvedGroup.path,
+          groupLabel,
+          repositoryName: resolvedGroup.name,
+          groupDefinitionName: targetGroup,
+          worktreePath: resolvedGroup.path,
           ...(cmd.ports !== undefined && { ports: cmd.ports }),
         });
 

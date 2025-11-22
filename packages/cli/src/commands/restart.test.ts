@@ -10,6 +10,11 @@ import {
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { runRestartCommand } from './restart.js';
 
+vi.mock('../utils/group-instance.js', () => ({
+  buildGroupInstanceId: vi.fn(() => 'group-instance-id'),
+  buildGroupLabel: vi.fn(() => 'repo-label'),
+}));
+
 vi.mock('@portmux/core', () => {
   class ConfigNotFoundError extends Error {}
   class GroupResolutionError extends Error {}
@@ -93,9 +98,9 @@ describe('runRestartCommand', () => {
   it('delegates restart logic to each process', async () => {
     await runRestartCommand('ws-one');
 
-    expect(LockManager.withLock).toHaveBeenCalledWith('group', 'ws-one', expect.any(Function));
+    expect(LockManager.withLock).toHaveBeenCalledWith('group', 'group-instance-id', expect.any(Function));
     expect(ProcessManager.restartProcess).toHaveBeenCalledWith(
-      'ws-one',
+      'group-instance-id',
       'api',
       'npm start',
       expect.objectContaining({
@@ -104,13 +109,25 @@ describe('runRestartCommand', () => {
         groupKey: '/repo',
         projectRoot: '/repo',
         ports: [3000],
+        groupLabel: 'repo-label',
+        repositoryName: 'ws-one',
+        groupDefinitionName: 'ws-one',
+        worktreePath: '/repo',
       })
     );
     expect(ProcessManager.restartProcess).toHaveBeenCalledWith(
-      'ws-one',
+      'group-instance-id',
       'worker',
       'node worker.js',
-      expect.objectContaining({ env: {}, groupKey: '/repo', projectRoot: '/repo' })
+      expect.objectContaining({
+        env: {},
+        groupKey: '/repo',
+        projectRoot: '/repo',
+        groupLabel: 'repo-label',
+        repositoryName: 'ws-one',
+        groupDefinitionName: 'ws-one',
+        worktreePath: '/repo',
+      })
     );
     expect(console.log).toHaveBeenCalledWith('✓ Restarted process "api"');
     expect(console.log).toHaveBeenCalledWith('✓ Restarted process "worker"');

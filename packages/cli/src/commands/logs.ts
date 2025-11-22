@@ -1,4 +1,4 @@
-import { StateManager } from '@portmux/core';
+import { StateManager, type ProcessState } from '@portmux/core';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { createReadStream, existsSync, readFileSync, statSync, watch } from 'fs';
@@ -60,6 +60,15 @@ function parseLineCount(value?: string): number {
   return parsed;
 }
 
+function formatStateLabel(state: ProcessState): string {
+  const label = state.groupLabel ?? state.repositoryName ?? state.group;
+  const path = state.worktreePath ?? state.groupKey;
+  if (path) {
+    return `${label} (${path})`;
+  }
+  return label;
+}
+
 function printAvailableProcesses(): void {
   const states = StateManager.listAllStates();
   if (states.length === 0) {
@@ -69,10 +78,32 @@ function printAvailableProcesses(): void {
 
   console.log('Available groups/processes:');
   for (const state of states) {
-    const repositoryLabel = state.groupKey ?? state.group;
-    const repositorySuffix = state.groupKey && state.groupKey !== state.group ? ` (${state.group})` : '';
-    console.log(`  - ${repositoryLabel}${repositorySuffix}/${state.process}`);
+    console.log(`  - ${formatStateLabel(state)}/${state.process}`);
   }
+}
+
+function filterStatesByIdentifier(states: ProcessState[], identifier: string): ProcessState[] {
+  const directMatches = states.filter((state) => state.group === identifier || state.groupLabel === identifier);
+  if (directMatches.length > 0) {
+    return directMatches;
+  }
+
+  const repositoryMatches = states.filter((state) => state.repositoryName === identifier);
+  if (repositoryMatches.length > 0) {
+    return repositoryMatches;
+  }
+
+  const groupMatches = states.filter((state) => state.groupDefinitionName === identifier);
+  if (groupMatches.length > 0) {
+    return groupMatches;
+  }
+
+  const pathMatches = states.filter((state) => state.worktreePath === identifier || state.groupKey === identifier);
+  if (pathMatches.length > 0) {
+    return pathMatches;
+  }
+
+  return [];
 }
 
 export function runLogsCommand(
@@ -97,14 +128,37 @@ export function runLogsCommand(
       return;
     }
 
-    const state = StateManager.readState(groupName, processName);
-    if (!state) {
+    const states = StateManager.listAllStates();
+    const matchingGroups = filterStatesByIdentifier(states, groupName);
+
+    if (matchingGroups.length === 0) {
+      console.error(chalk.red(`Error: Group "${groupName}" is not running`));
+      printAvailableProcesses();
+      process.exit(1);
+      return;
+    }
+
+    const processMatches = matchingGroups.filter((state) => state.process === processName);
+
+    if (processMatches.length === 0) {
       console.error(chalk.red(`Error: Process "${processName}" in group "${groupName}" is not running`));
       process.exit(1);
       return;
     }
 
-    if (!state.logPath) {
+    if (processMatches.length > 1) {
+      console.error(
+        chalk.red(
+          `Error: Multiple running entries match "${groupName}/${processName}". Please use one of:\n${processMatches.map((state) => `  - ${formatStateLabel(state)}/${state.process}`).join('\n')}`
+        )
+      );
+      process.exit(1);
+      return;
+    }
+
+    const state = processMatches[0];
+
+    if (!state?.logPath) {
       console.error(chalk.red(`Error: Log file path for process "${processName}" was not found`));
       process.exit(1);
       return;
