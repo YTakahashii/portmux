@@ -107,3 +107,73 @@ export function isPidAliveAndValid(pid: number, expectedCommand?: string): boole
 
   return true;
 }
+
+/**
+ * Read the process start time.
+ *
+ * @param pid Process ID
+ * @returns Date when the process started, or null if unavailable
+ */
+export function getProcessStartTime(pid: number): Date | null {
+  const os = platform();
+
+  try {
+    if (os === 'win32') {
+      const output = execSync(`wmic process where ProcessId=${String(pid)} get CreationDate`, {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+
+      const line = output
+        .split('\n')
+        .map((segment) => segment.trim())
+        .find((segment) => /\d{14}\.?\d*/.test(segment));
+
+      if (!line) {
+        return null;
+      }
+
+      const [timestamp] = line.split('.');
+      if (!timestamp || timestamp.length < 14) {
+        return null;
+      }
+
+      const year = Number(timestamp.slice(0, 4));
+      const month = Number(timestamp.slice(4, 6));
+      const day = Number(timestamp.slice(6, 8));
+      const hour = Number(timestamp.slice(8, 10));
+      const minute = Number(timestamp.slice(10, 12));
+      const second = Number(timestamp.slice(12, 14));
+
+      if ([year, month, day, hour, minute, second].some((value) => Number.isNaN(value))) {
+        return null;
+      }
+
+      return new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+    }
+
+    const output = execSync(`ps -p ${String(pid)} -o lstart=`, {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      env: {
+        ...process.env,
+        LC_ALL: 'C',
+        LANG: 'C',
+      },
+    });
+
+    const startString = output.trim();
+    if (!startString) {
+      return null;
+    }
+
+    const parsed = new Date(startString);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
