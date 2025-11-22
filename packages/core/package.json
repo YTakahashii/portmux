@@ -2,6 +2,10 @@
   "name": "@portmux/core",
   "version": "0.1.0",
   "description": "Core library for PortMux",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YTakahashii/portmux.git"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
