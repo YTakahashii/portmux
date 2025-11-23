@@ -1,6 +1,22 @@
 # PortMux
 
-PortMux is a CLI that keeps background process groups predictable: reserve ports up front, start and restart together, and keep logs and state in one place. It automatically isolates port reservations per Git worktree, so you can spin up multiple clones of the same repo—ideal for agentic coding workflows—without fighting over the same dev ports.
+Tired of `Error: listen EADDRINUSE: address already in use :::3000`?
+
+PortMux is a developer-focused CLI for running and coordinating background processes. It solves the chronic problem of port conflicts in projects with multiple services, especially when working across several Git branches.
+
+It reserves ports for your process groups before they start, and **automatically isolates port reservations for each Git worktree**. This means you can run the same application stack on different branches simultaneously without collisions—perfect for parallel feature development, running review environments, or powering agentic coding workflows.
+
+While tools like `pm2` or `systemd` are excellent for managing production services, PortMux is purpose-built for the development inner loop, prioritizing simplicity and eliminating common frustrations.
+
+## Why PortMux?
+
+PortMux is built on a few core principles to streamline the developer experience:
+
+- **Frictionless Parallelism with Git Worktrees**: The core feature. PortMux maps port reservations to individual Git worktrees. Clone your repository into multiple worktrees (`git worktree add ...`), and `portmux` will handle the rest. Never again will you have to stop one server just to test another branch.
+
+- **Predictable by Default**: By reserving ports *before* launching your commands, PortMux fails fast and tells you exactly which port is unavailable. This avoids the pain of one service in a group failing mid-startup because another service took its port.
+
+- **Developer-First Simplicity**: PortMux is a lightweight, daemon-less CLI. It manages state in a transparent file-based system within `~/.config/portmux/`, giving you full control and visibility without a persistent background process to manage.
 
 ## Features
 
