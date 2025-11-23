@@ -159,3 +159,23 @@ portmux select --all
 - Build: `pnpm build`
 - Run CLI locally: `pnpm dev:cli -- --help`
 - Behavior changes: run `pnpm changeset` and commit the generated entry.
+
+## Uninstall
+
+To remove PortMux from your system, first uninstall the global package:
+
+- **Using pnpm:**
+  ```bash
+  pnpm remove -g @portmux/cli
+  ```
+- **Using npm:**
+  ```bash
+  npm uninstall -g @portmux/cli
+  ```
+
+This will remove the `portmux` command. To completely remove all associated data (including repository history, logs, and process state), delete the configuration directory:
+
+```bash
+rm -rf ~/.config/portmux
+```
+> **Warning:** This action is irreversible and will delete all PortMux settings and log files.
