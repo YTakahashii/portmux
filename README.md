@@ -79,7 +79,55 @@ PortMux is built on a few core principles to streamline the developer experience
 
 ## Usage Examples
 
-Multiple Git worktrees can run the same ports concurrently—PortMux scopes reservations by worktree so clones do not collide.
+PortMux's core value shines when you're working on multiple features at once. Here’s how you can use it with Git worktrees to run two versions of your app simultaneously without port conflicts.
+
+### Switching Between Worktrees with `select` (Recommended)
+
+The `portmux select` command is the smoothest way to switch contexts. It automatically stops processes running in the current worktree and starts them in the one you select.
+
+1.  **Create two worktrees for different features:**
+    ```bash
+    # Create a worktree for feature-a
+    git worktree add ../project-feature-a feature-a
+
+    # Create another for feature-b
+    git worktree add ../project-feature-b feature-b
+    ```
+
+2.  **Start working on `feature-a`:**
+    You can be in any directory of your project. `portmux select` will find all associated worktrees.
+    ```bash
+    # Select the first worktree to start its processes
+    portmux select
+    # ? Select a repository: (Use arrow keys)
+    # > project (feature-a) [/path/to/project-feature-a]
+    #   project (main) [/path/to/project]
+    #   project (feature-b) [/path/to/project-feature-b]
+
+    # After selecting, it starts automatically
+    # ▶ Starting group 'app' in worktree 'project (feature-a)'...
+    # ▶ web (PID: 12345) is running...
+    ```
+
+3.  **Switch to `feature-b` without changing directories:**
+    When you need to work on the other feature, just run `select` again. You don't even need to `cd`. PortMux handles stopping the old environment and starting the new one.
+    ```bash
+    # Still in your original directory
+    portmux select
+    # ? Select a repository:
+    #   project (feature-a) [/path/to/project-feature-a]
+    #   project (main) [/path/to/project]
+    # > project (feature-b) [/path/to/project-feature-b]
+
+    # It gracefully stops the 'feature-a' processes before starting 'feature-b'
+    # ▶ Stopping processes for group 'app' in worktree 'project (feature-a)'...
+    # ▶ Starting group 'app' in worktree 'project (feature-b)'...
+    # ▶ web (PID: 54321) is running...
+    ```
+
+### Basic Commands
+
+The following examples assume you have a group named `app` with a process named `web`.
 
 ```bash
 # Start a configured group (auto-resolves when only one exists)
@@ -93,7 +141,7 @@ portmux start app web
 portmux restart app web
 portmux stop app
 
-# Show running state
+# Show running state for all worktrees
 portmux ps
 
 # Tail logs (default 50 lines, follow)
