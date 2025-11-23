@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander';
 import chalk from 'chalk';
+import { Command } from 'commander';
+import packageJson from '../package.json' with { type: 'json' };
 import { psCommand } from './commands/ps.js';
 import { startCommand } from './commands/start.js';
 import { stopCommand } from './commands/stop.js';
@@ -12,7 +13,10 @@ import { logsCommand } from './commands/logs.js';
 
 const program = new Command();
 
-program.name('portmux').description('PortMux - Process management tool').version('1.0.0');
+program
+  .name('portmux')
+  .description('PortMux - Process management tool')
+  .version(packageJson.version, '-v, --version', 'output the version number');
 
 program.addCommand(initCommand);
 program.addCommand(startCommand);
