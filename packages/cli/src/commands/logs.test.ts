@@ -5,10 +5,12 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { runLogsCommand } from './logs.js';
 
+let logDir: string;
 vi.mock('@portmux/core', () => ({
   StateManager: {
     listAllStates: vi.fn(),
   },
+  getLogDir: () => logDir,
 }));
 
 vi.mock('chalk', () => ({
@@ -24,6 +26,7 @@ describe('runLogsCommand', () => {
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'portmux-logs-test-'));
+    logDir = tempDir;
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
