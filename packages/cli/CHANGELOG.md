@@ -1,5 +1,20 @@
 # @portmux/cli
 
+## 0.1.2
+
+### Patch Changes
+
+- [#9](https://github.com/YTakahashii/portmux/pull/9) [`d378442`](https://github.com/YTakahashii/portmux/commit/d378442e2e6b29b4779da030353778d9ba341956) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Harden log path validation and tighten permissions for state and log storage
+
+- [#7](https://github.com/YTakahashii/portmux/pull/7) [`2b95ae3`](https://github.com/YTakahashii/portmux/commit/2b95ae3b65a86b0d0df56f99ce739841eba57d25) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Use the published package version for the CLI version output and expose it via `-v`/`--version`.
+
+- [#13](https://github.com/YTakahashii/portmux/pull/13) [`77e123c`](https://github.com/YTakahashii/portmux/commit/77e123cf721c19dd390b3bf9bfdb68c3031fa1b8) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Prune orphaned log files when listing processes and document the automatic log cleanup behavior.
+
+- [`1428351`](https://github.com/YTakahashii/portmux/commit/14283516e8a84dd5d11541c23ce5f90fb8081a66) Thanks [@YTakahashii](https://github.com/YTakahashii)! - - Stop running processes in other worktrees when selecting a new worktree via `portmux select`, reducing manual stop steps.
+
+- Updated dependencies [[`d378442`](https://github.com/YTakahashii/portmux/commit/d378442e2e6b29b4779da030353778d9ba341956), [`77e123c`](https://github.com/YTakahashii/portmux/commit/77e123cf721c19dd390b3bf9bfdb68c3031fa1b8)]:
+  - @portmux/core@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes
