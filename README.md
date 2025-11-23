@@ -16,6 +16,14 @@ PortMux is a CLI that keeps background process groups predictable: reserve ports
 - Node.js 18+
 - pnpm 10.x (recommended)
 
+## Supported OS
+
+| OS      | Status           | Notes                                                                           |
+| ------- | ---------------- | ------------------------------------------------------------------------------- |
+| macOS   | Supported        | Actively maintained.                                                            |
+| Linux   | Not yet verified | Expected to work on modern distributions; please report compatibility findings. |
+| Windows | Experimental     | Uses `wmic` for process inspection; unverified and likely incomplete.           |
+
 ## Installation
 
 - Global install: `pnpm add -g @portmux/cli` or `npm install -g @portmux/cli` (or run ad hoc via `npx @portmux/cli`)
