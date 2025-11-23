@@ -122,6 +122,57 @@ export const StateManager = {
   },
 
   /**
+   * Delete a log file safely
+   *
+   * @param logPath Absolute path to the log file
+   */
+  deleteLogFile(logPath: string): void {
+    try {
+      if (!logPath.startsWith(getLogDir())) {
+        return;
+      }
+
+      if (existsSync(logPath)) {
+        unlinkSync(logPath);
+      }
+    } catch {
+      // Ignore errors when deleting log files
+    }
+  },
+
+  /**
+   * Delete log files that are not referenced by any provided states
+   *
+   * @param states List of states with potential logPath references
+   */
+  pruneLogs(states: ProcessState[]): void {
+    const logDir = getLogDir();
+    if (!existsSync(logDir)) {
+      return;
+    }
+
+    const referenced = new Set(
+      states.map((state) => state.logPath).filter((logPath): logPath is string => Boolean(logPath))
+    );
+
+    let files: string[];
+    try {
+      files = readdirSync(logDir);
+    } catch {
+      return;
+    }
+
+    for (const file of files) {
+      const fullPath = join(logDir, file);
+      if (referenced.has(fullPath)) {
+        continue;
+      }
+
+      this.deleteLogFile(fullPath);
+    }
+  },
+
+  /**
    * Read a process state
    *
    * @param group Group name
