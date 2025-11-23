@@ -1,8 +1,9 @@
-import { GroupManager, type GroupSelection } from '@portmux/core';
+import { GroupManager, StateManager, type GroupSelection } from '@portmux/core';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer, { type ChoiceCollection } from 'inquirer';
 import { runStartCommand } from './start.js';
+import { runStopCommand } from './stop.js';
 
 interface SelectOptions {
   all?: boolean;
@@ -12,6 +13,13 @@ interface GroupAnswer {
   repositoryName: string;
   worktreePath: string;
   branchLabel?: string;
+}
+
+interface RunningWorktree {
+  groupId: string;
+  worktreePath?: string;
+  branch?: string;
+  groupLabel?: string;
 }
 
 function buildChoices(selections: GroupSelection[]): ChoiceCollection<GroupAnswer> {
@@ -43,6 +51,52 @@ function buildChoices(selections: GroupSelection[]): ChoiceCollection<GroupAnswe
   return choices;
 }
 
+function findRunningWorktrees(repositoryName: string, targetWorktreePath: string): RunningWorktree[] {
+  const states = StateManager.listAllStates();
+  const running = new Map<string, RunningWorktree>();
+
+  for (const state of states) {
+    if (state.status !== 'Running') {
+      continue;
+    }
+    if (state.repositoryName !== repositoryName) {
+      continue;
+    }
+
+    const worktreePath = state.worktreePath ?? state.groupKey;
+    if (!worktreePath || worktreePath === targetWorktreePath) {
+      continue;
+    }
+
+    if (!running.has(state.group)) {
+      const worktree: RunningWorktree = {
+        groupId: state.group,
+        worktreePath,
+      };
+      if (state.branch !== undefined) {
+        worktree.branch = state.branch;
+      }
+      if (state.groupLabel !== undefined) {
+        worktree.groupLabel = state.groupLabel;
+      }
+      running.set(state.group, worktree);
+    }
+  }
+
+  return Array.from(running.values());
+}
+
+function formatRunningWorktreeLabel(worktree: RunningWorktree): string {
+  const pathLabel = worktree.worktreePath ?? 'unknown worktree';
+  if (worktree.branch) {
+    return `${pathLabel} [${worktree.branch}]`;
+  }
+  if (worktree.groupLabel) {
+    return `${pathLabel} [${worktree.groupLabel}]`;
+  }
+  return pathLabel;
+}
+
 export const selectCommand: ReturnType<typeof createSelectCommand> = createSelectCommand();
 
 function createSelectCommand(): Command {
@@ -68,6 +122,12 @@ function createSelectCommand(): Command {
             choices,
           },
         ]);
+
+        const runningWorktrees = findRunningWorktrees(group.repositoryName, group.worktreePath);
+        for (const running of runningWorktrees) {
+          console.log(chalk.yellow(`Stopping running worktree: ${formatRunningWorktreeLabel(running)}`));
+          await runStopCommand(running.groupId);
+        }
 
         const startOptions: { worktreePath?: string; worktreeLabel?: string } = {
           worktreePath: group.worktreePath,
