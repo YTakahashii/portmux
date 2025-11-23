@@ -1,5 +1,6 @@
 import { GroupManager, StateManager } from '@portmux/core';
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import inquirer from 'inquirer';
 import { runStartCommand } from './start.js';
 import { runStopCommand } from './stop.js';
@@ -222,7 +223,7 @@ describe('selectCommand', () => {
     });
     expect(stopOrder).toBeDefined();
     expect(startOrder).toBeDefined();
-    expect(stopOrder as number).toBeLessThan(startOrder as number);
+    expect(stopOrder).toBeLessThan(startOrder!);
   });
 
   it('exits on error', async () => {
