@@ -90,6 +90,10 @@ portmux select --all
 - `portmux select [--all]`: Pick a registered repository and run `start`; `--all` includes entries outside Git worktrees.
 - `portmux logs <group> <process> [-n <lines>] [--no-follow] [-t]`: Tail logs with optional timestamps.
 
+## Security note
+
+- PortMux executes `command` values via your shell (e.g., to allow pipes/redirects). Use configs you trust and review shared `portmux.config.json` files before running them.
+
 ## Configuration
 
 ### Project config: `portmux.config.json`
