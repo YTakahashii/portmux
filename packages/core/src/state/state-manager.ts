@@ -75,7 +75,7 @@ function getStateFilePath(group: string, process: string): string {
 function ensureStateDir(): void {
   const stateDir = getStateDir();
   if (!existsSync(stateDir)) {
-    mkdirSync(stateDir, { recursive: true });
+    mkdirSync(stateDir, { recursive: true, mode: 0o700 });
   }
 }
 
@@ -85,7 +85,7 @@ function ensureStateDir(): void {
 function ensureLogDir(): void {
   const logDir = getLogDir();
   if (!existsSync(logDir)) {
-    mkdirSync(logDir, { recursive: true });
+    mkdirSync(logDir, { recursive: true, mode: 0o700 });
   }
 }
 
@@ -156,7 +156,7 @@ export const StateManager = {
 
     const filePath = getStateFilePath(group, process);
     const content = JSON.stringify(state, null, 2);
-    writeFileSync(filePath, content, 'utf-8');
+    writeFileSync(filePath, content, { encoding: 'utf-8', mode: 0o600 });
   },
 
   /**

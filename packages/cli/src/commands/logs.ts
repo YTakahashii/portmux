@@ -1,7 +1,8 @@
-import { StateManager, type ProcessState } from '@portmux/core';
+import { StateManager, type ProcessState, getLogDir } from '@portmux/core';
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createReadStream, existsSync, readFileSync, statSync, watch } from 'fs';
+import { createReadStream, existsSync, lstatSync, readFileSync, statSync, watch } from 'fs';
+import { resolve, sep } from 'path';
 
 interface LogsOptions {
   lines?: string;
@@ -106,6 +107,28 @@ function filterStatesByIdentifier(states: ProcessState[], identifier: string): P
   return [];
 }
 
+function isSafeLogPath(logPath: string): boolean {
+  const baseDir = resolve(getLogDir());
+  const resolvedLogPath = resolve(logPath);
+
+  if (!resolvedLogPath.startsWith(baseDir + sep)) {
+    return false;
+  }
+
+  if (existsSync(resolvedLogPath)) {
+    try {
+      const stat = lstatSync(resolvedLogPath);
+      if (stat.isSymbolicLink()) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export function runLogsCommand(
   groupName: string | undefined,
   processName: string | undefined,
@@ -164,7 +187,14 @@ export function runLogsCommand(
       return;
     }
 
-    const logPath = state.logPath;
+    if (!isSafeLogPath(state.logPath)) {
+      console.error(chalk.red('Error: Log file path is invalid or outside the PortMux logs directory'));
+      process.exit(1);
+      return;
+    }
+
+    const logPath = resolve(state.logPath);
+
     if (!existsSync(logPath)) {
       console.error(chalk.red(`Error: Log file does not exist: ${logPath}`));
       process.exit(1);
