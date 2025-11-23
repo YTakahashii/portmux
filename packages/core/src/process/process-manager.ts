@@ -297,6 +297,11 @@ export const ProcessManager = {
    */
   async stopProcess(group: string, processName: string, timeout = 10000): Promise<void> {
     const state = StateManager.readState(group, processName);
+    const removeLogFile = (): void => {
+      if (state?.logPath) {
+        StateManager.deleteLogFile(state.logPath);
+      }
+    };
     let cleaned = false;
     const cleanup = (): void => {
       if (cleaned) {
@@ -314,6 +319,7 @@ export const ProcessManager = {
       if (state.status === 'Stopped') {
         // Remove the state when it is already stopped
         StateManager.deleteState(group, processName);
+        removeLogFile();
         cleanup();
         return;
       }
@@ -321,6 +327,7 @@ export const ProcessManager = {
       if (!state.pid) {
         // Without a recorded PID just remove the state
         StateManager.deleteState(group, processName);
+        removeLogFile();
         cleanup();
         return;
       }
@@ -341,6 +348,7 @@ export const ProcessManager = {
         StateManager.writeState(group, processName, stoppedState);
         // Remove state files for stopped processes
         StateManager.deleteState(group, processName);
+        removeLogFile();
         cleanup();
         return;
       }
@@ -365,6 +373,7 @@ export const ProcessManager = {
           StateManager.writeState(group, processName, stoppedState);
           // Delete the state file
           StateManager.deleteState(group, processName);
+          removeLogFile();
           cleanup();
           return;
         }
@@ -387,6 +396,7 @@ export const ProcessManager = {
         };
         StateManager.writeState(group, processName, stoppedState);
         StateManager.deleteState(group, processName);
+        removeLogFile();
         cleanup();
       } else {
         throw new ProcessStopError(
@@ -406,6 +416,7 @@ export const ProcessManager = {
    */
   listProcesses(): ProcessInfo[] {
     const states = StateManager.listAllStates();
+    StateManager.pruneLogs(states);
     const processes: ProcessInfo[] = [];
 
     for (const state of states) {

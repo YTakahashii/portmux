@@ -132,6 +132,7 @@ portmux select --all
 
 - `stdout`/`stderr` are written to `~/.config/portmux/logs/`; view with `portmux logs`.
 - Process state, PIDs, and reserved ports persist in `~/.config/portmux/` for reuse by `ps` and `logs`.
+- Log cleanup: `portmux stop` removes the associated log file, and `portmux ps` prunes log files not referenced by any recorded process state. No separate prune command is required.
 
 ## Development
 

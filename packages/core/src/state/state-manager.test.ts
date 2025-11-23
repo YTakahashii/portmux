@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir as systemTmpdir } from 'node:os';
 import { StateManager, type ProcessState } from './state-manager.js';
@@ -75,5 +75,37 @@ describe('StateManager', () => {
     expect(existsSync(join(portmuxDir, 'logs'))).toBe(true);
 
     nowSpy.mockRestore();
+  });
+
+  it('deleteLogFile removes a log within the log directory', () => {
+    const logDir = join(portmuxDir, 'logs');
+    mkdirSync(logDir, { recursive: true });
+    const logPath = join(logDir, 'to-delete.log');
+
+    writeFileSync(logPath, 'remove me', 'utf-8');
+
+    StateManager.deleteLogFile(logPath);
+
+    expect(existsSync(logPath)).toBe(false);
+  });
+
+  it('pruneLogs removes unreferenced logs and keeps referenced ones', () => {
+    const logDir = join(portmuxDir, 'logs');
+    mkdirSync(logDir, { recursive: true });
+    const referencedLog = join(logDir, 'keep.log');
+    const orphanLog = join(logDir, 'remove.log');
+    writeFileSync(referencedLog, 'keep', 'utf-8');
+    writeFileSync(orphanLog, 'remove', 'utf-8');
+
+    StateManager.pruneLogs([
+      {
+        group: 'g',
+        process: 'p',
+        status: 'Stopped',
+        logPath: referencedLog,
+      },
+    ]);
+
+    expect(readdirSync(logDir)).toEqual(['keep.log']);
   });
 });

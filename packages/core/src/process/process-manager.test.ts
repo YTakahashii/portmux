@@ -49,6 +49,8 @@ vi.mock('../state/state-manager.js', async () => {
       deleteState: vi.fn(),
       listAllStates: vi.fn(),
       generateLogPath: vi.fn(),
+      deleteLogFile: vi.fn(),
+      pruneLogs: vi.fn(),
     },
   };
 });
@@ -110,6 +112,8 @@ describe('ProcessManager', () => {
     vi.mocked(StateManager.deleteState).mockClear();
     vi.mocked(StateManager.listAllStates).mockClear();
     vi.mocked(StateManager.generateLogPath).mockClear();
+    vi.mocked(StateManager.deleteLogFile).mockClear();
+    vi.mocked(StateManager.pruneLogs).mockClear();
     vi.mocked(isPidAlive).mockClear();
     vi.mocked(isPidAliveAndValid).mockClear();
     vi.mocked(getCommandLine).mockClear();
@@ -558,6 +562,7 @@ describe('ProcessManager', () => {
         pid: 1234,
         startedAt: '2024-01-01T00:00:00.000Z',
         command: 'npm start',
+        logPath: '/tmp/log.log',
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
@@ -577,6 +582,7 @@ describe('ProcessManager', () => {
         })
       );
       expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(StateManager.deleteLogFile).toHaveBeenCalledWith('/tmp/log.log');
       expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
     });
 
@@ -591,6 +597,7 @@ describe('ProcessManager', () => {
         group: 'group-1',
         process: 'api',
         status: 'Stopped',
+        logPath: '/tmp/log.log',
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
@@ -598,6 +605,7 @@ describe('ProcessManager', () => {
       await ProcessManager.stopProcess('group-1', 'api');
 
       expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(StateManager.deleteLogFile).toHaveBeenCalledWith('/tmp/log.log');
       expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
       expect(kill).not.toHaveBeenCalled();
     });
@@ -607,6 +615,7 @@ describe('ProcessManager', () => {
         group: 'group-1',
         process: 'api',
         status: 'Running',
+        logPath: '/tmp/log.log',
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
@@ -614,6 +623,7 @@ describe('ProcessManager', () => {
       await ProcessManager.stopProcess('group-1', 'api');
 
       expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(StateManager.deleteLogFile).toHaveBeenCalledWith('/tmp/log.log');
       expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
       expect(kill).not.toHaveBeenCalled();
     });
@@ -626,6 +636,7 @@ describe('ProcessManager', () => {
         pid: 1234,
         startedAt: '2024-01-01T00:00:00.000Z',
         command: 'npm start',
+        logPath: '/tmp/log.log',
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
@@ -642,6 +653,7 @@ describe('ProcessManager', () => {
         })
       );
       expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(StateManager.deleteLogFile).toHaveBeenCalledWith('/tmp/log.log');
       expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
       expect(kill).not.toHaveBeenCalled();
     });
@@ -654,6 +666,7 @@ describe('ProcessManager', () => {
         pid: 1234,
         startedAt: '2024-01-01T00:00:00.000Z',
         command: 'npm start',
+        logPath: '/tmp/log.log',
       };
 
       vi.mocked(StateManager.readState).mockReturnValue(state);
@@ -671,6 +684,7 @@ describe('ProcessManager', () => {
         })
       );
       expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(StateManager.deleteLogFile).toHaveBeenCalledWith('/tmp/log.log');
       expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
     });
 
@@ -682,6 +696,7 @@ describe('ProcessManager', () => {
         pid: 1234,
         startedAt: '2024-01-01T00:00:00.000Z',
         command: 'doctor start api',
+        logPath: '/tmp/log.log',
       };
 
       const resolvedCommand = '/usr/bin/ruby bin/rails server';
@@ -726,6 +741,7 @@ describe('ProcessManager', () => {
         })
       );
       expect(StateManager.deleteState).toHaveBeenCalledWith('group-1', 'api');
+      expect(StateManager.deleteLogFile).toHaveBeenCalledWith('/tmp/log.log');
       expect(PortManager.releaseReservationByProcess).toHaveBeenCalledWith('group-1', 'api');
     });
 
@@ -819,6 +835,7 @@ describe('ProcessManager', () => {
 
       const processes = ProcessManager.listProcesses();
 
+      expect(StateManager.pruneLogs).toHaveBeenCalledWith(states);
       expect(processes).toHaveLength(2);
       expect(processes[0]).toEqual({
         group: 'group-1',
