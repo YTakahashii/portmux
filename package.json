@@ -4,6 +4,7 @@
   "description": "",
   "private": true,
   "scripts": {
+    "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "build": "pnpm -r build",
     "dev:cli": "pnpm --filter @portmux/cli dev",

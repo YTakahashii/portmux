@@ -29,6 +29,7 @@
     "portmux": "./dist/index.js"
   },
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "build": "tsc",
     "dev": "node ./dist/index.js",
     "test": "vitest"
