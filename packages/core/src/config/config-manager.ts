@@ -271,8 +271,15 @@ export const ConfigManager = {
   validateGlobalConfig(globalConfig: GlobalConfig, projectConfig: PortMuxConfig, projectConfigPath: string): void {
     ensureUniqueRepositoryNames(globalConfig);
 
-    // Verify external references
+    const normalizedProjectConfigPath = normalizePath(projectConfigPath);
+
+    // Verify external references only for repositories that point to the provided project config
     for (const [repositoryName, repository] of Object.entries(globalConfig.repositories)) {
+      const repositoryConfigPath = normalizePath(join(repository.path, 'portmux.config.json'));
+      if (repositoryConfigPath !== normalizedProjectConfigPath) {
+        continue;
+      }
+
       validateRepositoryReference(repositoryName, repository.group, projectConfig, projectConfigPath);
     }
   },
