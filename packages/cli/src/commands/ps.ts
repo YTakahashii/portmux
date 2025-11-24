@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { ProcessManager } from '@portmux/core';
-import chalk from 'chalk';
+import { chalk } from '../lib/chalk.js';
 
 export const psCommand: ReturnType<typeof createPsCommand> = createPsCommand();
 

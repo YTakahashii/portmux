@@ -1,6 +1,6 @@
 import { GroupManager, StateManager, type GroupSelection } from '@portmux/core';
 import { Command } from 'commander';
-import chalk from 'chalk';
+import { chalk } from '../lib/chalk.js';
 import inquirer, { type ChoiceCollection } from 'inquirer';
 import { runStartCommand } from './start.js';
 import { runStopCommand } from './stop.js';

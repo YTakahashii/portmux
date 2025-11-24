@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import chalk from 'chalk';
+import { chalk } from './lib/chalk.js';
 import { Command } from 'commander';
 import packageJson from '../package.json' with { type: 'json' };
 import { psCommand } from './commands/ps.js';

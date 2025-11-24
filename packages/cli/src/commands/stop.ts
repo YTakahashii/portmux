@@ -8,7 +8,7 @@ import {
 } from '@portmux/core';
 
 import { Command } from 'commander';
-import chalk from 'chalk';
+import { chalk } from '../lib/chalk.js';
 
 export const stopCommand: ReturnType<typeof createStopCommand> = createStopCommand();
 

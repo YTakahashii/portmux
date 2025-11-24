@@ -12,7 +12,7 @@ import {
 } from '@portmux/core';
 
 import { Command } from 'commander';
-import chalk from 'chalk';
+import { chalk } from '../lib/chalk.js';
 import { resolve } from 'path';
 import { buildGroupInstanceId, buildGroupLabel } from '../utils/group-instance.js';
 

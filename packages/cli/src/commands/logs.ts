@@ -1,6 +1,6 @@
 import { StateManager, type ProcessState, getLogDir } from '@portmux/core';
 import { Command } from 'commander';
-import chalk from 'chalk';
+import { chalk } from '../lib/chalk.js';
 import { createReadStream, existsSync, lstatSync, readFileSync, statSync, watch } from 'fs';
 import { resolve, sep } from 'path';
 

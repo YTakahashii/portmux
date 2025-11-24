@@ -7,7 +7,7 @@ import {
   type Group,
 } from '@portmux/core';
 import { Command } from 'commander';
-import chalk from 'chalk';
+import { chalk } from '../lib/chalk.js';
 import { execSync } from 'child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import inquirer from 'inquirer';
