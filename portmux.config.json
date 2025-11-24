@@ -1,16 +1,12 @@
 {
-  "$schema": "./packages/cli/schemas/portmux.config.schema.json",
+  "$schema": "node_modules/@portmux/cli/schemas/portmux.config.schema.json",
   "groups": {
-    "test": {
-      "description": "Test group",
+    "debug": {
+      "description": "",
       "commands": [
         {
           "name": "sleep",
-          "command": "sleep 100"
-        },
-        {
-          "name": "node-test",
-          "command": "node -e \"setTimeout(() => {}, 100000)\""
+          "command": "sleep 1000"
         }
       ]
     }

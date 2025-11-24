@@ -395,6 +395,8 @@ export const GroupManager = {
     const includeAll = options?.includeAll ?? false;
     const runningGroups = getRunningWorktrees();
     const selections: GroupSelection[] = [];
+    const currentGitRoot = findGitRoot(process.cwd());
+    const normalizedCurrentGitRoot = currentGitRoot ? normalizePath(currentGitRoot) : null;
 
     for (const mergedRepository of Object.values(mergedConfig.repositories)) {
       const normalizedRepositoryPath = normalizePath(mergedRepository.path);
@@ -460,6 +462,16 @@ export const GroupManager = {
     }
 
     selections.sort((a, b) => {
+      const aIsCurrent =
+        normalizedCurrentGitRoot !== null &&
+        (a.repositoryPath === normalizedCurrentGitRoot || a.worktreePath === normalizedCurrentGitRoot);
+      const bIsCurrent =
+        normalizedCurrentGitRoot !== null &&
+        (b.repositoryPath === normalizedCurrentGitRoot || b.worktreePath === normalizedCurrentGitRoot);
+      if (aIsCurrent !== bIsCurrent) {
+        return aIsCurrent ? -1 : 1;
+      }
+
       const repoCompare = a.repositoryName.localeCompare(b.repositoryName);
       if (repoCompare !== 0) {
         return repoCompare;
