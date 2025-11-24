@@ -1,5 +1,12 @@
 # @portmux/cli
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [[`6859e85`](https://github.com/YTakahashii/portmux/commit/6859e85893c3b2dad74fbecc37a1f9cb0e7ff657)]:
+  - @portmux/core@0.1.3
+
 ## 0.1.2
 
 ### Patch Changes

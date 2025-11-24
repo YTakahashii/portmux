@@ -1,5 +1,11 @@
 # @portmux/core
 
+## 0.1.3
+
+### Patch Changes
+
+- [#18](https://github.com/YTakahashii/portmux/pull/18) [`6859e85`](https://github.com/YTakahashii/portmux/commit/6859e85893c3b2dad74fbecc37a1f9cb0e7ff657) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Fix validation of the global config during init so only entries targeting the current project are checked.
+
 ## 0.1.2
 
 ### Patch Changes
