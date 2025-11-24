@@ -26,6 +26,11 @@
   "keywords": [],
   "author": "YTakahashii",
   "license": "MIT",
+  "engines": {
+    "node": ">=24.11.1",
+    "pnpm": ">=10.21.0"
+  },
+  "packageManager": "pnpm@10.21.0",
   "dependencies": {
     "proper-lockfile": "^4.1.2",
     "tcp-port-used": "^1.0.2",
