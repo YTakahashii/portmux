@@ -1,5 +1,16 @@
 # @portmux/cli
 
+## 0.2.0
+
+### Minor Changes
+
+- [#21](https://github.com/YTakahashii/portmux/pull/21) [`cbbad65`](https://github.com/YTakahashii/portmux/commit/cbbad65e19c4c71c7300858739f752c7d6c03fee) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Add `portmux sync` to register existing project configs into the global config, including docs and tests.
+
+### Patch Changes
+
+- Updated dependencies [[`998efca`](https://github.com/YTakahashii/portmux/commit/998efcadddefeb006f4c73d368900f9e144eb51d)]:
+  - @portmux/core@0.1.4
+
 ## 0.1.3
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @portmux/core
 
+## 0.1.4
+
+### Patch Changes
+
+- [#20](https://github.com/YTakahashii/portmux/pull/20) [`998efca`](https://github.com/YTakahashii/portmux/commit/998efcadddefeb006f4c73d368900f9e144eb51d) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Prioritize the current git repository when building selectable groups for `portmux select`.
+
 ## 0.1.3
 
 ### Patch Changes
