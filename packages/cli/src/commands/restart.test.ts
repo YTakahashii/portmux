@@ -8,6 +8,7 @@ import {
   GroupManager,
 } from '@portmux/core';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { createChalkMock } from '../test-utils/mock-chalk.js';
 import { runRestartCommand } from './restart.js';
 
 vi.mock('../utils/group-instance.js', () => ({
@@ -47,14 +48,7 @@ vi.mock('@portmux/core', () => {
   };
 });
 
-vi.mock('chalk', () => ({
-  default: {
-    red: (msg: string) => msg,
-    yellow: (msg: string) => msg,
-    green: (msg: string) => msg,
-    gray: (msg: string) => msg,
-  },
-}));
+vi.mock('chalk', () => createChalkMock());
 
 describe('runRestartCommand', () => {
   const resolvedGroup = {

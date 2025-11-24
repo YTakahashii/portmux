@@ -1,5 +1,6 @@
 import { ProcessManager } from '@portmux/core';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { createChalkMock } from '../test-utils/mock-chalk.js';
 import { psCommand } from './ps.js';
 
 vi.mock('@portmux/core', () => ({
@@ -8,13 +9,7 @@ vi.mock('@portmux/core', () => ({
   },
 }));
 
-vi.mock('chalk', () => ({
-  default: {
-    yellow: (msg: string) => msg,
-    green: (msg: string) => msg,
-    red: (msg: string) => msg,
-  },
-}));
+vi.mock('chalk', () => createChalkMock());
 
 function runPs(): Promise<void> {
   return psCommand.parseAsync([], { from: 'user' }).then(() => {});

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { createChalkMock } from '../test-utils/mock-chalk.js';
 import { runLogsCommand } from './logs.js';
 
 let logDir: string;
@@ -13,12 +14,7 @@ vi.mock('@portmux/core', () => ({
   getLogDir: () => logDir,
 }));
 
-vi.mock('chalk', () => ({
-  default: {
-    red: (msg: string) => msg,
-    yellow: (msg: string) => msg,
-  },
-}));
+vi.mock('chalk', () => createChalkMock());
 
 describe('runLogsCommand', () => {
   const listAllStates = vi.mocked(StateManager.listAllStates);

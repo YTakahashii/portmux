@@ -2,6 +2,7 @@ import { GroupManager, StateManager } from '@portmux/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import inquirer from 'inquirer';
+import { createChalkMock } from '../test-utils/mock-chalk.js';
 import { runStartCommand } from './start.js';
 import { runStopCommand } from './stop.js';
 import { selectCommand } from './select.js';
@@ -34,12 +35,7 @@ vi.mock('./stop.js', () => ({
   runStopCommand: vi.fn(),
 }));
 
-vi.mock('chalk', () => ({
-  default: {
-    yellow: (msg: string) => msg,
-    red: (msg: string) => msg,
-  },
-}));
+vi.mock('chalk', () => createChalkMock());
 
 function runSelect(args: string[] = []): Promise<void> {
   return selectCommand.parseAsync(args, { from: 'user' }).then(() => {});

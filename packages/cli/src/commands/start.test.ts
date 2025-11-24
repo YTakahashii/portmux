@@ -8,6 +8,7 @@ import {
   GroupResolutionError,
 } from '@portmux/core';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { createChalkMock } from '../test-utils/mock-chalk.js';
 import { runStartCommand } from './start.js';
 
 vi.mock('../utils/group-instance.js', () => ({
@@ -47,12 +48,7 @@ vi.mock('@portmux/core', () => {
   };
 });
 
-vi.mock('chalk', () => ({
-  default: {
-    green: (msg: string) => msg,
-    red: (msg: string) => msg,
-  },
-}));
+vi.mock('chalk', () => createChalkMock());
 
 describe('runStartCommand', () => {
   const resolvedGroup = {
@@ -155,6 +151,20 @@ describe('runStartCommand', () => {
     await runStartCommand('ws-one');
 
     expect(console.error).toHaveBeenCalledWith('Error: Failed to start process "api": start failed');
+  });
+
+  it('includes original error message when available', async () => {
+    const error = new ProcessStartError('start failed');
+    const cause = new Error('permission denied');
+    cause.stack = 'permission denied stack';
+    (error as { cause?: unknown }).cause = cause;
+    vi.mocked(ProcessManager.startProcess).mockRejectedValueOnce(error);
+
+    await runStartCommand('ws-one');
+
+    expect(console.error).toHaveBeenCalledWith(
+      'Error: Failed to start process "api": start failed (Original error: permission denied)\nCaused by:\npermission denied stack'
+    );
   });
 
   it('passes worktree override to group resolution and process manager', async () => {

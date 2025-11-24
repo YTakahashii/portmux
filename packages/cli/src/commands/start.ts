@@ -21,6 +21,50 @@ interface StartInvokeOptions {
   worktreeLabel?: string;
 }
 
+function extractCauseMessage(cause: unknown): string | undefined {
+  if (!cause) {
+    return undefined;
+  }
+
+  if (cause instanceof Error && typeof cause.message === 'string' && cause.message.length > 0) {
+    return cause.message;
+  }
+
+  if (typeof cause === 'string' && cause.length > 0) {
+    return cause;
+  }
+
+  return undefined;
+}
+
+function extractCauseStack(cause: unknown): string | undefined {
+  if (!cause) {
+    return undefined;
+  }
+
+  if (cause instanceof Error && typeof cause.stack === 'string' && cause.stack.length > 0) {
+    return cause.stack;
+  }
+
+  return undefined;
+}
+
+function formatStartErrorMessage(
+  error: Error | { message: string; cause?: unknown }
+): { message: string; causeStack?: string } {
+  const message = 'message' in error && typeof error.message === 'string' ? error.message : String(error);
+  const causeMessage = extractCauseMessage('cause' in error ? error.cause : undefined);
+  const causeStack = extractCauseStack('cause' in error ? error.cause : undefined);
+
+  const base = causeStack ? { causeStack } : {};
+
+  if (causeMessage && causeMessage !== message) {
+    return { message: `${message} (Original error: ${causeMessage})`, ...base };
+  }
+
+  return { message, ...base };
+}
+
 export const startCommand: ReturnType<typeof createStartCommand> = createStartCommand();
 
 export async function runStartCommand(
@@ -121,7 +165,12 @@ export async function runStartCommand(
           console.log(chalk.green(`✓ Started process "${cmd.name}"`));
         } catch (error) {
           if (error instanceof ProcessStartError || error instanceof PortInUseError) {
-            console.error(chalk.red(`Error: Failed to start process "${cmd.name}": ${error.message}`));
+            const { message: detailedMessage, causeStack } = formatStartErrorMessage(error);
+            const lines = [`Error: Failed to start process "${cmd.name}": ${detailedMessage}`];
+            if (causeStack) {
+              lines.push(`Caused by:\n${causeStack}`);
+            }
+            console.error(chalk.red(lines.join('\n')));
           } else {
             throw error;
           }

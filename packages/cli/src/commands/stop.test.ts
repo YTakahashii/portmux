@@ -1,5 +1,6 @@
 import { LockManager, LockTimeoutError, ProcessManager, ProcessStopError, StateManager } from '@portmux/core';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { createChalkMock } from '../test-utils/mock-chalk.js';
 import { runStopCommand } from './stop.js';
 
 vi.mock('@portmux/core', () => {
@@ -21,13 +22,7 @@ vi.mock('@portmux/core', () => {
   };
 });
 
-vi.mock('chalk', () => ({
-  default: {
-    yellow: (msg: string) => msg,
-    green: (msg: string) => msg,
-    red: (msg: string) => msg,
-  },
-}));
+vi.mock('chalk', () => createChalkMock());
 
 describe('stopCommand', () => {
   const listAllStates = vi.mocked(StateManager.listAllStates);
