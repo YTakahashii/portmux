@@ -10,6 +10,7 @@ import { selectCommand } from './commands/select.js';
 import { initCommand } from './commands/init.js';
 import { restartCommand } from './commands/restart.js';
 import { logsCommand } from './commands/logs.js';
+import { syncCommand } from './commands/sync.js';
 
 const program = new Command();
 
@@ -24,6 +25,7 @@ program.addCommand(stopCommand);
 program.addCommand(restartCommand);
 program.addCommand(psCommand);
 program.addCommand(selectCommand);
+program.addCommand(syncCommand);
 program.addCommand(logsCommand);
 
 // Global error handler
