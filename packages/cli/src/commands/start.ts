@@ -49,10 +49,11 @@ function extractCauseStack(cause: unknown): string | undefined {
   return undefined;
 }
 
-function formatStartErrorMessage(
-  error: Error | { message: string; cause?: unknown }
-): { message: string; causeStack?: string } {
-  const message = 'message' in error && typeof error.message === 'string' ? error.message : String(error);
+function formatStartErrorMessage(error: Error | { message: string; cause?: unknown }): {
+  message: string;
+  causeStack?: string;
+} {
+  const message = 'message' in error && typeof error.message === 'string' ? error.message : JSON.stringify(error);
   const causeMessage = extractCauseMessage('cause' in error ? error.cause : undefined);
   const causeStack = extractCauseStack('cause' in error ? error.cause : undefined);
 

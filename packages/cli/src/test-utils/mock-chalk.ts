@@ -19,6 +19,7 @@ export function createChalkMock(): { Chalk: typeof MockChalk; default: Record<st
     Chalk: MockChalk,
     default: {
       Chalk: MockChalk,
+      // eslint-disable-next-line @typescript-eslint/no-misused-spread
       ...instance,
     },
   };
