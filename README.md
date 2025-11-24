@@ -153,6 +153,10 @@ portmux logs app web -n 200 --no-follow
 
 # Choose a registered project and start from the global config
 portmux select --all
+
+# Register an existing project config into the global config
+portmux sync
+portmux sync --all
 ```
 
 ### Command Reference
@@ -163,6 +167,7 @@ portmux select --all
 - `portmux stop [group] [process]`: Stop processes; prompts when multiple groups are running.
 - `portmux ps`: List group, process name, status, and PID.
 - `portmux select [--all]`: Pick a registered repository and run `start`; `--all` includes entries outside Git worktrees.
+- `portmux sync [--all] [--group <name>] [--name <alias>] [--dry-run] [--force] [--prune]`: Register the current project config in `~/.config/portmux/config.json`. Defaults to a single group; use `--all` to register every group.
 - `portmux logs <group> <process> [-n <lines>] [--no-follow] [-t]`: Tail logs with optional timestamps.
 
 ## Security note
@@ -189,6 +194,7 @@ portmux select --all
   - `path`: Absolute path to the project root.
   - `group`: Group name in `portmux.config.json`.
 - `portmux init` appends the current project; `start`/`restart`/`select` use this mapping for resolution.
+- `portmux sync` is the quickest way to register a repo that already ships with `portmux.config.json` (e.g., after cloning). By default it registers a single group; add `--all` to register every group, and `--prune` to drop stale entries that no longer exist on disk.
 
 ### Group Resolution
 
