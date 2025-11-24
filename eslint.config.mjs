@@ -12,6 +12,7 @@ export default defineConfig(
       '**/*.config.ts',
       '**/*.config.mjs',
       'eslint.config.mjs',
+      'scripts/**',
     ],
   },
 

@@ -58,6 +58,10 @@ jobs:
         if: steps.changesets.outputs.hasChangesets == 'false'
         run: pnpm build
 
+      - name: Sync CLI README
+        if: steps.changesets.outputs.hasChangesets == 'false'
+        run: pnpm sync:cli-readme
+
       - name: Publish packages
         if: steps.changesets.outputs.hasChangesets == 'false'
         run: pnpm changeset publish
