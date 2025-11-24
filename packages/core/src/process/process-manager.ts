@@ -9,6 +9,7 @@ import { openSync, closeSync } from 'fs';
 import { PortmuxError } from '../errors.js';
 
 const COMMAND_REFRESH_WINDOW_MS = 60_000;
+const STOP_TIMEOUT_DEFAULT_MS = 3000; // Default keeps UX fast while still giving SIGTERM a short cleanup window.
 
 function refreshCommandSignature(group: string, processName: string, state: ProcessState): boolean {
   if (!state.pid || !state.startedAt || !state.command) {
@@ -292,10 +293,10 @@ export const ProcessManager = {
    *
    * @param group Group name
    * @param processName Process name
-   * @param timeout Timeout in milliseconds (default: 10000)
+   * @param timeout Timeout in milliseconds (default: 3000)
    * @throws ProcessStopError When the stop fails
    */
-  async stopProcess(group: string, processName: string, timeout = 10000): Promise<void> {
+  async stopProcess(group: string, processName: string, timeout = STOP_TIMEOUT_DEFAULT_MS): Promise<void> {
     const state = StateManager.readState(group, processName);
     const removeLogFile = (): void => {
       if (state?.logPath) {

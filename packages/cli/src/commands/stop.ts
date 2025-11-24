@@ -12,6 +12,10 @@ import { chalk } from '../lib/chalk.js';
 
 export const stopCommand: ReturnType<typeof createStopCommand> = createStopCommand();
 
+interface RunStopOptions {
+  timeout?: number;
+}
+
 function formatStateLabel(state: ProcessState): string {
   const label = state.groupLabel ?? state.repositoryName ?? state.group;
   const path = state.worktreePath ?? state.groupKey;
@@ -45,9 +49,14 @@ function filterStatesByIdentifier(states: ProcessState[], identifier: string): P
   return [];
 }
 
-export async function runStopCommand(groupName?: string, processName?: string): Promise<void> {
+export async function runStopCommand(
+  groupName?: string,
+  processName?: string,
+  options: RunStopOptions = {}
+): Promise<void> {
   try {
     const allStates = StateManager.listAllStates();
+    const stopTimeout = options.timeout;
 
     // When no group name is provided, read every process from the state store
     if (!groupName) {
@@ -117,7 +126,7 @@ export async function runStopCommand(groupName?: string, processName?: string): 
       await LockManager.withLock('group', groupId, async () => {
         for (const state of states) {
           try {
-            await ProcessManager.stopProcess(state.group, state.process);
+            await ProcessManager.stopProcess(state.group, state.process, stopTimeout);
 
             console.log(chalk.green(`✓ Stopped process "${state.process}" (${formatStateLabel(state)})`));
           } catch (error) {
@@ -146,7 +155,24 @@ function createStopCommand(): Command {
     .description('Stop processes')
     .argument('[group-name]', 'Group name')
     .argument('[process-name]', 'Process name (stops all processes in the group when omitted)')
-    .action(async (groupName?: string, processName?: string) => {
-      await runStopCommand(groupName, processName);
+    .option('-t, --timeout <ms>', 'Timeout in milliseconds before force stop (default: 3000)')
+    .action(async (groupName?: string, processName?: string, options?: { timeout?: string }) => {
+      let timeout: number | undefined;
+      if (options?.timeout !== undefined) {
+        const parsed = Number.parseInt(options.timeout, 10);
+        if (Number.isNaN(parsed) || parsed < 0) {
+          console.error(chalk.red('Error: Timeout must be a non-negative integer (milliseconds).'));
+          process.exit(1);
+          return;
+        }
+        timeout = parsed;
+      }
+
+      const stopOptions: RunStopOptions = {};
+      if (timeout !== undefined) {
+        stopOptions.timeout = timeout;
+      }
+
+      await runStopCommand(groupName, processName, stopOptions);
     });
 }
