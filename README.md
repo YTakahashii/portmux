@@ -14,7 +14,7 @@ PortMux is built on a few core principles to streamline the developer experience
 
 - **Frictionless Parallelism with Git Worktrees**: The core feature. PortMux maps port reservations to individual Git worktrees. Clone your repository into multiple worktrees (`git worktree add ...`), and `portmux` will handle the rest. Never again will you have to stop one server just to test another branch.
 
-- **Predictable by Default**: By reserving ports *before* launching your commands, PortMux fails fast and tells you exactly which port is unavailable. This avoids the pain of one service in a group failing mid-startup because another service took its port.
+- **Predictable by Default**: By reserving ports _before_ launching your commands, PortMux fails fast and tells you exactly which port is unavailable. This avoids the pain of one service in a group failing mid-startup because another service took its port.
 
 - **Developer-First Simplicity**: PortMux is a lightweight, daemon-less CLI. It manages state in a transparent file-based system within `~/.config/portmux/`, giving you full control and visibility without a persistent background process to manage.
 
@@ -86,6 +86,7 @@ PortMux's core value shines when you're working on multiple features at once. He
 The `portmux select` command is the smoothest way to switch contexts. It automatically stops processes running in the current worktree and starts them in the one you select.
 
 1.  **Create two worktrees for different features:**
+
     ```bash
     # Create a worktree for feature-a
     git worktree add ../project-feature-a feature-a
@@ -96,6 +97,7 @@ The `portmux select` command is the smoothest way to switch contexts. It automat
 
 2.  **Start working on `feature-a`:**
     You can be in any directory of your project. `portmux select` will find all associated worktrees.
+
     ```bash
     # Select the first worktree to start its processes
     portmux select
@@ -111,6 +113,7 @@ The `portmux select` command is the smoothest way to switch contexts. It automat
 
 3.  **Switch to `feature-b` without changing directories:**
     When you need to work on the other feature, just run `select` again. You don't even need to `cd`. PortMux handles stopping the old environment and starting the new one.
+
     ```bash
     # Still in your original directory
     portmux select
@@ -226,4 +229,5 @@ This will remove the `portmux` command. To completely remove all associated data
 ```bash
 rm -rf ~/.config/portmux
 ```
+
 > **Warning:** This action is irreversible and will delete all PortMux settings and log files.
