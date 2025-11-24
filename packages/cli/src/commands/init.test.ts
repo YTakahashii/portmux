@@ -141,6 +141,50 @@ describe('runInitCommand', () => {
     });
   });
 
+  it('keeps other repositories in the global config when validating the new project', async () => {
+    const otherRepoDir = join(tempDir, 'other-repo');
+    mkdirSync(otherRepoDir, { recursive: true });
+    writeFileSync(
+      join(otherRepoDir, 'portmux.config.json'),
+      `${JSON.stringify(
+        {
+          $schema: 'node_modules/@portmux/cli/schemas/portmux.config.schema.json',
+          groups: {
+            doctor: {
+              description: '',
+              commands: [],
+            },
+          },
+        },
+        null,
+        2
+      )}\n`
+    );
+
+    mkdirSync(dirname(globalConfigPath), { recursive: true });
+    const existingGlobal = {
+      repositories: {
+        doctor: { path: otherRepoDir, group: 'doctor' },
+      },
+    };
+    writeFileSync(globalConfigPath, `${JSON.stringify(existingGlobal, null, 2)}\n`);
+
+    mockPromptSequence([
+      { groupName: 'app', description: '' },
+      { name: 'worker', command: 'node server.js', ports: '', cwd: '' },
+      { addEnv: false },
+      { addMore: false },
+    ]);
+
+    await runInitCommand({});
+
+    const globalConfig = JSON.parse(readFileSync(globalConfigPath, 'utf-8'));
+    expect(globalConfig.repositories).toEqual({
+      doctor: { path: otherRepoDir, group: 'doctor' },
+      app: { path: tempDir, group: 'app' },
+    });
+  });
+
   it('aborts when project config overwrite is denied', async () => {
     const projectConfigPath = join(tempDir, 'portmux.config.json');
     writeFileSync(projectConfigPath, '{"existing":true}');
