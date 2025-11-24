@@ -29,8 +29,7 @@ PortMux is built on a few core principles to streamline the developer experience
 
 ## Prerequisites
 
-- Node.js 18+
-- pnpm 10.x (recommended)
+- Node.js 20+
 
 ## Supported OS
 

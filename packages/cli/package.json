@@ -50,7 +50,7 @@
   "author": "YTakahashii",
   "license": "MIT",
   "engines": {
-    "node": ">=24.11.1",
+    "node": ">=20.0.0",
     "pnpm": ">=10.21.0"
   },
   "packageManager": "pnpm@10.21.0",
