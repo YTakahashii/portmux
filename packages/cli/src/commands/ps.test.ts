@@ -17,7 +17,7 @@ vi.mock('chalk', () => ({
 }));
 
 function runPs(): Promise<void> {
-  return psCommand.parseAsync(['node', 'ps'], { from: 'user' }).then(() => {});
+  return psCommand.parseAsync([], { from: 'user' }).then(() => {});
 }
 
 describe('psCommand', () => {

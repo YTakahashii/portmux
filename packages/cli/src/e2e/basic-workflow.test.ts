@@ -81,7 +81,7 @@ describe('basic CLI workflow (init → start → ps → restart → stop)', () =
   }
 
   async function runPs(): Promise<void> {
-    await psCommand.parseAsync(['node', 'ps'], { from: 'user' });
+    await psCommand.parseAsync([], { from: 'user' });
   }
 
   async function runRestart(): Promise<void> {

@@ -42,7 +42,7 @@ vi.mock('chalk', () => ({
 }));
 
 function runSelect(args: string[] = []): Promise<void> {
-  return selectCommand.parseAsync(['node', 'select', ...args], { from: 'user' }).then(() => {});
+  return selectCommand.parseAsync(args, { from: 'user' }).then(() => {});
 }
 
 describe('selectCommand', () => {
