@@ -487,4 +487,45 @@ describe('GroupManager', () => {
       cleanupTempDir(root);
     });
   });
+
+  describe('buildSelectableGroups', () => {
+    it('prioritizes selections from the current git repository', () => {
+      const { root: root1 } = createTempProject();
+      const { root: root2 } = createTempProject();
+      mkdirSync(join(root1, '.git'), { recursive: true });
+      mkdirSync(join(root2, '.git'), { recursive: true });
+
+      createGlobalConfig({
+        repositories: {
+          repoA: {
+            path: root1,
+            group: 'default',
+          },
+          repoB: {
+            path: root2,
+            group: 'default',
+          },
+        },
+      });
+
+      mockStore.execSync.mockImplementation((command: string, options?: { cwd?: string; encoding?: string }) => {
+        if (command === 'git worktree list --porcelain' && options?.encoding === 'utf-8') {
+          return '';
+        }
+        return Buffer.from('');
+      });
+
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(root2);
+
+      const selections = GroupManager.buildSelectableGroups();
+
+      expect(selections).toHaveLength(2);
+      expect(selections[0]?.repositoryPath).toBe(realpathSync(root2));
+      expect(selections[1]?.repositoryPath).toBe(realpathSync(root1));
+
+      cwdSpy.mockRestore();
+      cleanupTempDir(root1);
+      cleanupTempDir(root2);
+    });
+  });
 });
