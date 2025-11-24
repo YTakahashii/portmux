@@ -1,5 +1,14 @@
 # @portmux/cli
 
+## 0.2.1
+
+### Patch Changes
+
+- [#23](https://github.com/YTakahashii/portmux/pull/23) [`035c796`](https://github.com/YTakahashii/portmux/commit/035c796ced9c1b922889e857252435177d0f264c) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Shorten stop timeout to 3 seconds by default and allow configuring the stop timeout from the CLI flag.
+
+- Updated dependencies [[`035c796`](https://github.com/YTakahashii/portmux/commit/035c796ced9c1b922889e857252435177d0f264c)]:
+  - @portmux/core@0.1.5
+
 ## 0.2.0
 
 ### Minor Changes
