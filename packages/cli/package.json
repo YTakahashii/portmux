@@ -34,7 +34,19 @@
     "dev": "node ./dist/index.js",
     "test": "vitest"
   },
-  "keywords": [],
+  "keywords": [
+    "cli",
+    "portmux",
+    "port",
+    "multiplexer",
+    "process-management",
+    "developer-tools",
+    "git-worktree",
+    "development-workflow",
+    "background-processes",
+    "port-conflict",
+    "eaddrinuse"
+  ],
   "author": "YTakahashii",
   "license": "MIT",
   "dependencies": {
