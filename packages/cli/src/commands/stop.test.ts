@@ -80,6 +80,14 @@ describe('stopCommand', () => {
     expect(console.log).toHaveBeenCalledWith('✓ Stopped process "worker" (ws1)');
   });
 
+  it('passes timeout option to stopProcess', async () => {
+    listAllStates.mockReturnValue([{ group: 'ws1', process: 'api', status: 'Running' as const }]);
+
+    await runStopCommand('ws1', undefined, { timeout: 500 });
+
+    expect(ProcessManager.stopProcess).toHaveBeenCalledWith('ws1', 'api', 500);
+  });
+
   it('reports when targeted process is not running', async () => {
     listAllStates.mockReturnValue([{ group: 'ws1', process: 'api', status: 'Running' as const }]);
 
