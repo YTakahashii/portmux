@@ -149,8 +149,7 @@ function createSelectCommand(): Command {
           }
         }
 
-        const availableGroups = Object.keys(resolved.projectConfig.groups);
-        const targetGroups = groupsToRestart.size > 0 ? Array.from(groupsToRestart) : availableGroups;
+        const targetGroups = groupsToRestart.size > 0 ? Array.from(groupsToRestart) : [resolved.groupDefinitionName];
 
         if (targetGroups.length === 0) {
           console.log(chalk.yellow('No groups defined in project config.'));
