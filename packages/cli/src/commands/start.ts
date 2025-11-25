@@ -19,6 +19,7 @@ import { buildGroupInstanceId, buildGroupLabel } from '../utils/group-instance.j
 interface StartInvokeOptions {
   worktreePath?: string;
   worktreeLabel?: string;
+  groupDefinitionNameOverride?: string;
 }
 
 function extractCauseMessage(cause: unknown): string | undefined {
@@ -119,7 +120,7 @@ export async function runStartCommand(
       }
     }
 
-    const targetGroup = resolvedGroup.groupDefinitionName;
+    const targetGroup = invokeOptions?.groupDefinitionNameOverride ?? resolvedGroup.groupDefinitionName;
     const group = resolvedGroup.projectConfig.groups[targetGroup];
     const projectRoot = resolvedGroup.path;
 

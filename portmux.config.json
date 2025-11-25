@@ -5,7 +5,16 @@
       "description": "",
       "commands": [
         {
-          "name": "sleep",
+          "name": "sleep1",
+          "command": "sleep 1000"
+        }
+      ]
+    },
+    "debug2": {
+      "description": "",
+      "commands": [
+        {
+          "name": "sleep2",
           "command": "sleep 1000"
         }
       ]
