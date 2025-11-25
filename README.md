@@ -4,7 +4,7 @@ Tired of `Error: listen EADDRINUSE: address already in use :::3000`?
 
 PortMux is a developer-focused CLI for running and coordinating background processes. It solves the chronic problem of port conflicts in projects with multiple services, especially when working across several Git branches.
 
-It reserves ports for your process groups before they start, and **automatically isolates port reservations for each Git worktree**. This means you can run the same application stack on different branches simultaneously without collisions—perfect for parallel feature development, running review environments, or powering agentic coding workflows.
+It reserves ports for your process groups before they start and **ties each reservation to a Git worktree**. When another worktree already owns a port, PortMux fails fast and tells you which one; the `select` command will stop the old worktree and start the new one so you can reuse the same ports safely.
 
 While tools like `pm2` or `systemd` are excellent for managing production services, PortMux is purpose-built for the development inner loop, prioritizing simplicity and eliminating common frustrations.
 
@@ -12,7 +12,7 @@ While tools like `pm2` or `systemd` are excellent for managing production servic
 
 PortMux is built on a few core principles to streamline the developer experience:
 
-- **Frictionless Parallelism with Git Worktrees**: The core feature. PortMux maps port reservations to individual Git worktrees. Clone your repository into multiple worktrees (`git worktree add ...`), and `portmux` will handle the rest. Never again will you have to stop one server just to test another branch.
+- **Frictionless Parallelism with Git Worktrees**: The core feature. PortMux maps process state to individual Git worktrees. Clone your repository into multiple worktrees (`git worktree add ...`), and `portmux select` will stop whichever worktree is holding the ports before starting the one you choose—no manual cleanup required.
 
 - **Predictable by Default**: By reserving ports _before_ launching your commands, PortMux fails fast and tells you exactly which port is unavailable. This avoids the pain of one service in a group failing mid-startup because another service took its port.
 
@@ -20,7 +20,7 @@ PortMux is built on a few core principles to streamline the developer experience
 
 ## Features
 
-- Git worktree–aware port isolation so each checkout can reuse the same port set without collisions
+- Git worktree–aware process tracking; if another worktree already holds a port, starts fail fast and `portmux select` can hand off the running group for you
 - Group-oriented process management with shared start/stop/restart flows
 - Port reservation to avoid collisions before booting services
 - Environment templating with `${VAR}` expansion from config or `process.env`
@@ -78,7 +78,7 @@ PortMux is built on a few core principles to streamline the developer experience
 
 ## Usage Examples
 
-PortMux's core value shines when you're working on multiple features at once. Here’s how you can use it with Git worktrees to run two versions of your app simultaneously without port conflicts.
+PortMux's core value shines when you're working on multiple features at once. Here’s how you can use it with Git worktrees to switch between two versions of your app without fighting over ports.
 
 ### Switching Between Worktrees with `select` (Recommended)
 
@@ -165,10 +165,10 @@ portmux sync --all
 - `portmux init [--force]`: Interactive setup for `portmux.config.json` and global registration.
 - `portmux start [group] [process]`: Start processes with port reservation and env substitution.
 - `portmux restart [group] [process]`: Stop then start using the same resolution rules as `start`.
-- `portmux stop [group] [process]`: Stop processes; prompts when multiple groups are running.
+- `portmux stop [group] [process] [--all] [-t, --timeout <ms>]`: Stop processes; errors when multiple groups are running unless `--all`, and `--timeout` controls the wait before SIGKILL (default: 3000 ms).
 - `portmux ps`: List group, process name, status, and PID.
 - `portmux select [--all]`: Pick a registered repository and run `start`; `--all` includes entries outside Git worktrees.
-- `portmux sync [--all] [--group <name>] [--name <alias>] [--dry-run] [--force] [--prune]`: Register the current project config in `~/.config/portmux/config.json`. Defaults to a single group; use `--all` to register every group.
+- `portmux sync [--all] [--group <name>] [--name <alias>] [--dry-run] [--force] [--prune]`: Register the current project config in `~/.config/portmux/config.json`. When multiple groups exist you must pass `--group <name>` or `--all`; otherwise the command exits with an error.
 - `portmux logs <group> <process> [-n <lines>] [--no-follow] [-t]`: Tail logs with optional timestamps.
 
 ## Security note
@@ -195,7 +195,7 @@ portmux sync --all
   - `path`: Absolute path to the project root.
   - `group`: Group name in `portmux.config.json`.
 - `portmux init` appends the current project; `start`/`restart`/`select` use this mapping for resolution.
-- `portmux sync` is the quickest way to register a repo that already ships with `portmux.config.json` (e.g., after cloning). By default it registers a single group; add `--all` to register every group, and `--prune` to drop stale entries that no longer exist on disk.
+- `portmux sync` is the quickest way to register a repo that already ships with `portmux.config.json` (e.g., after cloning). When only one group exists it registers that group by default; otherwise pass `--group <name>` or `--all` (and `--prune` to drop stale entries that no longer exist on disk).
 
 ### Group Resolution
 
