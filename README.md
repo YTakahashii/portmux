@@ -164,8 +164,8 @@ portmux sync --all
 ### Command Reference
 
 - `portmux init [--force]`: Interactive setup for `portmux.config.json` and global registration.
-- `portmux start [group] [process]`: Start processes with port reservation and env substitution.
-- `portmux restart [group] [process]`: Stop then start using the same resolution rules as `start`.
+- `portmux start [group] [process] [--all]`: Start processes with port reservation and env substitution. `--all` starts every group defined in the project config for the current worktree.
+- `portmux restart [group] [process] [--all]`: Stop then start using the same resolution rules as `start`. `--all` restarts every running process in the current worktree.
 - `portmux stop [group] [process] [--all] [-t, --timeout <ms>]`: Stop processes; errors when multiple groups are running unless `--all`, and `--timeout` controls the wait before SIGKILL (default: 3000 ms).
 - `portmux ps`: List group, process name, status, and PID.
 - `portmux select [--all]`: Pick a registered repository and run `start`; `--all` includes entries outside Git worktrees.

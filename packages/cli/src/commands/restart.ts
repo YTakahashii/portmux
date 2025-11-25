@@ -9,6 +9,7 @@ import {
   ProcessStartError,
   GroupManager,
   GroupResolutionError,
+  StateManager,
   type ResolvedGroup,
 } from '@portmux/core';
 import { Command } from 'commander';
@@ -17,6 +18,9 @@ import { resolve } from 'path';
 import { buildGroupInstanceId, buildGroupLabel } from '../utils/group-instance.js';
 
 export const restartCommand: ReturnType<typeof createRestartCommand> = createRestartCommand();
+interface RestartInvokeOptions {
+  restartAll?: boolean;
+}
 
 function resolveGroupOrFallback(groupName?: string): ResolvedGroup {
   try {
@@ -55,8 +59,23 @@ function resolveGroupOrFallback(groupName?: string): ResolvedGroup {
   }
 }
 
-async function restartProcess(resolvedGroup: ResolvedGroup, processName?: string): Promise<void> {
-  const targetGroup = resolvedGroup.groupDefinitionName;
+function normalizePath(pathStr?: string): string | null {
+  if (!pathStr) {
+    return null;
+  }
+
+  try {
+    return resolve(pathStr);
+  } catch {
+    return pathStr;
+  }
+}
+
+async function restartProcessesForGroup(
+  resolvedGroup: ResolvedGroup,
+  targetGroup: string,
+  processNames?: Set<string>
+): Promise<void> {
   const groupDef = resolvedGroup.projectConfig.groups[targetGroup];
 
   if (!groupDef) {
@@ -64,12 +83,11 @@ async function restartProcess(resolvedGroup: ResolvedGroup, processName?: string
     process.exit(1);
   }
 
-  const processes = processName ? groupDef.commands.filter((cmd) => cmd.name === processName) : groupDef.commands;
+  const processes = processNames ? groupDef.commands.filter((cmd) => processNames.has(cmd.name)) : groupDef.commands;
 
   if (processes.length === 0) {
-    console.error(
-      chalk.red(processName ? `Error: Process "${processName}" not found` : 'Error: No processes to restart')
-    );
+    const label = processNames?.size === 1 ? Array.from(processNames)[0] : undefined;
+    console.error(chalk.red(label ? `Error: Process "${label}" not found` : 'Error: No processes to restart'));
     process.exit(1);
   }
 
@@ -112,10 +130,70 @@ async function restartProcess(resolvedGroup: ResolvedGroup, processName?: string
   });
 }
 
-export async function runRestartCommand(groupName?: string, processName?: string): Promise<void> {
+export async function runRestartCommand(
+  groupName?: string,
+  processName?: string,
+  options?: RestartInvokeOptions
+): Promise<void> {
   try {
     const resolvedGroup = resolveGroupOrFallback(groupName);
-    await restartProcess(resolvedGroup, processName);
+
+    if (options?.restartAll && processName) {
+      console.error(chalk.red('Error: --all cannot be combined with a process name'));
+      process.exit(1);
+    }
+
+    if (options?.restartAll) {
+      const currentPath = normalizePath(resolvedGroup.path);
+      const running = StateManager.listAllStates().filter((state) => {
+        if (state.status !== 'Running') {
+          return false;
+        }
+        if (state.repositoryName !== resolvedGroup.name) {
+          return false;
+        }
+        const statePath = normalizePath(state.worktreePath ?? state.groupKey);
+        if (currentPath && statePath && currentPath !== statePath) {
+          return false;
+        }
+        return true;
+      });
+
+      if (running.length === 0) {
+        console.log(chalk.yellow('No running processes to restart.'));
+        return;
+      }
+
+      const processesByGroup = new Map<string, Set<string>>();
+      for (const state of running) {
+        const groupDefinition = state.groupDefinitionName ?? resolvedGroup.groupDefinitionName;
+        if (!groupDefinition) {
+          continue;
+        }
+        const processSet = processesByGroup.get(groupDefinition) ?? new Set<string>();
+        processSet.add(state.process);
+        processesByGroup.set(groupDefinition, processSet);
+      }
+
+      for (const [groupDefinitionName, processNames] of processesByGroup.entries()) {
+        if (!resolvedGroup.projectConfig.groups[groupDefinitionName]) {
+          console.log(
+            chalk.yellow(
+              `Group "${groupDefinitionName}" is not defined in the project config. Skipping restart for this group.`
+            )
+          );
+          continue;
+        }
+        await restartProcessesForGroup(resolvedGroup, groupDefinitionName, processNames);
+      }
+      return;
+    }
+
+    await restartProcessesForGroup(
+      resolvedGroup,
+      resolvedGroup.groupDefinitionName,
+      processName ? new Set([processName]) : undefined
+    );
   } catch (error) {
     if (error instanceof ConfigNotFoundError) {
       console.error(chalk.red(`Error: ${error.message}`));
@@ -138,7 +216,8 @@ function createRestartCommand(): Command {
     .description('Restart processes')
     .argument('[group-name]', 'Group name (defaults to resolving from the current directory)')
     .argument('[process-name]', 'Process name (targets all processes in the group when omitted)')
-    .action(async (groupName?: string, processName?: string) => {
-      await runRestartCommand(groupName, processName);
+    .option('--all', 'Restart all running processes in the current project')
+    .action(async (groupName?: string, processName?: string, options?: { all?: boolean }) => {
+      await runRestartCommand(groupName, processName, { restartAll: options?.all === true });
     });
 }

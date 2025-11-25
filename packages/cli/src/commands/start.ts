@@ -20,6 +20,7 @@ interface StartInvokeOptions {
   worktreePath?: string;
   worktreeLabel?: string;
   groupDefinitionNameOverride?: string;
+  startAll?: boolean;
 }
 
 function extractCauseMessage(cause: unknown): string | undefined {
@@ -120,65 +121,80 @@ export async function runStartCommand(
       }
     }
 
-    const targetGroup = invokeOptions?.groupDefinitionNameOverride ?? resolvedGroup.groupDefinitionName;
-    const group = resolvedGroup.projectConfig.groups[targetGroup];
     const projectRoot = resolvedGroup.path;
+    if (invokeOptions?.startAll && processName) {
+      console.error(chalk.red('Error: --all cannot be combined with a process name'));
+      process.exit(1);
+      return;
+    }
 
-    if (!group) {
-      console.error(chalk.red(`Error: Group "${targetGroup}" not found`));
+    const targetGroups = invokeOptions?.startAll
+      ? Object.keys(resolvedGroup.projectConfig.groups)
+      : [invokeOptions?.groupDefinitionNameOverride ?? resolvedGroup.groupDefinitionName];
+
+    if (targetGroups.length === 0) {
+      console.error(chalk.red('Error: No groups found in project config'));
       process.exit(1);
     }
 
-    const groupInstanceId = buildGroupInstanceId(resolvedGroup.name, targetGroup, projectRoot);
-    const groupLabel = buildGroupLabel(resolvedGroup.name, invokeOptions?.worktreeLabel);
+    for (const targetGroup of targetGroups) {
+      const group = resolvedGroup.projectConfig.groups[targetGroup];
+      if (!group) {
+        console.error(chalk.red(`Error: Group "${targetGroup}" not found`));
+        process.exit(1);
+      }
 
-    // Determine which processes should be started
-    const processesToStart = processName ? group.commands.filter((cmd) => cmd.name === processName) : group.commands;
+      const groupInstanceId = buildGroupInstanceId(resolvedGroup.name, targetGroup, projectRoot);
+      const groupLabel = buildGroupLabel(resolvedGroup.name, invokeOptions?.worktreeLabel);
 
-    if (processesToStart.length === 0) {
-      console.error(
-        chalk.red(processName ? `Error: Process "${processName}" not found` : 'Error: No processes to start')
-      );
-      process.exit(1);
-    }
+      // Determine which processes should be started
+      const processesToStart = processName ? group.commands.filter((cmd) => cmd.name === processName) : group.commands;
 
-    // Acquire a lock and start each process
-    await LockManager.withLock('group', groupInstanceId, async () => {
-      for (const cmd of processesToStart) {
-        try {
-          // Resolve environment variables
-          const resolvedEnv = cmd.env ? ConfigManager.resolveEnvObject(cmd.env) : {};
-          const resolvedCommand = ConfigManager.resolveCommandEnv(cmd.command, cmd.env);
+      if (processesToStart.length === 0) {
+        console.error(
+          chalk.red(processName ? `Error: Process "${processName}" not found` : 'Error: No processes to start')
+        );
+        process.exit(1);
+      }
 
-          // Start the process (ProcessManager uses PortManager reservation APIs internally)
-          await ProcessManager.startProcess(groupInstanceId, cmd.name, resolvedCommand, {
-            ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
-            env: resolvedEnv,
-            projectRoot,
-            groupKey: projectRoot,
-            groupLabel,
-            repositoryName: resolvedGroup.name,
-            groupDefinitionName: targetGroup,
-            worktreePath: projectRoot,
-            ...(invokeOptions?.worktreeLabel !== undefined && { branch: invokeOptions.worktreeLabel }),
-            ...(cmd.ports !== undefined && { ports: cmd.ports }),
-          });
+      // Acquire a lock and start each process
+      await LockManager.withLock('group', groupInstanceId, async () => {
+        for (const cmd of processesToStart) {
+          try {
+            // Resolve environment variables
+            const resolvedEnv = cmd.env ? ConfigManager.resolveEnvObject(cmd.env) : {};
+            const resolvedCommand = ConfigManager.resolveCommandEnv(cmd.command, cmd.env);
 
-          console.log(chalk.green(`✓ Started process "${cmd.name}"`));
-        } catch (error) {
-          if (error instanceof ProcessStartError || error instanceof PortInUseError) {
-            const { message: detailedMessage, causeStack } = formatStartErrorMessage(error);
-            const lines = [`Error: Failed to start process "${cmd.name}": ${detailedMessage}`];
-            if (causeStack) {
-              lines.push(`Caused by:\n${causeStack}`);
+            // Start the process (ProcessManager uses PortManager reservation APIs internally)
+            await ProcessManager.startProcess(groupInstanceId, cmd.name, resolvedCommand, {
+              ...(cmd.cwd !== undefined && { cwd: cmd.cwd }),
+              env: resolvedEnv,
+              projectRoot,
+              groupKey: projectRoot,
+              groupLabel,
+              repositoryName: resolvedGroup.name,
+              groupDefinitionName: targetGroup,
+              worktreePath: projectRoot,
+              ...(invokeOptions?.worktreeLabel !== undefined && { branch: invokeOptions.worktreeLabel }),
+              ...(cmd.ports !== undefined && { ports: cmd.ports }),
+            });
+
+            console.log(chalk.green(`✓ Started process "${cmd.name}"`));
+          } catch (error) {
+            if (error instanceof ProcessStartError || error instanceof PortInUseError) {
+              const { message: detailedMessage, causeStack } = formatStartErrorMessage(error);
+              const lines = [`Error: Failed to start process "${cmd.name}": ${detailedMessage}`];
+              if (causeStack) {
+                lines.push(`Caused by:\n${causeStack}`);
+              }
+              console.error(chalk.red(lines.join('\n')));
+            } else {
+              throw error;
             }
-            console.error(chalk.red(lines.join('\n')));
-          } else {
-            throw error;
           }
         }
-      }
-    });
+      });
+    }
   } catch (error) {
     if (error instanceof ConfigNotFoundError) {
       console.error(chalk.red(`Error: ${error.message}`));
@@ -198,7 +214,8 @@ function createStartCommand(): Command {
     .description('Start processes')
     .argument('[group-name]', 'Group name (defaults to resolving from the current directory)')
     .argument('[process-name]', 'Process name (starts all processes in the group when omitted)')
-    .action(async (groupName?: string, processName?: string) => {
-      await runStartCommand(groupName, processName);
+    .option('--all', 'Start every group defined in the project config')
+    .action(async (groupName?: string, processName?: string, options?: { all?: boolean }) => {
+      await runStartCommand(groupName, processName, { startAll: options?.all === true });
     });
 }
