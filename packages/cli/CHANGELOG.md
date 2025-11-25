@@ -1,5 +1,20 @@
 # @portmux/cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [#28](https://github.com/YTakahashii/portmux/pull/28) [`9e9ac68`](https://github.com/YTakahashii/portmux/commit/9e9ac6893d88f08bfc8344dd38578e7d900f1151) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Add `stop --all` to stop every running group without specifying a group name when multiple groups are active.
+
+### Patch Changes
+
+- [#29](https://github.com/YTakahashii/portmux/pull/29) [`9f56b40`](https://github.com/YTakahashii/portmux/commit/9f56b4043903138d1eee470448633ca2ac9e072f) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Add sync guidance when the global config is missing and highlight `portmux sync --all` for multi-group projects.
+
+- [#26](https://github.com/YTakahashii/portmux/pull/26) [`f6ec3aa`](https://github.com/YTakahashii/portmux/commit/f6ec3aa2a9befac4b8344bf5af5d3fa43142ffed) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Ensure `portmux select` stops other worktrees for the same repository and restarts every running group definition in the newly selected worktree.
+
+- Updated dependencies [[`9f56b40`](https://github.com/YTakahashii/portmux/commit/9f56b4043903138d1eee470448633ca2ac9e072f)]:
+  - @portmux/core@0.1.6
+
 ## 0.2.1
 
 ### Patch Changes
