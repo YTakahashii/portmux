@@ -6,6 +6,7 @@ import {
   ProcessManager,
   ProcessRestartError,
   GroupManager,
+  StateManager,
 } from '@portmux/core';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { createChalkMock } from '../test-utils/mock-chalk.js';
@@ -39,6 +40,9 @@ vi.mock('@portmux/core', () => {
     },
     ProcessManager: {
       restartProcess: vi.fn(),
+    },
+    StateManager: {
+      listAllStates: vi.fn(),
     },
     ConfigNotFoundError,
     GroupResolutionError,
@@ -83,6 +87,7 @@ describe('runRestartCommand', () => {
     vi.mocked(ProcessManager.restartProcess).mockResolvedValue();
     vi.mocked(GroupManager.resolveGroupByName).mockReturnValue(resolvedGroup);
     vi.mocked(GroupManager.resolveGroupAuto).mockReturnValue(resolvedGroup);
+    vi.mocked(StateManager.listAllStates).mockReturnValue([]);
   });
 
   afterEach(() => {
@@ -153,5 +158,100 @@ describe('runRestartCommand', () => {
 
     expect(console.error).toHaveBeenCalledWith('Error: timeout');
     expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('restarts all running processes when --all is provided', async () => {
+    vi.mocked(GroupManager.resolveGroupByName).mockReturnValue({
+      ...resolvedGroup,
+      projectConfig: {
+        groups: {
+          api: {
+            description: '',
+            commands: [
+              { name: 'api', command: 'npm run api' },
+              { name: 'worker', command: 'npm run worker' },
+            ],
+          },
+          jobs: {
+            description: '',
+            commands: [{ name: 'jobs', command: 'npm run jobs' }],
+          },
+        },
+      },
+      groupDefinitionName: 'api',
+    });
+    vi.mocked(StateManager.listAllStates).mockReturnValue([
+      {
+        group: 'ws-one::api::a',
+        repositoryName: 'ws-one',
+        worktreePath: '/repo',
+        status: 'Running',
+        process: 'api',
+        groupDefinitionName: 'api',
+      },
+      {
+        group: 'ws-one::jobs::b',
+        repositoryName: 'ws-one',
+        worktreePath: '/repo',
+        status: 'Running',
+        process: 'jobs',
+        groupDefinitionName: 'jobs',
+      },
+      {
+        group: 'other::api::c',
+        repositoryName: 'other',
+        worktreePath: '/repo',
+        status: 'Running',
+        process: 'api',
+        groupDefinitionName: 'api',
+      },
+      {
+        group: 'ws-one::api::d',
+        repositoryName: 'ws-one',
+        worktreePath: '/other-worktree',
+        status: 'Running',
+        process: 'worker',
+        groupDefinitionName: 'api',
+      },
+    ]);
+
+    await runRestartCommand('ws-one', undefined, { restartAll: true });
+
+    expect(ProcessManager.restartProcess).toHaveBeenCalledTimes(2);
+    expect(ProcessManager.restartProcess).toHaveBeenCalledWith(
+      'group-instance-id',
+      'api',
+      'npm run api',
+      expect.objectContaining({
+        repositoryName: 'ws-one',
+        groupDefinitionName: 'api',
+        worktreePath: '/repo',
+      })
+    );
+    expect(ProcessManager.restartProcess).toHaveBeenCalledWith(
+      'group-instance-id',
+      'jobs',
+      'npm run jobs',
+      expect.objectContaining({
+        repositoryName: 'ws-one',
+        groupDefinitionName: 'jobs',
+        worktreePath: '/repo',
+      })
+    );
+  });
+
+  it('logs when no processes are running with --all', async () => {
+    await runRestartCommand('ws-one', undefined, { restartAll: true });
+
+    expect(console.log).toHaveBeenCalledWith('No running processes to restart.');
+    expect(ProcessManager.restartProcess).not.toHaveBeenCalled();
+  });
+
+  it('errors when process name is combined with --all', async () => {
+    await runRestartCommand('ws-one', 'api', { restartAll: true });
+
+    expect(console.error).toHaveBeenCalledWith('Error: --all cannot be combined with a process name');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(ProcessManager.restartProcess).not.toHaveBeenCalled();
   });
 });

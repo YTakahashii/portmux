@@ -194,4 +194,53 @@ describe('runStartCommand', () => {
     expect(console.error).toHaveBeenCalledWith('Error: missing');
     expect(process.exit).toHaveBeenCalledWith(1);
   });
+
+  it('starts every group when startAll is enabled', async () => {
+    vi.mocked(GroupManager.resolveGroupByName).mockReturnValue({
+      ...resolvedGroup,
+      projectConfig: {
+        groups: {
+          api: {
+            description: '',
+            commands: [{ name: 'api', command: 'npm start api' }],
+          },
+          worker: {
+            description: '',
+            commands: [{ name: 'worker', command: 'npm start worker' }],
+          },
+        },
+      },
+      groupDefinitionName: 'api',
+    });
+
+    await runStartCommand('ws-one', undefined, { startAll: true });
+
+    expect(ProcessManager.startProcess).toHaveBeenCalledTimes(2);
+    expect(ProcessManager.startProcess).toHaveBeenCalledWith(
+      'group-instance-id',
+      'api',
+      'npm start api',
+      expect.objectContaining({
+        repositoryName: 'ws-one',
+        groupDefinitionName: 'api',
+      })
+    );
+    expect(ProcessManager.startProcess).toHaveBeenCalledWith(
+      'group-instance-id',
+      'worker',
+      'npm start worker',
+      expect.objectContaining({
+        repositoryName: 'ws-one',
+        groupDefinitionName: 'worker',
+      })
+    );
+  });
+
+  it('errors when process name is combined with startAll', async () => {
+    await runStartCommand('ws-one', 'api', { startAll: true });
+
+    expect(console.error).toHaveBeenCalledWith('Error: --all cannot be combined with a process name');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(ProcessManager.startProcess).not.toHaveBeenCalled();
+  });
 });
