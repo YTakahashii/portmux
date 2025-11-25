@@ -1,5 +1,11 @@
 # @portmux/core
 
+## 0.1.6
+
+### Patch Changes
+
+- [#29](https://github.com/YTakahashii/portmux/pull/29) [`9f56b40`](https://github.com/YTakahashii/portmux/commit/9f56b4043903138d1eee470448633ca2ac9e072f) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Add sync guidance when the global config is missing and highlight `portmux sync --all` for multi-group projects.
+
 ## 0.1.5
 
 ### Patch Changes
