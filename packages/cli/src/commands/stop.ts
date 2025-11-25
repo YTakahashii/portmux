@@ -14,6 +14,7 @@ export const stopCommand: ReturnType<typeof createStopCommand> = createStopComma
 
 interface RunStopOptions {
   timeout?: number;
+  stopAll?: boolean;
 }
 
 function formatStateLabel(state: ProcessState): string {
@@ -57,6 +58,7 @@ export async function runStopCommand(
   try {
     const allStates = StateManager.listAllStates();
     const stopTimeout = options.timeout;
+    const stopAll = options.stopAll === true;
 
     // When no group name is provided, read every process from the state store
     if (!groupName) {
@@ -72,8 +74,8 @@ export async function runStopCommand(
         return;
       }
 
-      // Error if multiple groups are running
-      if (groups.size > 1) {
+      // Error if multiple groups are running unless explicitly stopping all
+      if (groups.size > 1 && !stopAll) {
         console.error(chalk.red('Error: Multiple groups are running. Please specify a group name.'));
         console.error(
           chalk.red(
@@ -86,12 +88,32 @@ export async function runStopCommand(
         return;
       }
 
-      groupName = Array.from(groups.keys())[0];
+      const targets = stopAll ? Array.from(groups.keys()) : [...groups.keys()].slice(0, 1);
+      const aggregatedStates: ProcessState[] = [];
+
+      for (const target of targets) {
+        const matching = filterStatesByIdentifier(allStates, target);
+        if (matching.length === 0) {
+          console.log(chalk.yellow(`No running processes found for group "${target}"`));
+          continue;
+        }
+        aggregatedStates.push(...matching);
+      }
+
+      if (aggregatedStates.length === 0) {
+        return;
+      }
+
+      allStates.length = 0;
+      allStates.push(...aggregatedStates);
+      groupName = targets.length === 1 ? targets[0] : undefined;
     }
 
     let matchingStates: ProcessState[] = [];
     if (groupName) {
       matchingStates = filterStatesByIdentifier(allStates, groupName);
+    } else {
+      matchingStates = allStates;
     }
 
     if (matchingStates.length === 0) {
@@ -156,7 +178,8 @@ function createStopCommand(): Command {
     .argument('[group-name]', 'Group name')
     .argument('[process-name]', 'Process name (stops all processes in the group when omitted)')
     .option('-t, --timeout <ms>', 'Timeout in milliseconds before force stop (default: 3000)')
-    .action(async (groupName?: string, processName?: string, options?: { timeout?: string }) => {
+    .option('--all', 'Stop all running groups')
+    .action(async (groupName?: string, processName?: string, options?: { timeout?: string; all?: boolean }) => {
       let timeout: number | undefined;
       if (options?.timeout !== undefined) {
         const parsed = Number.parseInt(options.timeout, 10);
@@ -171,6 +194,9 @@ function createStopCommand(): Command {
       const stopOptions: RunStopOptions = {};
       if (timeout !== undefined) {
         stopOptions.timeout = timeout;
+      }
+      if (options?.all === true) {
+        stopOptions.stopAll = true;
       }
 
       await runStopCommand(groupName, processName, stopOptions);

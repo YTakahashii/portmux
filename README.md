@@ -142,6 +142,8 @@ portmux start app web
 # Restart or stop
 portmux restart app web
 portmux stop app
+# When multiple groups are running and you want to stop everything at once
+portmux stop --all
 
 # Show running state for all worktrees
 portmux ps

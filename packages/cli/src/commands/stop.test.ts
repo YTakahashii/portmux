@@ -80,6 +80,20 @@ describe('stopCommand', () => {
     expect(console.log).toHaveBeenCalledWith('✓ Stopped process "worker" (ws1)');
   });
 
+  it('stops all running groups when --all is provided', async () => {
+    listAllStates.mockReturnValue([
+      { group: 'ws1', process: 'api', status: 'Running' as const },
+      { group: 'ws2', process: 'worker', status: 'Running' as const },
+    ]);
+
+    await runStopCommand(undefined, undefined, { stopAll: true });
+
+    expect(process.exit).not.toHaveBeenCalled();
+    expect(ProcessManager.stopProcess).toHaveBeenCalledTimes(2);
+    expect(LockManager.withLock).toHaveBeenCalledWith('group', 'ws1', expect.any(Function));
+    expect(LockManager.withLock).toHaveBeenCalledWith('group', 'ws2', expect.any(Function));
+  });
+
   it('passes timeout option to stopProcess', async () => {
     listAllStates.mockReturnValue([{ group: 'ws1', process: 'api', status: 'Running' as const }]);
 
