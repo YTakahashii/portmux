@@ -4,6 +4,15 @@ import { chalk } from '../lib/chalk.js';
 import inquirer, { type ChoiceCollection } from 'inquirer';
 import { runStartCommand } from './start.js';
 import { runStopCommand } from './stop.js';
+import { resolve } from 'path';
+
+function normalizePath(path: string): string {
+  try {
+    return resolve(path);
+  } catch {
+    return path;
+  }
+}
 
 interface SelectOptions {
   all?: boolean;
@@ -13,6 +22,7 @@ interface GroupAnswer {
   repositoryName: string;
   worktreePath: string;
   branchLabel?: string;
+  repositoryPath: string;
 }
 
 interface RunningWorktree {
@@ -20,6 +30,7 @@ interface RunningWorktree {
   worktreePath?: string;
   branch?: string;
   groupLabel?: string;
+  groupDefinitionName?: string;
 }
 
 function buildChoices(selections: GroupSelection[]): ChoiceCollection<GroupAnswer> {
@@ -42,6 +53,7 @@ function buildChoices(selections: GroupSelection[]): ChoiceCollection<GroupAnswe
         repositoryName: selection.repositoryName,
         worktreePath: selection.worktreePath,
         branchLabel: selection.branchLabel,
+        repositoryPath: selection.repositoryPath,
       },
       ...(selection.hasConfig ? {} : { disabled: 'Missing portmux.config.json' }),
     };
@@ -54,6 +66,7 @@ function buildChoices(selections: GroupSelection[]): ChoiceCollection<GroupAnswe
 function findRunningWorktrees(repositoryName: string, targetWorktreePath: string): RunningWorktree[] {
   const states = StateManager.listAllStates();
   const running = new Map<string, RunningWorktree>();
+  const normalizedTarget = normalizePath(targetWorktreePath);
 
   for (const state of states) {
     if (state.status !== 'Running') {
@@ -64,7 +77,7 @@ function findRunningWorktrees(repositoryName: string, targetWorktreePath: string
     }
 
     const worktreePath = state.worktreePath ?? state.groupKey;
-    if (!worktreePath || worktreePath === targetWorktreePath) {
+    if (!worktreePath || normalizePath(worktreePath) === normalizedTarget) {
       continue;
     }
 
@@ -72,6 +85,7 @@ function findRunningWorktrees(repositoryName: string, targetWorktreePath: string
       const worktree: RunningWorktree = {
         groupId: state.group,
         worktreePath,
+        ...(state.groupDefinitionName !== undefined && { groupDefinitionName: state.groupDefinitionName }),
       };
       if (state.branch !== undefined) {
         worktree.branch = state.branch;
@@ -123,20 +137,58 @@ function createSelectCommand(): Command {
           },
         ]);
 
+        const resolved = GroupManager.resolveGroupByName(group.repositoryName, { worktreePath: group.worktreePath });
+
         const runningWorktrees = findRunningWorktrees(group.repositoryName, group.worktreePath);
+        const groupsToRestart = new Set<string>();
         for (const running of runningWorktrees) {
           console.log(chalk.yellow(`Stopping running worktree: ${formatRunningWorktreeLabel(running)}`));
           await runStopCommand(running.groupId);
+          if (running.groupDefinitionName) {
+            groupsToRestart.add(running.groupDefinitionName);
+          }
         }
 
-        const startOptions: { worktreePath?: string; worktreeLabel?: string } = {
+        const availableGroups = Object.keys(resolved.projectConfig.groups);
+        const targetGroups = groupsToRestart.size > 0 ? Array.from(groupsToRestart) : availableGroups;
+
+        if (targetGroups.length === 0) {
+          console.log(chalk.yellow('No groups defined in project config.'));
+          return;
+        }
+
+        const missingGroups: string[] = [];
+        for (const groupDefinitionName of targetGroups) {
+          if (!resolved.projectConfig.groups[groupDefinitionName]) {
+            missingGroups.push(groupDefinitionName);
+          }
+        }
+
+        for (const missing of missingGroups) {
+          console.log(
+            chalk.yellow(
+              `Group "${missing}" is not defined in the selected worktree config. Skipping restart of this group.`
+            )
+          );
+        }
+
+        const startOptions: { worktreePath?: string; worktreeLabel?: string; groupDefinitionNameOverride?: string } = {
           worktreePath: group.worktreePath,
         };
         if (group.branchLabel !== undefined) {
           startOptions.worktreeLabel = group.branchLabel;
         }
 
-        await runStartCommand(group.repositoryName, undefined, startOptions);
+        for (const groupDefinitionName of targetGroups) {
+          if (!resolved.projectConfig.groups[groupDefinitionName]) {
+            continue;
+          }
+
+          await runStartCommand(group.repositoryName, undefined, {
+            ...startOptions,
+            groupDefinitionNameOverride: groupDefinitionName,
+          });
+        }
       } catch (error) {
         console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
         process.exit(1);

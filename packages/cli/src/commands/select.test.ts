@@ -10,6 +10,7 @@ import { selectCommand } from './select.js';
 vi.mock('@portmux/core', () => ({
   GroupManager: {
     buildSelectableGroups: vi.fn(),
+    resolveGroupByName: vi.fn(),
   },
   StateManager: {
     listAllStates: vi.fn(),
@@ -43,6 +44,7 @@ function runSelect(args: string[] = []): Promise<void> {
 
 describe('selectCommand', () => {
   const buildSelectableGroups = vi.mocked(GroupManager.buildSelectableGroups);
+  const resolveGroupByName = vi.mocked(GroupManager.resolveGroupByName);
   const promptMock = vi.mocked(inquirer.prompt);
   const runStartMock = vi.mocked(runStartCommand);
   const runStopMock = vi.mocked(runStopCommand);
@@ -55,6 +57,20 @@ describe('selectCommand', () => {
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     listAllStates.mockReturnValue([]);
     runStopMock.mockResolvedValue();
+    resolveGroupByName.mockImplementation((repositoryName: string, options?: { worktreePath?: string }) => ({
+      name: repositoryName,
+      path: options?.worktreePath ?? `/path/${repositoryName}`,
+      projectConfig: {
+        groups: {
+          default: {
+            description: '',
+            commands: [],
+          },
+        },
+      },
+      projectConfigPath: `${options?.worktreePath ?? `/path/${repositoryName}`}/portmux.config.json`,
+      groupDefinitionName: 'default',
+    }));
   });
 
   afterEach(() => {
@@ -114,13 +130,23 @@ describe('selectCommand', () => {
           {
             name: '[Running] repo1 (/path/repo1)',
             short: 'repo1',
-            value: { repositoryName: 'repo1', worktreePath: '/path/repo1', branchLabel: undefined },
+            value: {
+              repositoryName: 'repo1',
+              worktreePath: '/path/repo1',
+              branchLabel: undefined,
+              repositoryPath: '/path/repo1',
+            },
           },
           expect.objectContaining({ label: '--- repo2 ---' }),
           {
             name: 'repo2:feature (/path/repo2)',
             short: 'repo2:feature',
-            value: { repositoryName: 'repo2', worktreePath: '/path/repo2', branchLabel: 'feature' },
+            value: {
+              repositoryName: 'repo2',
+              worktreePath: '/path/repo2',
+              branchLabel: 'feature',
+              repositoryPath: '/path/repo2',
+            },
           },
         ],
       },
@@ -128,6 +154,7 @@ describe('selectCommand', () => {
     expect(runStartMock).toHaveBeenCalledWith('repo2', undefined, {
       worktreePath: '/path/repo2',
       worktreeLabel: 'feature',
+      groupDefinitionNameOverride: 'default',
     });
     expect(runStopMock).not.toHaveBeenCalled();
   });
@@ -146,7 +173,7 @@ describe('selectCommand', () => {
       },
     ]);
     promptMock.mockResolvedValue({
-      group: { repositoryName: 'repo', worktreePath: '/path/repo' },
+      group: { repositoryName: 'repo', worktreePath: '/path/repo', repositoryPath: '/path/repo' },
     });
 
     await runSelect(['--all']);
@@ -155,6 +182,7 @@ describe('selectCommand', () => {
     expect(runStartMock).toHaveBeenCalledWith('repo', undefined, {
       worktreePath: '/path/repo',
       worktreeLabel: undefined,
+      groupDefinitionNameOverride: 'default',
     });
     expect(runStopMock).not.toHaveBeenCalled();
   });
@@ -188,6 +216,7 @@ describe('selectCommand', () => {
         repositoryName: 'repo1',
         worktreePath: '/path/repo1-other',
         branchLabel: 'feature',
+        repositoryPath: '/path/repo1',
       },
     });
     listAllStates.mockReturnValue([
@@ -216,10 +245,93 @@ describe('selectCommand', () => {
     expect(runStartMock).toHaveBeenCalledWith('repo1', undefined, {
       worktreePath: '/path/repo1-other',
       worktreeLabel: 'feature',
+      groupDefinitionNameOverride: 'default',
     });
     expect(stopOrder).toBeDefined();
     expect(startOrder).toBeDefined();
     expect(stopOrder).toBeLessThan(startOrder!);
+  });
+
+  it('restarts all running group definitions from other worktrees', async () => {
+    buildSelectableGroups.mockReturnValue([
+      {
+        projectName: 'proj',
+        repositoryName: 'repo1',
+        repositoryPath: '/path/repo1',
+        worktreePath: '/path/repo1',
+        isRunning: false,
+        groupDefinitionName: 'default',
+        hasConfig: true,
+        isPrimary: true,
+      },
+      {
+        projectName: 'proj',
+        repositoryName: 'repo1',
+        repositoryPath: '/path/repo1',
+        worktreePath: '/path/repo1-feature',
+        isRunning: true,
+        groupDefinitionName: 'default',
+        branchLabel: 'feature',
+        hasConfig: true,
+        isPrimary: false,
+      },
+    ]);
+    resolveGroupByName.mockReturnValue({
+      name: 'repo1',
+      path: '/path/repo1',
+      projectConfig: {
+        groups: {
+          api: { description: '', commands: [] },
+          worker: { description: '', commands: [] },
+        },
+      },
+      projectConfigPath: '/path/repo1/portmux.config.json',
+      groupDefinitionName: 'api',
+    });
+    promptMock.mockResolvedValue({
+      group: {
+        repositoryName: 'repo1',
+        worktreePath: '/path/repo1',
+        branchLabel: undefined,
+        repositoryPath: '/path/repo1',
+      },
+    });
+    listAllStates.mockReturnValue([
+      {
+        group: 'repo1::api::aaa',
+        repositoryName: 'repo1',
+        worktreePath: '/path/repo1-feature',
+        status: 'Running',
+        process: 'web',
+        groupDefinitionName: 'api',
+      },
+      {
+        group: 'repo1::worker::bbb',
+        repositoryName: 'repo1',
+        worktreePath: '/path/repo1-feature',
+        status: 'Running',
+        process: 'jobs',
+        groupDefinitionName: 'worker',
+      },
+    ]);
+
+    await runSelect();
+
+    expect(runStopMock).toHaveBeenCalledTimes(2);
+    expect(runStopMock).toHaveBeenCalledWith('repo1::api::aaa');
+    expect(runStopMock).toHaveBeenCalledWith('repo1::worker::bbb');
+
+    expect(runStartMock).toHaveBeenCalledTimes(2);
+    expect(runStartMock).toHaveBeenNthCalledWith(1, 'repo1', undefined, {
+      worktreePath: '/path/repo1',
+      worktreeLabel: undefined,
+      groupDefinitionNameOverride: 'api',
+    });
+    expect(runStartMock).toHaveBeenNthCalledWith(2, 'repo1', undefined, {
+      worktreePath: '/path/repo1',
+      worktreeLabel: undefined,
+      groupDefinitionNameOverride: 'worker',
+    });
   });
 
   it('exits on error', async () => {
