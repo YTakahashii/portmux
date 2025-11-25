@@ -49,8 +49,8 @@ PortMux is built on a few core principles to streamline the developer experience
 
 ## Quick Start
 
-1. `portmux init` in your project root to generate `portmux.config.json` and register the repo in `~/.config/portmux/config.json` (use `--force` to overwrite).
-2. Edit the generated config. Example:
+1. `portmux init` in your project root to generate `portmux.config.json` and register the repo in `~/.config/portmux/config.json` (use `--force` to overwrite). If your repo already includes `portmux.config.json` (e.g., after cloning), run `portmux sync --all` for monorepos or any project with multiple groups to register everything without prompts.
+2. Edit the generated config (or review the existing one) and keep your group definitions up to date. Example:
    ```json
    {
      "$schema": "node_modules/@portmux/cli/schemas/portmux.config.schema.json",
@@ -72,9 +72,10 @@ PortMux is built on a few core principles to streamline the developer experience
      }
    }
    ```
-3. Start everything with `portmux start`.
-4. Inspect running processes with `portmux ps`.
-5. Follow logs with `portmux logs <group> <process>` and stop with `portmux stop [group] [process]`.
+3. Ensure the repository is registered in the global config with `portmux sync` (prefer `--all` for monorepos or when multiple groups exist).
+4. Start everything with `portmux start`.
+5. Inspect running processes with `portmux ps`.
+6. Follow logs with `portmux logs <group> <process>` and stop with `portmux stop [group] [process]`.
 
 ## Usage Examples
 

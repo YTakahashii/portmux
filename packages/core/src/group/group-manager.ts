@@ -195,13 +195,17 @@ export const GroupManager = {
     if (!merged) {
       throw new GroupResolutionError(
         `Repository "${repositoryName}" was not found.\n` +
-          `The global config file (${ConfigManager.getGlobalConfigPath()}) does not exist.`
+          `The global config file (${ConfigManager.getGlobalConfigPath()}) does not exist.\n` +
+          `Run "portmux sync" in your project to register this repository.`
       );
     }
 
     const mergedRepository = merged.repositories[repositoryName];
     if (!mergedRepository) {
-      throw new GroupResolutionError(`Repository "${repositoryName}" was not found in the global config.`);
+      throw new GroupResolutionError(
+        `Repository "${repositoryName}" was not found in the global config.\n` +
+          `Run "portmux sync" in your project to register this repository.`
+      );
     }
 
     let projectConfig = mergedRepository.projectConfig;
@@ -349,7 +353,8 @@ export const GroupManager = {
     throw new GroupResolutionError(
       `The repository for this git worktree is not defined in the global config.\n` +
         `Worktree path: ${matchedWorktreePath}\n` +
-        `Add the repository to the global config file: ${ConfigManager.getGlobalConfigPath()}`
+        `Add the repository to the global config file: ${ConfigManager.getGlobalConfigPath()}\n` +
+        `Run "portmux sync" in your project to register this repository.`
     );
   },
 
