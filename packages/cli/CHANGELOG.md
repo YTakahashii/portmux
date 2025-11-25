@@ -1,5 +1,15 @@
 # @portmux/cli
 
+## 0.4.0
+
+### Minor Changes
+
+- [#31](https://github.com/YTakahashii/portmux/pull/31) [`45eefb7`](https://github.com/YTakahashii/portmux/commit/45eefb7e062f5b7ad40b152463a8169bc16138f5) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Add `--all` option to `start` to launch every group in the project config and to `restart` to restart all running processes in the current worktree.
+
+### Patch Changes
+
+- [#30](https://github.com/YTakahashii/portmux/pull/30) [`5551cf1`](https://github.com/YTakahashii/portmux/commit/5551cf16e198544ebcd5fe914fab63399b4d7ce4) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Ensure `portmux select` only starts the chosen group when no other worktrees are running.
+
 ## 0.3.0
 
 ### Minor Changes
