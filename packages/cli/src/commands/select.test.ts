@@ -187,6 +187,50 @@ describe('selectCommand', () => {
     expect(runStopMock).not.toHaveBeenCalled();
   });
 
+  it('starts only the selected group definition when none are running', async () => {
+    buildSelectableGroups.mockReturnValue([
+      {
+        projectName: 'proj',
+        repositoryName: 'repo1',
+        repositoryPath: '/path/repo1',
+        worktreePath: '/path/repo1',
+        isRunning: false,
+        groupDefinitionName: 'app1',
+        hasConfig: true,
+        isPrimary: true,
+      },
+    ]);
+    resolveGroupByName.mockReturnValue({
+      name: 'repo1',
+      path: '/path/repo1',
+      projectConfig: {
+        groups: {
+          app1: { description: '', commands: [] },
+          app2: { description: '', commands: [] },
+        },
+      },
+      projectConfigPath: '/path/repo1/portmux.config.json',
+      groupDefinitionName: 'app1',
+    });
+    promptMock.mockResolvedValue({
+      group: {
+        repositoryName: 'repo1',
+        worktreePath: '/path/repo1',
+        branchLabel: undefined,
+        repositoryPath: '/path/repo1',
+      },
+    });
+
+    await runSelect();
+
+    expect(runStartMock).toHaveBeenCalledTimes(1);
+    expect(runStartMock).toHaveBeenCalledWith('repo1', undefined, {
+      worktreePath: '/path/repo1',
+      worktreeLabel: undefined,
+      groupDefinitionNameOverride: 'app1',
+    });
+  });
+
   it('stops running processes in other worktrees before starting selected group', async () => {
     buildSelectableGroups.mockReturnValue([
       {
