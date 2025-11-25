@@ -219,6 +219,28 @@ portmux sync --all
 - Run CLI locally: `pnpm dev:cli -- --help`
 - Behavior changes: run `pnpm changeset` and commit the generated entry.
 
+## Troubleshooting
+
+### `portmux start` / `restart` fails with a global-config error
+
+Run `portmux sync --all` (or `--group <name>` for a single group) in the repo so it registers in `~/.config/portmux/config.json`.
+
+### `portmux select` shows “No selectable groups”
+
+The repository is not registered. Run `portmux sync --all` in the worktree you want to use.
+
+### “The repository for this git worktree is not defined in the global config”
+
+Run `portmux sync --all` in that worktree to register it.
+
+### Port is already reserved / start fails mid-way
+
+Use `portmux select` to hand off to the active worktree, or `portmux stop --all` to clear running groups, then retry.
+
+### Config not found
+
+Ensure `portmux.config.json` exists in the project root (re-run `portmux init` if needed).
+
 ## Uninstall
 
 To remove PortMux from your system, first uninstall the global package:
