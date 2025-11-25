@@ -1,20 +1,28 @@
 {
   "$schema": "node_modules/@portmux/cli/schemas/portmux.config.schema.json",
   "groups": {
-    "debug": {
+    "app1": {
       "description": "",
       "commands": [
         {
-          "name": "sleep1",
+          "name": "app1:frontend",
+          "command": "sleep 1000"
+        },
+        {
+          "name": "app1:backend",
           "command": "sleep 1000"
         }
       ]
     },
-    "debug2": {
+    "app2": {
       "description": "",
       "commands": [
         {
-          "name": "sleep2",
+          "name": "app2:frontend",
+          "command": "sleep 1000"
+        },
+        {
+          "name": "app2:backend",
           "command": "sleep 1000"
         }
       ]
