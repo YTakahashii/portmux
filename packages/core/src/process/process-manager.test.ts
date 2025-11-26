@@ -11,7 +11,6 @@ import { ConfigManager } from '../config/config-manager.js';
 import { PortManager } from '../port/port-manager.js';
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
-import { LogWriter } from '../log/log-writer.js';
 
 const testHomeDir = mkdtempSync(join(systemTmpdir(), 'portmux-process-home-'));
 const testProjectRoot = mkdtempSync(join(systemTmpdir(), 'portmux-process-project-'));
@@ -94,17 +93,14 @@ vi.mock('../port/port-manager.js', async () => {
   };
 });
 
-const { mockLogWriter } = vi.hoisted(() => ({
-  mockLogWriter: {
-    write: vi.fn().mockResolvedValue(undefined),
-    close: vi.fn().mockResolvedValue(undefined),
-  },
+const { mockTrimLogFile, mockTrimLogFileSync } = vi.hoisted(() => ({
+  mockTrimLogFile: vi.fn().mockResolvedValue(undefined),
+  mockTrimLogFileSync: vi.fn(),
 }));
 
 vi.mock('../log/log-writer.js', () => ({
-  LogWriter: {
-    create: vi.fn().mockResolvedValue(mockLogWriter as unknown as LogWriter),
-  },
+  trimLogFile: mockTrimLogFile,
+  trimLogFileSync: mockTrimLogFileSync,
 }));
 
 describe('ProcessManager', () => {
@@ -129,10 +125,9 @@ describe('ProcessManager', () => {
     vi.mocked(PortManager.commitReservation).mockClear();
     vi.mocked(PortManager.releaseReservation).mockClear();
     vi.mocked(PortManager.releaseReservationByProcess).mockClear();
-    vi.mocked(LogWriter.create).mockClear();
-    vi.mocked(LogWriter.create).mockResolvedValue(mockLogWriter as unknown as LogWriter);
-    mockLogWriter.write.mockClear();
-    mockLogWriter.close.mockClear();
+    mockTrimLogFile.mockClear();
+    mockTrimLogFile.mockResolvedValue(undefined);
+    mockTrimLogFileSync.mockClear();
 
     vi.mocked(getCommandLine).mockReturnValue('npm start');
     vi.mocked(getProcessStartTime).mockReturnValue(null);
@@ -165,15 +160,20 @@ describe('ProcessManager', () => {
 
       expect(PortManager.reconcileFromState).toHaveBeenCalled();
       expect(StateManager.readState).toHaveBeenCalledWith('group-1', 'api');
-      expect(spawn).toHaveBeenCalledWith('npm start', {
-        cwd: testProjectRoot,
-        env: expect.any(Object),
-        detached: true,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        shell: true,
-      });
+      expect(spawn).toHaveBeenCalledWith(
+        'npm start',
+        expect.objectContaining({
+          cwd: testProjectRoot,
+          env: expect.any(Object),
+          detached: true,
+          stdio: ['ignore', expect.any(Number), expect.any(Number)],
+          shell: true,
+        })
+      );
+      const spawnOptions = vi.mocked(spawn).mock.calls[0]?.[1] as { stdio?: unknown[] } | undefined;
+      expect(spawnOptions?.stdio?.[1]).toBe(spawnOptions?.stdio?.[2]);
+      expect(mockTrimLogFile).toHaveBeenCalledWith(join(testHomeDir, 'test.log'), 10 * 1024 * 1024);
       expect(mockChildProcess.unref).toHaveBeenCalled();
-      expect(LogWriter.create).toHaveBeenCalledWith(join(testHomeDir, 'test.log'), 10 * 1024 * 1024);
       expect(StateManager.writeState).toHaveBeenCalledWith(
         'group-1',
         'api',
@@ -184,12 +184,13 @@ describe('ProcessManager', () => {
           status: 'Running',
           pid: 1234,
           logPath: join(testHomeDir, 'test.log'),
+          logMaxBytes: 10 * 1024 * 1024,
           command: 'npm start',
         })
       );
     });
 
-    it('passes a custom log max size to the LogWriter', async () => {
+    it('passes a custom log max size to the log trimmer', async () => {
       const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: vi.fn(),
@@ -209,7 +210,14 @@ describe('ProcessManager', () => {
         logMaxBytes: 1234,
       });
 
-      expect(LogWriter.create).toHaveBeenCalledWith(join(testHomeDir, 'custom.log'), 1234);
+      expect(mockTrimLogFile).toHaveBeenCalledWith(join(testHomeDir, 'custom.log'), 1234);
+      expect(StateManager.writeState).toHaveBeenCalledWith(
+        'group-1',
+        'api',
+        expect.objectContaining({
+          logMaxBytes: 1234,
+        })
+      );
     });
 
     it('includes groupKey in the state when provided', async () => {
@@ -399,7 +407,7 @@ describe('ProcessManager', () => {
       });
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(LogWriter.create).mockRejectedValue(new Error('Permission denied'));
+      mockTrimLogFile.mockRejectedValue(new Error('Permission denied'));
 
       await expect(
         ProcessManager.startProcess('group-1', 'api', 'npm start', {
@@ -426,7 +434,6 @@ describe('ProcessManager', () => {
         })
       ).rejects.toThrow(ProcessStartError);
 
-      expect(mockLogWriter.close).toHaveBeenCalled();
       expect(PortManager.releaseReservation).not.toHaveBeenCalled();
     });
 
@@ -860,6 +867,8 @@ describe('ProcessManager', () => {
       const processes = ProcessManager.listProcesses();
 
       expect(StateManager.pruneLogs).toHaveBeenCalledWith(states);
+      expect(mockTrimLogFileSync).toHaveBeenCalledWith('/path/to/log1.log', 10 * 1024 * 1024);
+      expect(mockTrimLogFileSync).toHaveBeenCalledWith('/path/to/log2.log', 10 * 1024 * 1024);
       expect(processes).toHaveLength(2);
       expect(processes[0]).toEqual({
         group: 'group-1',
@@ -877,6 +886,27 @@ describe('ProcessManager', () => {
         pid: 5678,
         logPath: '/path/to/log2.log',
       });
+    });
+
+    it('uses stored logMaxBytes when trimming logs', () => {
+      const states: ProcessState[] = [
+        {
+          group: 'group-1',
+          process: 'api',
+          status: 'Running',
+          pid: 1234,
+          startedAt: '2024-01-01T00:00:00.000Z',
+          logPath: '/path/to/log1.log',
+          logMaxBytes: 2048,
+        },
+      ];
+
+      vi.mocked(StateManager.listAllStates).mockReturnValue(states);
+      vi.mocked(isPidAliveAndValid).mockReturnValue(true);
+
+      ProcessManager.listProcesses();
+
+      expect(mockTrimLogFileSync).toHaveBeenCalledWith('/path/to/log1.log', 2048);
     });
 
     it('updates the state for dead processes', () => {
