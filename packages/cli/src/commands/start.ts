@@ -101,6 +101,7 @@ export async function runStartCommand(
     }
 
     const projectRoot = resolvedGroup.path;
+    const logMaxBytes = resolvedGroup.projectConfig.logs?.maxBytes;
     if (invokeOptions?.startAll && processName) {
       console.error(chalk.red('Error: --all cannot be combined with a process name'));
       process.exit(1);
@@ -156,6 +157,7 @@ export async function runStartCommand(
               worktreePath: projectRoot,
               ...(invokeOptions?.worktreeLabel !== undefined && { branch: invokeOptions.worktreeLabel }),
               ...(cmd.ports !== undefined && { ports: cmd.ports }),
+              ...(logMaxBytes !== undefined && { logMaxBytes }),
             });
 
             console.log(chalk.green(`✓ Started process "${cmd.name}"`));

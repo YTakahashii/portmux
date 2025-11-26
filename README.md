@@ -54,6 +54,9 @@ PortMux is built on a few core principles to streamline the developer experience
    ```json
    {
      "$schema": "node_modules/@portmux/cli/schemas/portmux.config.schema.json",
+     "logs": {
+       "maxBytes": 10485760
+     },
      "groups": {
        "app": {
          "description": "Demo group",
@@ -207,6 +210,7 @@ portmux sync --all
 
 - `stdout`/`stderr` are written to `~/.config/portmux/logs/`; view with `portmux logs`.
 - Process state, PIDs, and reserved ports persist in `~/.config/portmux/` for reuse by `ps` and `logs`.
+- Log files are automatically trimmed to the newest content when they exceed 10MB by default; override per project via `logs.maxBytes` in `portmux.config.json`.
 - Log cleanup: `portmux stop` removes the associated log file, and `portmux ps` prunes log files not referenced by any recorded process state. No separate prune command is required.
 
 ## Development
