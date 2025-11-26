@@ -1,5 +1,11 @@
 # @portmux/core
 
+## 0.2.0
+
+### Minor Changes
+
+- [#36](https://github.com/YTakahashii/portmux/pull/36) [`93d6075`](https://github.com/YTakahashii/portmux/commit/93d6075b175acb6af233131fe3262fe8174b2739) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Add configurable log size cap (default 10MB) with automatic trimming to keep the newest output.
+
 ## 0.1.6
 
 ### Patch Changes
