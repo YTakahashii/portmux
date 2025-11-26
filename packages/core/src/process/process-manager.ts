@@ -1,3 +1,4 @@
+import { closeSync, openSync } from 'fs';
 import { spawn, ChildProcess } from 'child_process';
 import { resolve } from 'path';
 import { kill } from 'process';
@@ -6,7 +7,7 @@ import { getCommandLine, getProcessStartTime, isPidAlive, isPidAliveAndValid } f
 import { ConfigManager } from '../config/config-manager.js';
 import { PortManager } from '../port/port-manager.js';
 import { PortmuxError } from '../errors.js';
-import { LogWriter } from '../log/log-writer.js';
+import { trimLogFile, trimLogFileSync } from '../log/log-writer.js';
 
 const COMMAND_REFRESH_WINDOW_MS = 60_000;
 const STOP_TIMEOUT_DEFAULT_MS = 3000; // Default keeps UX fast while still giving SIGTERM a short cleanup window.
@@ -204,10 +205,20 @@ export const ProcessManager = {
 
     // Prepare the log file
     const logPath = StateManager.generateLogPath(group, processName);
+    const logMaxBytes = options.logMaxBytes ?? DEFAULT_LOG_MAX_BYTES;
 
-    let logWriter: LogWriter;
     try {
-      logWriter = await LogWriter.create(logPath, options.logMaxBytes ?? DEFAULT_LOG_MAX_BYTES);
+      await trimLogFile(logPath, logMaxBytes);
+    } catch (error) {
+      if (reservationToken) {
+        PortManager.releaseReservation(reservationToken);
+      }
+      throw new ProcessStartError(`Failed to prepare log file: ${logPath}`, error);
+    }
+
+    let logFd: number;
+    try {
+      logFd = openSync(logPath, 'a', 0o600);
     } catch (error) {
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
@@ -223,42 +234,16 @@ export const ProcessManager = {
         cwd,
         env,
         detached: true,
-        stdio: ['ignore', 'pipe', 'pipe'], // Capture stdout/stderr for controlled log writing
+        stdio: ['ignore', logFd, logFd], // Write stdout/stderr directly into the log file
         shell: true, // Run via shell
-      });
-
-      const pipeToLog = (stream: ChildProcess['stdout']): void => {
-        stream?.on('data', (chunk: unknown) => {
-          const data = typeof chunk === 'string' || Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
-          logWriter.write(data).catch((error: unknown) => {
-            console.error(
-              `Warning: Failed to write to log file: ${error instanceof Error ? error.message : String(error)}`
-            );
-          });
-        });
-
-        stream?.on('error', (error: unknown) => {
-          console.error(
-            `Warning: Failed to read process output: ${error instanceof Error ? error.message : String(error)}`
-          );
-        });
-      };
-
-      pipeToLog(childProcess.stdout);
-      pipeToLog(childProcess.stderr);
-
-      childProcess.on('close', () => {
-        logWriter.close().catch(() => {
-          // Ignore close errors; process is exiting.
-        });
       });
 
       // Detach the child into its own process group
       childProcess.unref();
+      // Close the parent's log file descriptor
+      closeSync(logFd);
     } catch (error) {
-      await logWriter.close().catch(() => {
-        // Ignore close errors; startup has already failed.
-      });
+      closeSync(logFd);
       // Release reserved ports on failure
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
@@ -269,9 +254,6 @@ export const ProcessManager = {
     // Capture the PID
     const pid = childProcess.pid;
     if (!pid) {
-      await logWriter.close().catch(() => {
-        // Ignore close errors
-      });
       // Release reserved ports
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
@@ -283,9 +265,6 @@ export const ProcessManager = {
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     if (!isPidAlive(pid)) {
-      await logWriter.close().catch(() => {
-        // Ignore close errors
-      });
       // Release reserved ports
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
@@ -316,6 +295,7 @@ export const ProcessManager = {
       pid,
       startedAt,
       logPath,
+      logMaxBytes,
       ...(options.ports !== undefined && { ports: options.ports }),
     };
     StateManager.writeState(group, processName, state);
@@ -454,6 +434,15 @@ export const ProcessManager = {
     const processes: ProcessInfo[] = [];
 
     for (const state of states) {
+      if (state.logPath) {
+        try {
+          const maxBytes = state.logMaxBytes ?? DEFAULT_LOG_MAX_BYTES;
+          trimLogFileSync(state.logPath, maxBytes);
+        } catch {
+          // Ignore trimming errors during listing
+        }
+      }
+
       // Confirm the PID is still alive
       let status: ProcessStatus = state.status;
       if (state.status === 'Running' && state.pid) {
