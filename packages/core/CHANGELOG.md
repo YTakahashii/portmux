@@ -1,5 +1,11 @@
 # @portmux/core
 
+## 0.2.2
+
+### Patch Changes
+
+- [#40](https://github.com/YTakahashii/portmux/pull/40) [`2c7e0d2`](https://github.com/YTakahashii/portmux/commit/2c7e0d271f603e7fa5c020f42c82a5b601ffe53b) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Write process logs directly to file descriptors and trim only at boundaries to avoid hanging `portmux select`, move the log size cap to global config for per-user control, and add a global `logs.disabled` switch to skip log output entirely.
+
 ## 0.2.1
 
 ### Patch Changes
