@@ -22,6 +22,8 @@ export interface ResolvedGroup {
   projectConfig: PortMuxConfig;
   projectConfigPath: string;
   groupDefinitionName: string;
+  logsDisabled?: boolean;
+  logMaxBytes?: number;
 }
 
 /**
@@ -237,6 +239,8 @@ export const GroupManager = {
       projectConfig,
       projectConfigPath,
       groupDefinitionName: mergedRepository.groupDefinitionName,
+      ...(merged.globalConfig.logs?.disabled === true && { logsDisabled: true }),
+      ...(merged.globalConfig.logs?.maxBytes !== undefined && { logMaxBytes: merged.globalConfig.logs.maxBytes }),
     };
   },
 
@@ -265,6 +269,8 @@ export const GroupManager = {
 
     // Load the global configuration
     const mergedConfig = ConfigManager.mergeGlobalAndProjectConfigs({ skipInvalid: true });
+    const globalLogsDisabled = mergedConfig?.globalConfig.logs?.disabled === true;
+    const globalLogMaxBytes = mergedConfig?.globalConfig.logs?.maxBytes;
     if (!mergedConfig) {
       // Fall back to the first group when no global config exists
       const firstGroupName = Object.keys(projectConfig.groups)[0];
@@ -278,6 +284,8 @@ export const GroupManager = {
         projectConfig,
         projectConfigPath,
         groupDefinitionName: firstGroupName,
+        ...(globalLogsDisabled && { logsDisabled: true }),
+        ...(globalLogMaxBytes !== undefined && { logMaxBytes: globalLogMaxBytes }),
       };
     }
 
@@ -294,6 +302,8 @@ export const GroupManager = {
             projectConfig: mergedRepository.projectConfig,
             projectConfigPath: mergedRepository.projectConfigPath,
             groupDefinitionName: mergedRepository.groupDefinitionName,
+            ...(globalLogsDisabled && { logsDisabled: true }),
+            ...(globalLogMaxBytes !== undefined && { logMaxBytes: globalLogMaxBytes }),
           };
         }
       }
@@ -312,6 +322,8 @@ export const GroupManager = {
         projectConfig,
         projectConfigPath,
         groupDefinitionName: firstGroupName,
+        ...(globalLogsDisabled && { logsDisabled: true }),
+        ...(globalLogMaxBytes !== undefined && { logMaxBytes: globalLogMaxBytes }),
       };
     }
 
@@ -346,6 +358,8 @@ export const GroupManager = {
           projectConfig: mergedRepository.projectConfig,
           projectConfigPath: mergedRepository.projectConfigPath,
           groupDefinitionName: mergedRepository.groupDefinitionName,
+          ...(globalLogsDisabled && { logsDisabled: true }),
+          ...(globalLogMaxBytes !== undefined && { logMaxBytes: globalLogMaxBytes }),
         };
       }
     }

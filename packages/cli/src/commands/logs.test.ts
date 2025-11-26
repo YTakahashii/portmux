@@ -57,6 +57,17 @@ describe('runLogsCommand', () => {
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
+  it('exits with error when logging is disabled', () => {
+    listAllStates.mockReturnValue([
+      { group: 'group', process: 'proc', status: 'Running' as const, logsDisabled: true },
+    ]);
+
+    runLogsCommand('group', 'proc', { follow: false });
+
+    expect(console.error).toHaveBeenCalledWith('Error: Logging is disabled for process "proc"');
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
   it('exits with error when logPath is missing', () => {
     listAllStates.mockReturnValue([{ group: 'group', process: 'proc', status: 'Running' as const }]);
 

@@ -12,9 +12,6 @@
     "runner": {
       "$ref": "#/$defs/runner"
     },
-    "logs": {
-      "$ref": "#/$defs/logs"
-    },
     "groups": {
       "type": "object",
       "minProperties": 1,
@@ -40,17 +37,6 @@
         }
       },
       "required": ["mode"]
-    },
-    "logs": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "maxBytes": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Maximum log file size in bytes before trimming keeps the newest content."
-        }
-      }
     },
     "group": {
       "type": "object",

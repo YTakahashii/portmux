@@ -35,8 +35,10 @@ export const RunnerSchema = z.object({
 });
 
 /** Logs configuration schema. */
-export const LogsConfigSchema = z.object({
+/** Global logs configuration schema. */
+export const GlobalLogsConfigSchema = z.object({
   maxBytes: z.number().int().positive().optional(),
+  disabled: z.boolean().optional(),
 });
 
 /**
@@ -46,7 +48,6 @@ export const PortMuxConfigSchema = z
   .object({
     $schema: z.string().optional(),
     runner: RunnerSchema.optional(),
-    logs: LogsConfigSchema.optional(),
     groups: z.record(z.string(), GroupSchema),
   })
   .refine((data) => Object.keys(data.groups).length > 0, {
@@ -65,6 +66,7 @@ export const RepositorySchema = z.object({
  * Global configuration schema.
  */
 export const GlobalConfigSchema = z.object({
+  logs: GlobalLogsConfigSchema.optional(),
   repositories: z.record(z.string(), RepositorySchema),
 });
 
@@ -74,6 +76,6 @@ export const GlobalConfigSchema = z.object({
 export type PortMuxConfig = z.infer<typeof PortMuxConfigSchema>;
 export type Group = z.infer<typeof GroupSchema>;
 export type Command = z.infer<typeof CommandSchema>;
-export type LogsConfig = z.infer<typeof LogsConfigSchema>;
+export type GlobalLogsConfig = z.infer<typeof GlobalLogsConfigSchema>;
 export type GlobalConfig = z.infer<typeof GlobalConfigSchema>;
 export type Repository = z.infer<typeof RepositorySchema>;

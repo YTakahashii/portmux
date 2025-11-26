@@ -210,8 +210,9 @@ portmux sync --all
 
 - `stdout`/`stderr` are written to `~/.config/portmux/logs/`; view with `portmux logs`.
 - Process state, PIDs, and reserved ports persist in `~/.config/portmux/` for reuse by `ps` and `logs`.
-- Log files are automatically trimmed to the newest content when they exceed 10MB by default; override per project via `logs.maxBytes` in `portmux.config.json`.
+- Log files are automatically trimmed to the newest content when they exceed 10MB by default; set a per-user cap via `logs.maxBytes` in `~/.config/portmux/config.json`.
 - Trimming runs at process start and when listing processes (`portmux ps`), keeping only the tail within the configured limit.
+- Disable logging globally by adding `"logs": { "disabled": true }` to `~/.config/portmux/config.json` (stdout/stderr are ignored when disabled).
 - Log cleanup: `portmux stop` removes the associated log file, and `portmux ps` prunes log files not referenced by any recorded process state. No separate prune command is required.
 
 ## Development

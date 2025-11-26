@@ -132,6 +132,24 @@ describe('runRestartCommand', () => {
     expect(console.log).toHaveBeenCalledWith('✓ Restarted process "worker"');
   });
 
+  it('passes disableLogs when logging is disabled globally', async () => {
+    vi.mocked(GroupManager.resolveGroupByName).mockReturnValue({
+      ...resolvedGroup,
+      logsDisabled: true,
+    });
+
+    await runRestartCommand('ws-one', 'api');
+
+    expect(ProcessManager.restartProcess).toHaveBeenCalledWith(
+      'group-instance-id',
+      'api',
+      'npm start',
+      expect.objectContaining({
+        disableLogs: true,
+      })
+    );
+  });
+
   it('logs ProcessRestartError failures', async () => {
     vi.mocked(ProcessManager.restartProcess).mockRejectedValueOnce(new ProcessRestartError('restart fail'));
 

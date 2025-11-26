@@ -67,6 +67,7 @@ export interface ProcessStartOptions {
   worktreePath?: string;
   branch?: string;
   logMaxBytes?: number;
+  disableLogs?: boolean;
 }
 
 /** Process start error */
@@ -111,6 +112,7 @@ export interface ProcessInfo {
   status: ProcessStatus;
   pid?: number;
   logPath?: string;
+  logsDisabled?: boolean;
 }
 
 /**
@@ -203,27 +205,32 @@ export const ProcessManager = {
       ...options.env,
     };
 
-    // Prepare the log file
-    const logPath = StateManager.generateLogPath(group, processName);
+    const logsDisabled = options.disableLogs === true;
+    // Prepare the log file when logging is enabled
+    const logPath = logsDisabled ? undefined : StateManager.generateLogPath(group, processName);
     const logMaxBytes = options.logMaxBytes ?? DEFAULT_LOG_MAX_BYTES;
 
-    try {
-      await trimLogFile(logPath, logMaxBytes);
-    } catch (error) {
-      if (reservationToken) {
-        PortManager.releaseReservation(reservationToken);
+    if (!logsDisabled && logPath) {
+      try {
+        await trimLogFile(logPath, logMaxBytes);
+      } catch (error) {
+        if (reservationToken) {
+          PortManager.releaseReservation(reservationToken);
+        }
+        throw new ProcessStartError(`Failed to prepare log file: ${logPath}`, error);
       }
-      throw new ProcessStartError(`Failed to prepare log file: ${logPath}`, error);
     }
 
-    let logFd: number;
-    try {
-      logFd = openSync(logPath, 'a', 0o600);
-    } catch (error) {
-      if (reservationToken) {
-        PortManager.releaseReservation(reservationToken);
+    let logFd: number | null = null;
+    if (!logsDisabled && logPath) {
+      try {
+        logFd = openSync(logPath, 'a', 0o600);
+      } catch (error) {
+        if (reservationToken) {
+          PortManager.releaseReservation(reservationToken);
+        }
+        throw new ProcessStartError(`Failed to create log file: ${logPath}`, error);
       }
-      throw new ProcessStartError(`Failed to create log file: ${logPath}`, error);
     }
 
     // Spawn the child process through the shell
@@ -234,16 +241,20 @@ export const ProcessManager = {
         cwd,
         env,
         detached: true,
-        stdio: ['ignore', logFd, logFd], // Write stdout/stderr directly into the log file
+        stdio: logsDisabled || logFd === null ? ['ignore', 'ignore', 'ignore'] : ['ignore', logFd, logFd], // Write stdout/stderr directly into the log file
         shell: true, // Run via shell
       });
 
       // Detach the child into its own process group
       childProcess.unref();
       // Close the parent's log file descriptor
-      closeSync(logFd);
+      if (logFd !== null) {
+        closeSync(logFd);
+      }
     } catch (error) {
-      closeSync(logFd);
+      if (logFd !== null) {
+        closeSync(logFd);
+      }
       // Release reserved ports on failure
       if (reservationToken) {
         PortManager.releaseReservation(reservationToken);
@@ -294,8 +305,9 @@ export const ProcessManager = {
       status: 'Running',
       pid,
       startedAt,
-      logPath,
-      logMaxBytes,
+      ...(logPath !== undefined && { logPath }),
+      ...(logsDisabled && { logsDisabled: true }),
+      ...(logPath !== undefined && !logsDisabled && { logMaxBytes }),
       ...(options.ports !== undefined && { ports: options.ports }),
     };
     StateManager.writeState(group, processName, state);
@@ -434,7 +446,7 @@ export const ProcessManager = {
     const processes: ProcessInfo[] = [];
 
     for (const state of states) {
-      if (state.logPath) {
+      if (state.logPath && state.logsDisabled !== true) {
         try {
           const maxBytes = state.logMaxBytes ?? DEFAULT_LOG_MAX_BYTES;
           trimLogFileSync(state.logPath, maxBytes);
@@ -475,6 +487,7 @@ export const ProcessManager = {
         status,
         ...(state.pid !== undefined && { pid: state.pid }),
         ...(state.logPath !== undefined && { logPath: state.logPath }),
+        ...(state.logsDisabled === true && { logsDisabled: true }),
       });
     }
 
@@ -523,6 +536,10 @@ export const ProcessManager = {
         status: 'Error',
         error: error instanceof Error ? error.message : String(error),
         ...(restartPlan.previousState?.logPath !== undefined && { logPath: restartPlan.previousState.logPath }),
+        ...(restartPlan.previousState?.logsDisabled === true && { logsDisabled: true }),
+        ...(restartPlan.previousState?.logMaxBytes !== undefined && {
+          logMaxBytes: restartPlan.previousState.logMaxBytes,
+        }),
         ...(restartPlan.previousState?.ports !== undefined && { ports: restartPlan.previousState.ports }),
       };
       StateManager.writeState(group, processName, errorState);

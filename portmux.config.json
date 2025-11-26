@@ -1,8 +1,5 @@
 {
   "$schema": "~/.bun/install/global/node_modules/@portmux/cli/schemas/portmux.config.schema.json",
-  "logs": {
-    "maxBytes": 10485760
-  },
   "groups": {
     "app1": {
       "description": "",

@@ -220,6 +220,36 @@ describe('ProcessManager', () => {
       );
     });
 
+    it('disables logging when requested', async () => {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
+        pid: 1234,
+        unref: vi.fn(),
+      }) as unknown as ChildProcess;
+
+      vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
+      vi.mocked(StateManager.readState).mockReturnValue(null);
+      vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
+      vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'ignored.log'));
+      vi.mocked(spawn).mockReturnValue(mockChildProcess);
+      vi.mocked(isPidAlive).mockReturnValue(true);
+
+      await ProcessManager.startProcess('group-1', 'api', 'npm start', {
+        projectRoot: testProjectRoot,
+        disableLogs: true,
+      });
+
+      const spawnOptions = vi.mocked(spawn).mock.calls[0]?.[1] as { stdio?: unknown[] } | undefined;
+      expect(spawnOptions?.stdio).toEqual(['ignore', 'ignore', 'ignore']);
+      expect(mockTrimLogFile).not.toHaveBeenCalled();
+
+      const stateCall = vi.mocked(StateManager.writeState).mock.calls[0];
+      expect(stateCall).toBeDefined();
+      const state = stateCall?.[2];
+      expect(state?.logPath).toBeUndefined();
+      expect(state?.logsDisabled).toBe(true);
+      expect(state?.logMaxBytes).toBeUndefined();
+    });
+
     it('includes groupKey in the state when provided', async () => {
       const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: 1234,
