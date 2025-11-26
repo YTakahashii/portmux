@@ -182,6 +182,12 @@ export function runLogsCommand(
 
     const state = processMatches[0];
 
+    if (state?.logsDisabled) {
+      console.error(chalk.red(`Error: Logging is disabled for process "${processName}"`));
+      process.exit(1);
+      return;
+    }
+
     if (!state?.logPath) {
       console.error(chalk.red(`Error: Log file path for process "${processName}" was not found`));
       process.exit(1);

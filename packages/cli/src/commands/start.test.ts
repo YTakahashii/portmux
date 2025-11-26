@@ -170,6 +170,24 @@ describe('runStartCommand', () => {
     );
   });
 
+  it('passes disableLogs when logging is disabled globally', async () => {
+    vi.mocked(GroupManager.resolveGroupByName).mockReturnValue({
+      ...resolvedGroup,
+      logsDisabled: true,
+    });
+
+    await runStartCommand('ws-one');
+
+    expect(ProcessManager.startProcess).toHaveBeenCalledWith(
+      'group-instance-id',
+      'api',
+      'npm start',
+      expect.objectContaining({
+        disableLogs: true,
+      })
+    );
+  });
+
   it('exits when config is missing', async () => {
     vi.mocked(GroupManager.resolveGroupAuto).mockImplementation(() => {
       throw new ConfigNotFoundError('missing');

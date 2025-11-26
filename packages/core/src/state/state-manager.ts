@@ -28,6 +28,7 @@ export interface ProcessState {
   stoppedAt?: string; // ISO 8601 timestamp
   logPath?: string; // Path to the log file
   logMaxBytes?: number; // Maximum log size captured at start
+  logsDisabled?: boolean; // Whether logging was disabled when started
   ports?: number[]; // Ports currently in use
 }
 
