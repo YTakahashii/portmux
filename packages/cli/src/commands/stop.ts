@@ -9,6 +9,7 @@ import {
 
 import { Command } from 'commander';
 import { chalk } from '../lib/chalk.js';
+import { shortenHomePath } from '../utils/path-label.js';
 
 export const stopCommand: ReturnType<typeof createStopCommand> = createStopCommand();
 
@@ -21,7 +22,7 @@ function formatStateLabel(state: ProcessState): string {
   const label = state.groupLabel ?? state.repositoryName ?? state.group;
   const path = state.worktreePath ?? state.groupKey;
   if (path) {
-    return `${label} (${path})`;
+    return `${label} (${shortenHomePath(path)})`;
   }
   return label;
 }

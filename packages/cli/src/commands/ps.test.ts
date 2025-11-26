@@ -1,5 +1,7 @@
 import { ProcessManager } from '@portmux/core';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import * as os from 'os';
+import { join } from 'path';
 import { createChalkMock } from '../test-utils/mock-chalk.js';
 import { psCommand } from './ps.js';
 
@@ -79,5 +81,35 @@ describe('psCommand', () => {
     await runPs();
     expect(console.error).toHaveBeenCalledWith('Error: boom');
     expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('shortens home directory paths in repository labels', async () => {
+    const home = os.homedir();
+    const worktreePath = join(home, 'repos', 'one');
+    const displayPath = `~${worktreePath.slice(home.length)}`;
+    listProcesses.mockReturnValue([
+      {
+        group: 'instance-one',
+        groupLabel: 'repo-one:main',
+        repositoryName: 'repo-one',
+        process: 'api',
+        status: 'Running' as const,
+        pid: 123,
+        worktreePath,
+      },
+    ]);
+
+    await runPs();
+
+    expect(console.table).toHaveBeenCalledWith([
+      {
+        Repository: `repo-one:main (${displayPath})`,
+        Group: 'repo-one:main',
+        Process: 'api',
+        Status: 'Running',
+        PID: 123,
+      },
+    ]);
+    expect(console.log).toHaveBeenCalledWith(`  ✓ repo-one:main (${displayPath})/api (PID: 123)`);
   });
 });
