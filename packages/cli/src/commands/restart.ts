@@ -84,6 +84,7 @@ async function restartProcessesForGroup(
   }
 
   const processes = processNames ? groupDef.commands.filter((cmd) => processNames.has(cmd.name)) : groupDef.commands;
+  const logMaxBytes = resolvedGroup.projectConfig.logs?.maxBytes;
 
   if (processes.length === 0) {
     const label = processNames?.size === 1 ? Array.from(processNames)[0] : undefined;
@@ -112,6 +113,7 @@ async function restartProcessesForGroup(
           groupDefinitionName: targetGroup,
           worktreePath: resolvedGroup.path,
           ...(cmd.ports !== undefined && { ports: cmd.ports }),
+          ...(logMaxBytes !== undefined && { logMaxBytes }),
         });
 
         console.log(chalk.green(`✓ Restarted process "${cmd.name}"`));

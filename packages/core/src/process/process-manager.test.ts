@@ -9,7 +9,9 @@ import { StateManager, type ProcessState } from '../state/state-manager.js';
 import { getCommandLine, getProcessStartTime, isPidAlive, isPidAliveAndValid } from '../state/pid-checker.js';
 import { ConfigManager } from '../config/config-manager.js';
 import { PortManager } from '../port/port-manager.js';
-import { existsSync, openSync, closeSync } from 'fs';
+import { EventEmitter } from 'events';
+import { PassThrough } from 'stream';
+import { LogWriter } from '../log/log-writer.js';
 
 const testHomeDir = mkdtempSync(join(systemTmpdir(), 'portmux-process-home-'));
 const testProjectRoot = mkdtempSync(join(systemTmpdir(), 'portmux-process-project-'));
@@ -92,15 +94,18 @@ vi.mock('../port/port-manager.js', async () => {
   };
 });
 
-vi.mock('fs', async () => {
-  const actual = await vi.importActual<typeof import('fs')>('fs');
-  return {
-    ...actual,
-    existsSync: vi.fn(),
-    openSync: vi.fn(),
-    closeSync: vi.fn(),
-  };
-});
+const { mockLogWriter } = vi.hoisted(() => ({
+  mockLogWriter: {
+    write: vi.fn().mockResolvedValue(undefined),
+    close: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock('../log/log-writer.js', () => ({
+  LogWriter: {
+    create: vi.fn().mockResolvedValue(mockLogWriter as unknown as LogWriter),
+  },
+}));
 
 describe('ProcessManager', () => {
   beforeEach(() => {
@@ -124,9 +129,10 @@ describe('ProcessManager', () => {
     vi.mocked(PortManager.commitReservation).mockClear();
     vi.mocked(PortManager.releaseReservation).mockClear();
     vi.mocked(PortManager.releaseReservationByProcess).mockClear();
-    vi.mocked(existsSync).mockClear();
-    vi.mocked(openSync).mockClear();
-    vi.mocked(closeSync).mockClear();
+    vi.mocked(LogWriter.create).mockClear();
+    vi.mocked(LogWriter.create).mockResolvedValue(mockLogWriter as unknown as LogWriter);
+    mockLogWriter.write.mockClear();
+    mockLogWriter.close.mockClear();
 
     vi.mocked(getCommandLine).mockReturnValue('npm start');
     vi.mocked(getProcessStartTime).mockReturnValue(null);
@@ -139,17 +145,17 @@ describe('ProcessManager', () => {
 
   describe('startProcess', () => {
     it('starts a process successfully', async () => {
-      const mockChildProcess = {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: vi.fn(),
-      } as unknown as ChildProcess;
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as ChildProcess;
 
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(null);
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
@@ -163,11 +169,11 @@ describe('ProcessManager', () => {
         cwd: testProjectRoot,
         env: expect.any(Object),
         detached: true,
-        stdio: ['ignore', 1, 1],
+        stdio: ['ignore', 'pipe', 'pipe'],
         shell: true,
       });
       expect(mockChildProcess.unref).toHaveBeenCalled();
-      expect(closeSync).toHaveBeenCalledWith(1);
+      expect(LogWriter.create).toHaveBeenCalledWith(join(testHomeDir, 'test.log'), 10 * 1024 * 1024);
       expect(StateManager.writeState).toHaveBeenCalledWith(
         'group-1',
         'api',
@@ -183,18 +189,41 @@ describe('ProcessManager', () => {
       );
     });
 
-    it('includes groupKey in the state when provided', async () => {
-      const mockChildProcess = {
+    it('passes a custom log max size to the LogWriter', async () => {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: vi.fn(),
-      } as unknown as ChildProcess;
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as ChildProcess;
+
+      vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
+      vi.mocked(StateManager.readState).mockReturnValue(null);
+      vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
+      vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'custom.log'));
+      vi.mocked(spawn).mockReturnValue(mockChildProcess);
+      vi.mocked(isPidAlive).mockReturnValue(true);
+
+      await ProcessManager.startProcess('group-1', 'api', 'npm start', {
+        projectRoot: testProjectRoot,
+        logMaxBytes: 1234,
+      });
+
+      expect(LogWriter.create).toHaveBeenCalledWith(join(testHomeDir, 'custom.log'), 1234);
+    });
+
+    it('includes groupKey in the state when provided', async () => {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
+        pid: 1234,
+        unref: vi.fn(),
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as ChildProcess;
 
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(null);
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
@@ -217,10 +246,12 @@ describe('ProcessManager', () => {
     });
 
     it('plans and commits a port reservation', async () => {
-      const mockChildProcess = {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: vi.fn(),
-      } as unknown as ChildProcess;
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as ChildProcess;
 
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(null);
@@ -230,8 +261,6 @@ describe('ProcessManager', () => {
         warnings: [],
       });
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
@@ -249,10 +278,12 @@ describe('ProcessManager', () => {
     });
 
     it('logs port reservation warnings', async () => {
-      const mockChildProcess = {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: vi.fn(),
-      } as unknown as ChildProcess;
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as ChildProcess;
 
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -264,8 +295,6 @@ describe('ProcessManager', () => {
         warnings: ['Already running'],
       });
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
@@ -309,18 +338,18 @@ describe('ProcessManager', () => {
         startedAt: '2024-01-01T00:00:00.000Z',
       };
 
-      const mockChildProcess = {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: 5678,
         unref: vi.fn(),
-      } as unknown as ChildProcess;
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as ChildProcess;
 
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(existingState);
       vi.mocked(isPidAliveAndValid).mockImplementation((pid: number) => pid !== 1234);
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
 
       await ProcessManager.startProcess('group-1', 'api', 'npm start', {
@@ -370,10 +399,7 @@ describe('ProcessManager', () => {
       });
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockImplementation(() => {
-        throw new Error('Permission denied');
-      });
+      vi.mocked(LogWriter.create).mockRejectedValue(new Error('Permission denied'));
 
       await expect(
         ProcessManager.startProcess('group-1', 'api', 'npm start', {
@@ -390,8 +416,6 @@ describe('ProcessManager', () => {
       vi.mocked(StateManager.readState).mockReturnValue(null);
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockImplementation(() => {
         throw new Error('Command not found');
       });
@@ -402,15 +426,17 @@ describe('ProcessManager', () => {
         })
       ).rejects.toThrow(ProcessStartError);
 
-      expect(closeSync).toHaveBeenCalledWith(1);
+      expect(mockLogWriter.close).toHaveBeenCalled();
       expect(PortManager.releaseReservation).not.toHaveBeenCalled();
     });
 
     it('throws when no PID is available', async () => {
-      const mockChildProcess = {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: undefined,
         unref: vi.fn(),
-      } as unknown as ChildProcess;
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as ChildProcess;
 
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(null);
@@ -420,8 +446,6 @@ describe('ProcessManager', () => {
       });
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
 
       await expect(
@@ -435,10 +459,12 @@ describe('ProcessManager', () => {
     });
 
     it('throws when the process exits immediately after start', async () => {
-      const mockChildProcess = {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: vi.fn(),
-      } as unknown as ChildProcess;
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as ChildProcess;
 
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(null);
@@ -448,8 +474,6 @@ describe('ProcessManager', () => {
       });
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(false);
 
@@ -464,17 +488,17 @@ describe('ProcessManager', () => {
     });
 
     it('resolves relative cwd from projectRoot', async () => {
-      const mockChildProcess = {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: vi.fn(),
-      } as unknown as ChildProcess;
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as ChildProcess;
 
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(null);
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
@@ -492,10 +516,12 @@ describe('ProcessManager', () => {
     });
 
     it('uses an absolute cwd as-is', async () => {
-      const mockChildProcess = {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: vi.fn(),
-      } as unknown as ChildProcess;
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as ChildProcess;
 
       const absoluteCwd = '/absolute/path';
 
@@ -503,8 +529,6 @@ describe('ProcessManager', () => {
       vi.mocked(StateManager.readState).mockReturnValue(null);
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
@@ -522,17 +546,17 @@ describe('ProcessManager', () => {
     });
 
     it('merges environment variables', async () => {
-      const mockChildProcess = {
+      const mockChildProcess = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: vi.fn(),
-      } as unknown as ChildProcess;
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as ChildProcess;
 
       vi.mocked(PortManager.reconcileFromState).mockReturnValue(undefined);
       vi.mocked(StateManager.readState).mockReturnValue(null);
       vi.mocked(ConfigManager.findConfigFile).mockReturnValue(join(testProjectRoot, 'portmux.config.json'));
       vi.mocked(StateManager.generateLogPath).mockReturnValue(join(testHomeDir, 'test.log'));
-      vi.mocked(existsSync).mockReturnValue(false);
-      vi.mocked(openSync).mockReturnValue(1);
       vi.mocked(spawn).mockReturnValue(mockChildProcess);
       vi.mocked(isPidAlive).mockReturnValue(true);
 
