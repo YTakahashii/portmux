@@ -1,5 +1,11 @@
 # @portmux/core
 
+## 0.2.1
+
+### Patch Changes
+
+- [#38](https://github.com/YTakahashii/portmux/pull/38) [`178182a`](https://github.com/YTakahashii/portmux/commit/178182a4684ad7d7fb3b8b9f1ccf30fc31190ae8) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Write process logs directly to file descriptors again and trim at boundaries to avoid `portmux select` hanging from open stdout/stderr pipes.
+
 ## 0.2.0
 
 ### Minor Changes
