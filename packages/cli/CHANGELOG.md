@@ -1,5 +1,15 @@
 # @portmux/cli
 
+## 0.5.0
+
+### Minor Changes
+
+- [#33](https://github.com/YTakahashii/portmux/pull/33) [`aefa2d1`](https://github.com/YTakahashii/portmux/commit/aefa2d16d47c74df3a4d47bc5b91abee38c0a280) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Remove the start fallback that bypassed global config and instruct users to run `portmux sync` when repository resolution fails to avoid duplicate starts.
+
+### Patch Changes
+
+- [#35](https://github.com/YTakahashii/portmux/pull/35) [`3210bbe`](https://github.com/YTakahashii/portmux/commit/3210bbe36be2bfcf08afba1246591004b836d6ba) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Shorten home directory paths to `~` in CLI outputs
+
 ## 0.4.0
 
 ### Minor Changes
