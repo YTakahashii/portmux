@@ -13,7 +13,6 @@ import {
 
 import { Command } from 'commander';
 import { chalk } from '../lib/chalk.js';
-import { resolve } from 'path';
 import { buildGroupInstanceId, buildGroupLabel } from '../utils/group-instance.js';
 
 interface StartInvokeOptions {
@@ -90,35 +89,15 @@ export async function runStartCommand(
       }
     } catch (error) {
       if (error instanceof GroupResolutionError) {
-        // Fall back to the legacy approach when GroupManager resolution fails
-        const configPath = ConfigManager.findConfigFile();
-        const config = ConfigManager.loadConfig(configPath);
-        const projectRoot = resolve(configPath, '..');
-
-        const groupKeys = Object.keys(config.groups);
-        const targetGroup = groupName ?? groupKeys[0];
-
-        if (!targetGroup) {
-          console.error(chalk.red('Error: No groups found'));
-          process.exit(1);
-        }
-
-        const group = config.groups[targetGroup];
-        if (!group) {
-          console.error(chalk.red(`Error: Group "${targetGroup}" not found`));
-          process.exit(1);
-        }
-
-        resolvedGroup = {
-          name: targetGroup,
-          path: projectRoot,
-          projectConfig: config,
-          projectConfigPath: configPath,
-          groupDefinitionName: targetGroup,
-        };
-      } else {
-        throw error;
+        console.error(
+          chalk.red(
+            `Error: ${error.message}\nPlease run "portmux sync" in your project directory to register repositories.`
+          )
+        );
+        process.exit(1);
+        return;
       }
+      throw error;
     }
 
     const projectRoot = resolvedGroup.path;

@@ -109,32 +109,18 @@ describe('runStartCommand', () => {
     expect(console.log).toHaveBeenCalledWith('✓ Started process "api"');
   });
 
-  it('falls back to config file when group resolution fails', async () => {
+  it('prompts sync when group resolution fails', async () => {
     vi.mocked(GroupManager.resolveGroupByName).mockImplementation(() => {
       throw new GroupResolutionError('not found');
-    });
-    vi.mocked(ConfigManager.findConfigFile).mockReturnValue('/group/portmux.config.json');
-    vi.mocked(ConfigManager.loadConfig).mockReturnValue({
-      groups: {
-        default: {
-          description: '',
-          commands: [{ name: 'worker', command: 'node worker.js' }],
-        },
-      },
     });
 
     await runStartCommand('default');
 
-    expect(ConfigManager.findConfigFile).toHaveBeenCalled();
-    expect(ProcessManager.startProcess).toHaveBeenCalledWith(
-      'group-instance-id',
-      'worker',
-      'node worker.js',
-      expect.objectContaining({
-        groupKey: '/group',
-        projectRoot: '/group',
-      })
+    expect(console.error).toHaveBeenCalledWith(
+      'Error: not found\nPlease run "portmux sync" in your project directory to register repositories.'
     );
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(ProcessManager.startProcess).not.toHaveBeenCalled();
   });
 
   it('logs error when requested process is not found', async () => {
