@@ -1,5 +1,7 @@
 import { LockManager, LockTimeoutError, ProcessManager, ProcessStopError, StateManager } from '@portmux/core';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import * as os from 'os';
+import { join } from 'path';
 import { createChalkMock } from '../test-utils/mock-chalk.js';
 import { runStopCommand } from './stop.js';
 
@@ -39,6 +41,7 @@ describe('stopCommand', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
@@ -128,5 +131,16 @@ describe('stopCommand', () => {
 
     expect(console.error).toHaveBeenCalledWith('Error: timeout');
     expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('shortens home directory paths in stop output', async () => {
+    const home = os.homedir();
+    const worktreePath = join(home, 'projects', 'ws1');
+    const displayPath = `~${worktreePath.slice(home.length)}`;
+    listAllStates.mockReturnValue([{ group: 'ws1', process: 'api', status: 'Running' as const, worktreePath }]);
+
+    await runStopCommand('ws1');
+
+    expect(console.log).toHaveBeenCalledWith(`✓ Stopped process "api" (ws1 (${displayPath}))`);
   });
 });

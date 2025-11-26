@@ -1,6 +1,7 @@
 import { GroupManager, StateManager, type GroupSelection } from '@portmux/core';
 import { Command } from 'commander';
 import { chalk } from '../lib/chalk.js';
+import { shortenHomePath } from '../utils/path-label.js';
 import inquirer, { type ChoiceCollection } from 'inquirer';
 import { runStartCommand } from './start.js';
 import { runStopCommand } from './stop.js';
@@ -46,8 +47,9 @@ function buildChoices(selections: GroupSelection[]): ChoiceCollection<GroupAnswe
     const runningLabel = selection.isRunning ? '[Running] ' : '';
     const branchLabel = selection.branchLabel ? `:${selection.branchLabel}` : '';
     const configSuffix = selection.hasConfig ? '' : ' [Missing config]';
+    const displayPath = shortenHomePath(selection.worktreePath);
     const choice = {
-      name: `${runningLabel}${selection.repositoryName}${branchLabel} (${selection.worktreePath})${configSuffix}`,
+      name: `${runningLabel}${selection.repositoryName}${branchLabel} (${displayPath})${configSuffix}`,
       short: `${selection.repositoryName}${branchLabel}`,
       value: {
         repositoryName: selection.repositoryName,
@@ -101,7 +103,7 @@ function findRunningWorktrees(repositoryName: string, targetWorktreePath: string
 }
 
 function formatRunningWorktreeLabel(worktree: RunningWorktree): string {
-  const pathLabel = worktree.worktreePath ?? 'unknown worktree';
+  const pathLabel = worktree.worktreePath ? shortenHomePath(worktree.worktreePath) : 'unknown worktree';
   if (worktree.branch) {
     return `${pathLabel} [${worktree.branch}]`;
   }

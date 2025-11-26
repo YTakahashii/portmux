@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { ProcessManager } from '@portmux/core';
 import { chalk } from '../lib/chalk.js';
+import { shortenHomePath } from '../utils/path-label.js';
 
 export const psCommand: ReturnType<typeof createPsCommand> = createPsCommand();
 
@@ -8,7 +9,7 @@ function formatRepositoryLabel(process: ReturnType<typeof ProcessManager.listPro
   const label = process.groupLabel ?? process.repositoryName ?? process.group;
   const path = process.worktreePath ?? process.groupKey;
   if (path) {
-    return `${label} (${path})`;
+    return `${label} (${shortenHomePath(path)})`;
   }
   return label;
 }
