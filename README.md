@@ -8,6 +8,8 @@ It reserves ports for your process groups before they start and **ties each rese
 
 While tools like `pm2` or `systemd` are excellent for managing production services, PortMux is purpose-built for the development inner loop, prioritizing simplicity and eliminating common frustrations.
 
+Japanese write-up: https://zenn.dev/yuta_takahashi/articles/introduce-portmux-cli
+
 ![demo](./images/portmux-cli-demo.gif)
 
 ## Why PortMux?
