@@ -14,6 +14,7 @@ import {
 import { Command } from 'commander';
 import { chalk } from '../lib/chalk.js';
 import { buildGroupInstanceId, buildGroupLabel } from '../utils/group-instance.js';
+import { shortenHomePath } from '../utils/path-label.js';
 
 interface StartInvokeOptions {
   worktreePath?: string;
@@ -145,6 +146,7 @@ export async function runStartCommand(
             // Resolve environment variables
             const resolvedEnv = cmd.env ? ConfigManager.resolveEnvObject(cmd.env) : {};
             const resolvedCommand = ConfigManager.resolveCommandEnv(cmd.command, cmd.env);
+            const startLabel = `${groupLabel} (${shortenHomePath(projectRoot)})`;
 
             // Start the process (ProcessManager uses PortManager reservation APIs internally)
             await ProcessManager.startProcess(groupInstanceId, cmd.name, resolvedCommand, {
@@ -162,7 +164,7 @@ export async function runStartCommand(
               ...(disableLogs && { disableLogs }),
             });
 
-            console.log(chalk.green(`✓ Started process "${cmd.name}"`));
+            console.log(chalk.green(`✓ Started process "${cmd.name}" (${startLabel})`));
           } catch (error) {
             if (error instanceof ProcessStartError || error instanceof PortInUseError) {
               const { message: detailedMessage, causeStack } = formatStartErrorMessage(error);
