@@ -1,5 +1,11 @@
 # @portmux/cli
 
+## 0.6.3
+
+### Patch Changes
+
+- [#42](https://github.com/YTakahashii/portmux/pull/42) [`5fe4ccb`](https://github.com/YTakahashii/portmux/commit/5fe4ccbda2990dfc1c04903c80a952826d658cc5) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Remove repository path from the `ps` table output while keeping paths in the summary lines.
+
 ## 0.6.2
 
 ### Patch Changes
