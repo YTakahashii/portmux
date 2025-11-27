@@ -54,9 +54,6 @@ PortMux is built on a few core principles to streamline the developer experience
    ```json
    {
      "$schema": "node_modules/@portmux/cli/schemas/portmux.config.schema.json",
-     "logs": {
-       "maxBytes": 10485760
-     },
      "groups": {
        "app": {
          "description": "Demo group",
