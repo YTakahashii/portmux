@@ -17,12 +17,38 @@ function runPs(): Promise<void> {
   return psCommand.parseAsync([], { from: 'user' }).then(() => {});
 }
 
+interface TableRow {
+  Repository: string;
+  Group: string;
+  Process: string;
+  Status: string;
+  PID: string | number;
+}
+
+function buildExpectedTable(rows: TableRow[]): string[] {
+  const headers = ['Repository', 'Group', 'Process', 'Status', 'PID'] as const;
+  const columnWidths = headers.map((header) =>
+    Math.max(header.length, ...rows.map((row) => String(row[header]).length))
+  );
+  const formatRow = (values: string[]): string =>
+    `│ ${values.map((value, index) => value.padEnd(columnWidths[index] ?? 0)).join(' │ ')} │`;
+  const border = (left: string, join: string, right: string): string =>
+    `${left}${columnWidths.map((w) => '─'.repeat(w + 2)).join(join)}${right}`;
+
+  return [
+    border('┌', '┬', '┐'),
+    formatRow(headers.map((header) => header)),
+    border('├', '┼', '┤'),
+    ...rows.map((row) => formatRow(headers.map((header) => String(row[header])))),
+    border('└', '┴', '┘'),
+  ];
+}
+
 describe('psCommand', () => {
   const listProcesses = vi.mocked(ProcessManager.listProcesses);
 
   beforeEach(() => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'table').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
@@ -38,7 +64,6 @@ describe('psCommand', () => {
     await runPs();
 
     expect(console.log).toHaveBeenCalledWith('No running processes');
-    expect(console.table).not.toHaveBeenCalled();
     expect(process.exit).not.toHaveBeenCalled();
   });
 
@@ -64,12 +89,15 @@ describe('psCommand', () => {
 
     await runPs();
 
-    expect(console.table).toHaveBeenCalledWith([
-      { Repository: 'repo-one:main', Group: 'ws-one', Process: 'api', Status: 'Running', PID: 123 },
-      { Repository: 'instance-two', Group: 'instance-two', Process: 'worker', Status: 'Error', PID: '-' },
+    const calls = vi.mocked(console.log).mock.calls.map(([msg]) => String(msg));
+    expect(calls).toEqual([
+      ...buildExpectedTable([
+        { Repository: 'repo-one:main', Group: 'ws-one', Process: 'api', Status: 'Running', PID: 123 },
+        { Repository: 'instance-two', Group: 'instance-two', Process: 'worker', Status: 'Error', PID: '-' },
+      ]),
+      '  ✓ repo-one:main (/repo/main)/api (PID: 123)',
+      '  ✗ instance-two/worker',
     ]);
-    expect(console.log).toHaveBeenCalledWith('  ✓ repo-one:main (/repo/main)/api (PID: 123)');
-    expect(console.log).toHaveBeenCalledWith('  ✗ instance-two/worker');
     expect(process.exit).not.toHaveBeenCalled();
   });
 
@@ -101,15 +129,12 @@ describe('psCommand', () => {
 
     await runPs();
 
-    expect(console.table).toHaveBeenCalledWith([
-      {
-        Repository: 'repo-one:main',
-        Group: 'repo-one:main',
-        Process: 'api',
-        Status: 'Running',
-        PID: 123,
-      },
+    const calls = vi.mocked(console.log).mock.calls.map(([msg]) => String(msg));
+    expect(calls).toEqual([
+      ...buildExpectedTable([
+        { Repository: 'repo-one:main', Group: 'repo-one:main', Process: 'api', Status: 'Running', PID: 123 },
+      ]),
+      `  ✓ repo-one:main (${displayPath})/api (PID: 123)`,
     ]);
-    expect(console.log).toHaveBeenCalledWith(`  ✓ repo-one:main (${displayPath})/api (PID: 123)`);
   });
 });

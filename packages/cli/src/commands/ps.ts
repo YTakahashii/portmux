@@ -5,6 +5,14 @@ import { shortenHomePath } from '../utils/path-label.js';
 
 export const psCommand: ReturnType<typeof createPsCommand> = createPsCommand();
 
+interface TableRow {
+  Repository: string;
+  Group: string;
+  Process: string;
+  Status: string;
+  PID: string | number;
+}
+
 function formatRepositoryLabel(
   process: ReturnType<typeof ProcessManager.listProcesses>[number],
   options?: { includePath?: boolean }
@@ -23,6 +31,25 @@ function formatRepositoryLabel(
 
 function formatGroupDisplay(process: ReturnType<typeof ProcessManager.listProcesses>[number]): string {
   return process.groupDefinitionName ?? process.groupLabel ?? process.group;
+}
+
+function renderTable(rows: TableRow[]): void {
+  const headers = ['Repository', 'Group', 'Process', 'Status', 'PID'] as const;
+  const columnWidths = headers.map((header) =>
+    Math.max(header.length, ...rows.map((row) => String(row[header]).length))
+  );
+  const formatRow = (values: string[]): string =>
+    `│ ${values.map((value, index) => value.padEnd(columnWidths[index] ?? 0)).join(' │ ')} │`;
+  const border = (left: string, join: string, right: string): string =>
+    `${left}${columnWidths.map((w) => '─'.repeat(w + 2)).join(join)}${right}`;
+
+  console.log(border('┌', '┬', '┐'));
+  console.log(formatRow(headers.map((header) => header)));
+  console.log(border('├', '┼', '┤'));
+  rows.forEach((row) => {
+    console.log(formatRow(headers.map((header) => String(row[header]))));
+  });
+  console.log(border('└', '┴', '┘'));
 }
 
 function createPsCommand(): Command {
@@ -44,7 +71,7 @@ function createPsCommand(): Command {
         PID: p.pid ?? '-',
       }));
 
-      console.table(tableData);
+      renderTable(tableData);
 
       // Add colored status summaries after console.table output
       processes.forEach((p) => {
