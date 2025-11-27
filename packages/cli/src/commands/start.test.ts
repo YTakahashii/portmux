@@ -106,7 +106,7 @@ describe('runStartCommand', () => {
         worktreePath: '/repo',
       })
     );
-    expect(console.log).toHaveBeenCalledWith('✓ Started process "api"');
+    expect(console.log).toHaveBeenCalledWith('✓ Started process "api" (repo-label (/repo))');
   });
 
   it('prompts sync when group resolution fails', async () => {
