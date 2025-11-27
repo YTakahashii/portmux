@@ -1,5 +1,11 @@
 # @portmux/cli
 
+## 0.6.4
+
+### Patch Changes
+
+- [#45](https://github.com/YTakahashii/portmux/pull/45) [`59a7911`](https://github.com/YTakahashii/portmux/commit/59a79118d42b26d0a7259ca6435f7fbeecfaefc3) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Add repository label and worktree path to start logs for parity with stop output.
+
 ## 0.6.3
 
 ### Patch Changes
