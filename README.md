@@ -215,16 +215,6 @@ portmux sync --all
 - Disable logging globally by adding `"logs": { "disabled": true }` to `~/.config/portmux/config.json` (stdout/stderr are ignored when disabled).
 - Log cleanup: `portmux stop` removes the associated log file, and `portmux ps` prunes log files not referenced by any recorded process state. No separate prune command is required.
 
-## Development
-
-- Install dependencies: `pnpm install`
-- Format: `pnpm format` / `pnpm format:check`
-- Lint: `pnpm lint`
-- Test: `pnpm test`
-- Build: `pnpm build`
-- Run CLI locally: `pnpm dev:cli -- --help`
-- Behavior changes: run `pnpm changeset` and commit the generated entry.
-
 ## Troubleshooting
 
 ### `portmux start` / `restart` fails with a global-config error
@@ -267,3 +257,7 @@ rm -rf ~/.config/portmux
 ```
 
 > **Warning:** This action is irreversible and will delete all PortMux settings and log files.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for development setup, verification commands, and contribution guidelines.
