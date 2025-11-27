@@ -1,5 +1,5 @@
 {
-  "$schema": "~/.bun/install/global/node_modules/@portmux/cli/schemas/portmux.config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/YTakahashii/portmux/main/packages/cli/schemas/portmux.config.schema.json",
   "groups": {
     "app1": {
       "description": "",

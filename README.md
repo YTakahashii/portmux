@@ -53,7 +53,7 @@ PortMux is built on a few core principles to streamline the developer experience
 2. Edit the generated config (or review the existing one) and keep your group definitions up to date. Example:
    ```json
    {
-     "$schema": "node_modules/@portmux/cli/schemas/portmux.config.schema.json",
+     "$schema": "https://raw.githubusercontent.com/YTakahashii/portmux/main/packages/cli/schemas/portmux.config.schema.json",
      "groups": {
        "app": {
          "description": "Demo group",
