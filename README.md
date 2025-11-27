@@ -195,6 +195,9 @@ portmux sync --all
 - `repositories`: Map keyed by repository alias.
   - `path`: Absolute path to the project root.
   - `group`: Group name in `portmux.config.json`.
+- `logs` (optional): Global log settings applied for this user.
+  - `maxBytes`: Per-user log cap in bytes (defaults to 10MB when omitted).
+  - `disabled`: When true, suppresses all process log output.
 - `portmux init` appends the current project; `start`/`restart`/`select` use this mapping for resolution.
 - `portmux sync` is the quickest way to register a repo that already ships with `portmux.config.json` (e.g., after cloning). When only one group exists it registers that group by default; otherwise pass `--group <name>` or `--all` (and `--prune` to drop stale entries that no longer exist on disk).
 
