@@ -5,8 +5,15 @@ import { shortenHomePath } from '../utils/path-label.js';
 
 export const psCommand: ReturnType<typeof createPsCommand> = createPsCommand();
 
-function formatRepositoryLabel(process: ReturnType<typeof ProcessManager.listProcesses>[number]): string {
+function formatRepositoryLabel(
+  process: ReturnType<typeof ProcessManager.listProcesses>[number],
+  options?: { includePath?: boolean }
+): string {
   const label = process.groupLabel ?? process.repositoryName ?? process.group;
+  if (options?.includePath === false) {
+    return label;
+  }
+
   const path = process.worktreePath ?? process.groupKey;
   if (path) {
     return `${label} (${shortenHomePath(path)})`;
@@ -30,7 +37,7 @@ function createPsCommand(): Command {
 
       // Display rows as a table
       const tableData = processes.map((p) => ({
-        Repository: formatRepositoryLabel(p),
+        Repository: formatRepositoryLabel(p, { includePath: false }),
         Group: formatGroupDisplay(p),
         Process: p.process,
         Status: p.status,

@@ -65,7 +65,7 @@ describe('psCommand', () => {
     await runPs();
 
     expect(console.table).toHaveBeenCalledWith([
-      { Repository: 'repo-one:main (/repo/main)', Group: 'ws-one', Process: 'api', Status: 'Running', PID: 123 },
+      { Repository: 'repo-one:main', Group: 'ws-one', Process: 'api', Status: 'Running', PID: 123 },
       { Repository: 'instance-two', Group: 'instance-two', Process: 'worker', Status: 'Error', PID: '-' },
     ]);
     expect(console.log).toHaveBeenCalledWith('  ✓ repo-one:main (/repo/main)/api (PID: 123)');
@@ -103,7 +103,7 @@ describe('psCommand', () => {
 
     expect(console.table).toHaveBeenCalledWith([
       {
-        Repository: `repo-one:main (${displayPath})`,
+        Repository: 'repo-one:main',
         Group: 'repo-one:main',
         Process: 'api',
         Status: 'Running',
