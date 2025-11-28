@@ -1,7 +1,8 @@
 import { ConfigManager, ConfigNotFoundError, ConfigValidationError, type GlobalConfig } from '@portmux/core';
 import { Command } from 'commander';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { basename, dirname, join, resolve } from 'path';
+import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'fs';
+import { basename, dirname, join, resolve, sep } from 'path';
+import { homedir } from 'os';
 import { chalk } from '../lib/chalk.js';
 
 interface SyncOptions {
@@ -64,8 +65,9 @@ function selectTargetGroups(
 function pruneGlobalConfig(globalConfig: GlobalConfig): string[] {
   const removed: string[] = [];
   const keptEntries = Object.entries(globalConfig.repositories).filter(([alias, repository]) => {
-    const configPath = join(repository.path, 'portmux.config.json');
-    const shouldKeep = existsSync(repository.path) && existsSync(configPath);
+    const repositoryRoot = normalizeRepositoryPath(repository.path);
+    const configPath = join(repositoryRoot, 'portmux.config.json');
+    const shouldKeep = existsSync(repositoryRoot) && existsSync(configPath);
     if (!shouldKeep) {
       removed.push(alias);
     }
@@ -76,11 +78,59 @@ function pruneGlobalConfig(globalConfig: GlobalConfig): string[] {
   return removed;
 }
 
+function getHomeDirectory(): string {
+  const home = process.env.HOME ?? homedir();
+  try {
+    return realpathSync(home);
+  } catch {
+    return resolve(home);
+  }
+}
+
+function expandHome(path: string): string {
+  const home = getHomeDirectory();
+  if (path === '~') {
+    return home;
+  }
+
+  if (path.startsWith('~/') || path.startsWith('~\\')) {
+    return join(home, path.slice(2));
+  }
+
+  return path;
+}
+
+function normalizeRepositoryPath(path: string): string {
+  const expanded = expandHome(path);
+  try {
+    return realpathSync(expanded);
+  } catch {
+    return resolve(expanded);
+  }
+}
+
+function shortenHome(path: string): string {
+  const home = getHomeDirectory();
+  const normalizedPath = normalizeRepositoryPath(path);
+  if (normalizedPath === home) {
+    return '~';
+  }
+
+  const homeWithSep = home.endsWith(sep) ? home : `${home}${sep}`;
+  if (normalizedPath.startsWith(homeWithSep)) {
+    return `~${normalizedPath.slice(home.length)}`;
+  }
+
+  return normalizedPath;
+}
+
 export function runSyncCommand(options: SyncOptions = {}): void {
   try {
     const projectConfigPath = ConfigManager.findConfigFile();
     const projectConfig = ConfigManager.loadConfig(projectConfigPath);
     const projectRoot = resolve(dirname(projectConfigPath));
+    const normalizedProjectRoot = normalizeRepositoryPath(projectRoot);
+    const storedProjectRoot = shortenHome(normalizedProjectRoot);
 
     const groupNames = Object.keys(projectConfig.groups);
     if (groupNames.length === 0) {
@@ -112,7 +162,8 @@ export function runSyncCommand(options: SyncOptions = {}): void {
     for (const target of targets) {
       const existing = globalConfig.repositories[target.alias];
       if (existing) {
-        if (existing.path === projectRoot && existing.group === target.group) {
+        const existingPath = normalizeRepositoryPath(existing.path);
+        if (existingPath === normalizedProjectRoot && existing.group === target.group) {
           skipped.push(`Unchanged: ${target.alias} (${target.group})`);
           continue;
         }
@@ -126,11 +177,11 @@ export function runSyncCommand(options: SyncOptions = {}): void {
       }
 
       globalConfig.repositories[target.alias] = {
-        path: projectRoot,
+        path: storedProjectRoot,
         group: target.group,
       };
 
-      updates.push(`${existing ? 'Updated' : 'Added'}: ${target.alias} (${target.group}) -> ${projectRoot}`);
+      updates.push(`${existing ? 'Updated' : 'Added'}: ${target.alias} (${target.group}) -> ${storedProjectRoot}`);
     }
 
     ConfigManager.validateGlobalConfig(globalConfig, projectConfig, projectConfigPath);

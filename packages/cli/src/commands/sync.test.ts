@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { runSyncCommand } from './sync.js';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync, realpathSync } from 'fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -56,11 +56,11 @@ describe('runSyncCommand', () => {
 
     runSyncCommand();
 
-    const normalizedProjectDir = realpathSync(projectDir);
+    const expectedProjectDir = projectDir.replace(homeDir, '~');
     const content = JSON.parse(readFileSync(globalConfigPath(), 'utf-8'));
     expect(content).toEqual({
       repositories: {
-        app: { path: normalizedProjectDir, group: 'app' },
+        app: { path: expectedProjectDir, group: 'app' },
       },
     });
   });
@@ -88,11 +88,11 @@ describe('runSyncCommand', () => {
 
     runSyncCommand({ all: true });
 
-    const normalizedProjectDir = realpathSync(projectDir);
+    const expectedProjectDir = projectDir.replace(homeDir, '~');
     const content = JSON.parse(readFileSync(globalConfigPath(), 'utf-8'));
     expect(content.repositories).toEqual({
-      'repo:api': { path: normalizedProjectDir, group: 'api' },
-      'repo:worker': { path: normalizedProjectDir, group: 'worker' },
+      'repo:api': { path: expectedProjectDir, group: 'api' },
+      'repo:worker': { path: expectedProjectDir, group: 'worker' },
     });
   });
 
@@ -130,10 +130,10 @@ describe('runSyncCommand', () => {
 
     runSyncCommand({ prune: true });
 
-    const normalizedProjectDir = realpathSync(projectDir);
+    const expectedProjectDir = projectDir.replace(homeDir, '~');
     const content = JSON.parse(readFileSync(globalConfigPath(), 'utf-8'));
     expect(content.repositories).toEqual({
-      app: { path: normalizedProjectDir, group: 'app' },
+      app: { path: expectedProjectDir, group: 'app' },
     });
   });
 });
