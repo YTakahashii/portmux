@@ -1,6 +1,6 @@
 import { ConfigManager } from './config-manager.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, realpathSync } from 'fs';
 
 import type { GlobalConfig, PortMuxConfig } from './schema.js';
 import { dirname, join } from 'path';
@@ -195,6 +195,41 @@ describe('ConfigManager', () => {
       } finally {
         cleanupTempDir(root);
         rmSync(dirname(globalConfigPath), { recursive: true, force: true });
+      }
+    });
+
+    it('expands tilde-prefixed paths in the global config', () => {
+      const fakeHome = mkdtempSync(join(tmpdir(), 'portmux-home-'));
+      const originalHome = process.env.HOME;
+      process.env.HOME = fakeHome;
+      const projectRoot = mkdtempSync(join(fakeHome, 'portmux-tilde-'));
+      const projectConfigPath = join(projectRoot, 'portmux.config.json');
+      writeFileSync(projectConfigPath, JSON.stringify(baseConfig, null, 2), 'utf-8');
+
+      const globalConfig: GlobalConfig = {
+        repositories: {
+          tilde: { path: projectRoot.replace(fakeHome, '~'), group: 'default' },
+        },
+      };
+
+      const globalConfigPath = join(tmpdir(), 'portmux-configs', `${Math.random().toString(36)}.json`);
+      writeGlobalConfig(globalConfigPath, globalConfig);
+      vi.spyOn(ConfigManager, 'getGlobalConfigPath').mockReturnValue(globalConfigPath);
+
+      try {
+        const merged = ConfigManager.mergeGlobalAndProjectConfigs();
+
+        expect(merged).not.toBeNull();
+        expect(merged?.repositories.tilde?.path).toBe(realpathSync(projectRoot));
+      } finally {
+        cleanupTempDir(projectRoot);
+        rmSync(dirname(globalConfigPath), { recursive: true, force: true });
+        rmSync(fakeHome, { recursive: true, force: true });
+        if (originalHome === undefined) {
+          delete process.env.HOME;
+        } else {
+          process.env.HOME = originalHome;
+        }
       }
     });
   });

@@ -93,6 +93,31 @@ function normalizePath(path: string): string {
   }
 }
 
+function getHomeDirectory(): string {
+  const home = process.env.HOME ?? homedir();
+  try {
+    return realpathSync(home);
+  } catch {
+    return resolve(home);
+  }
+}
+
+/**
+ * Expand a leading tilde to the user's home directory
+ */
+function expandHome(path: string): string {
+  const home = getHomeDirectory();
+  if (path === '~') {
+    return home;
+  }
+
+  if (path.startsWith('~/') || path.startsWith('~\\')) {
+    return join(home, path.slice(2));
+  }
+
+  return path;
+}
+
 /**
  * Ensure repository names are unique
  */
@@ -271,11 +296,12 @@ export const ConfigManager = {
   validateGlobalConfig(globalConfig: GlobalConfig, projectConfig: PortMuxConfig, projectConfigPath: string): void {
     ensureUniqueRepositoryNames(globalConfig);
 
-    const normalizedProjectConfigPath = normalizePath(projectConfigPath);
+    const normalizedProjectConfigPath = normalizePath(expandHome(projectConfigPath));
 
     // Verify external references only for repositories that point to the provided project config
     for (const [repositoryName, repository] of Object.entries(globalConfig.repositories)) {
-      const repositoryConfigPath = normalizePath(join(repository.path, 'portmux.config.json'));
+      const repositoryRoot = expandHome(repository.path);
+      const repositoryConfigPath = normalizePath(join(repositoryRoot, 'portmux.config.json'));
       if (repositoryConfigPath !== normalizedProjectConfigPath) {
         continue;
       }
@@ -321,7 +347,8 @@ export const ConfigManager = {
     const skipInvalid = options?.skipInvalid ?? false;
 
     for (const [repositoryName, repository] of Object.entries(repositoriesToProcess)) {
-      const projectConfigPath = join(repository.path, 'portmux.config.json');
+      const projectRoot = expandHome(repository.path);
+      const projectConfigPath = join(projectRoot, 'portmux.config.json');
 
       try {
         if (!existsSync(projectConfigPath)) {
@@ -333,7 +360,7 @@ export const ConfigManager = {
 
         mergedRepositories[repositoryName] = {
           name: repositoryName,
-          path: normalizePath(repository.path),
+          path: normalizePath(projectRoot),
           projectConfig,
           projectConfigPath,
           groupDefinitionName: repository.group,

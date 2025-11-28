@@ -204,6 +204,7 @@ portmux sync --all
   - `disabled`: When true, suppresses all process log output.
 - `portmux init` appends the current project; `start`/`restart`/`select` use this mapping for resolution.
 - `portmux sync` is the quickest way to register a repo that already ships with `portmux.config.json` (e.g., after cloning). When only one group exists it registers that group by default; otherwise pass `--group <name>` or `--all` (and `--prune` to drop stale entries that no longer exist on disk).
+  - Repository paths are written with the home directory shortened to `~` by default; absolute paths remain supported and are expanded at runtime.
 
 ### Group Resolution
 
