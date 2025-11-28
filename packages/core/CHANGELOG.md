@@ -1,5 +1,11 @@
 # @portmux/core
 
+## 0.3.0
+
+### Minor Changes
+
+- [#48](https://github.com/YTakahashii/portmux/pull/48) [`f71c6b8`](https://github.com/YTakahashii/portmux/commit/f71c6b8189e31cf77cb2a1e8bdad58506e96efb2) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Add support for tilde-expansion in global config paths and have `portmux sync` write paths with `~` by default.
+
 ## 0.2.2
 
 ### Patch Changes
