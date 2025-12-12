@@ -30,7 +30,7 @@
     "node": ">=20.0.0",
     "pnpm": ">=10.21.0"
   },
-  "packageManager": "pnpm@10.21.0",
+  "packageManager": "pnpm@10.25.0",
   "dependencies": {
     "proper-lockfile": "^4.1.2",
     "tcp-port-used": "^1.0.2",
