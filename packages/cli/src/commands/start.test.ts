@@ -29,6 +29,7 @@ vi.mock('@portmux/core', () => {
       loadConfig: vi.fn(),
       resolveEnvObject: vi.fn(),
       resolveCommandEnv: vi.fn(),
+      resolveCommandPorts: vi.fn(),
     },
     GroupManager: {
       resolveGroupByName: vi.fn(),
@@ -77,6 +78,9 @@ describe('runStartCommand', () => {
     });
     vi.mocked(ConfigManager.resolveEnvObject).mockReturnValue({ RESOLVED: 'yes' });
     vi.mocked(ConfigManager.resolveCommandEnv).mockImplementation((command: string) => command);
+    vi.mocked(ConfigManager.resolveCommandPorts).mockImplementation((ports) =>
+      Array.isArray(ports) ? (ports as number[]) : undefined
+    );
     vi.mocked(ProcessManager.startProcess).mockResolvedValue();
     vi.mocked(GroupManager.resolveGroupByName).mockReturnValue(resolvedGroup);
     vi.mocked(GroupManager.resolveGroupAuto).mockReturnValue(resolvedGroup);

@@ -146,6 +146,10 @@ export async function runStartCommand(
             // Resolve environment variables
             const resolvedEnv = cmd.env ? ConfigManager.resolveEnvObject(cmd.env) : {};
             const resolvedCommand = ConfigManager.resolveCommandEnv(cmd.command, cmd.env);
+            const resolvedPorts = ConfigManager.resolveCommandPorts(cmd.ports, cmd.env ?? {}, {
+              groupName: targetGroup,
+              commandName: cmd.name,
+            });
             const startLabel = `${groupLabel} (${shortenHomePath(projectRoot)})`;
 
             // Start the process (ProcessManager uses PortManager reservation APIs internally)
@@ -159,7 +163,7 @@ export async function runStartCommand(
               groupDefinitionName: targetGroup,
               worktreePath: projectRoot,
               ...(invokeOptions?.worktreeLabel !== undefined && { branch: invokeOptions.worktreeLabel }),
-              ...(cmd.ports !== undefined && { ports: cmd.ports }),
+              ...(resolvedPorts !== undefined && { ports: resolvedPorts }),
               ...(logMaxBytes !== undefined && { logMaxBytes }),
               ...(disableLogs && { disableLogs }),
             });

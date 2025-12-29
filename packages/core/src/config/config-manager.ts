@@ -66,6 +66,20 @@ export class InvalidRepositoryReferenceError extends PortmuxError {
   }
 }
 
+type PortResolutionIssue = 'missing_env' | 'invalid_type' | 'invalid_value' | 'invalid_resolved';
+
+interface PortResolutionErrorOptions {
+  issue: PortResolutionIssue;
+  raw?: string;
+  resolved?: string;
+  variable?: string;
+  context?: PortResolutionContext | undefined;
+}
+
+export class PortResolutionError extends PortmuxError {
+  override readonly name = 'PortResolutionError';
+}
+
 /**
  * Result of merging resolved repositories and their project configs
  */
@@ -165,6 +179,140 @@ function resolveEnvVariables(value: string, commandEnv: Record<string, string> =
 
     return resolved;
   });
+}
+
+export interface PortResolutionContext {
+  groupName?: string;
+  commandName?: string;
+}
+
+function formatPortContext(context?: PortResolutionContext): string {
+  if (!context) {
+    return '';
+  }
+
+  const parts: string[] = [];
+  if (context.groupName) {
+    parts.push(`group "${context.groupName}"`);
+  }
+  if (context.commandName) {
+    parts.push(`command "${context.commandName}"`);
+  }
+
+  if (parts.length === 0) {
+    return '';
+  }
+
+  return ` (${parts.join(', ')})`;
+}
+
+function buildPortResolutionMessage(options: PortResolutionErrorOptions): string {
+  const contextLabel = formatPortContext(options.context);
+  const rawLabel = options.raw ? `"${options.raw}"` : 'value';
+  const hintPrefix = 'Hint:';
+
+  switch (options.issue) {
+    case 'missing_env': {
+      const variable = options.variable ?? 'UNKNOWN';
+      return [
+        `Port ${rawLabel} requires environment variable "${variable}", but it was not defined${contextLabel}.`,
+        `${hintPrefix} Set "${variable}" in the environment or replace the port with a number.`,
+      ].join('\n');
+    }
+    case 'invalid_resolved': {
+      const resolved = options.resolved ?? '';
+      return [
+        `Resolved port value "${resolved}" from ${rawLabel} is not a positive integer${contextLabel}.`,
+        `${hintPrefix} Ensure ${rawLabel} resolves to a positive integer.`,
+      ].join('\n');
+    }
+    case 'invalid_value':
+      return `Port value ${rawLabel} must be a positive integer or a \${VAR} placeholder${contextLabel}.`;
+    case 'invalid_type':
+    default:
+      return `Port value must be a positive integer or a \${VAR} placeholder${contextLabel}.`;
+  }
+}
+
+function createPortResolutionError(options: PortResolutionErrorOptions): PortResolutionError {
+  return new PortResolutionError(buildPortResolutionMessage(options));
+}
+
+function resolvePortTemplate(
+  value: string,
+  commandEnv: Record<string, string>,
+  context?: PortResolutionContext
+): string {
+  return value.replace(/\$\{([^}]+)\}/g, (_match, varName: string) => {
+    const resolved = commandEnv[varName] ?? process.env[varName];
+    if (resolved === undefined) {
+      throw createPortResolutionError({
+        issue: 'missing_env',
+        raw: value,
+        variable: varName,
+        context,
+      });
+    }
+    return resolved;
+  });
+}
+
+function resolvePortValue(
+  value: number | string,
+  commandEnv: Record<string, string>,
+  context?: PortResolutionContext
+): number {
+  if (typeof value === 'number') {
+    if (!Number.isInteger(value) || value <= 0) {
+      throw createPortResolutionError({
+        issue: 'invalid_value',
+        raw: String(value),
+        context,
+      });
+    }
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    throw createPortResolutionError({ issue: 'invalid_type', context });
+  }
+
+  const raw = value.trim();
+  if (raw.length === 0) {
+    throw createPortResolutionError({ issue: 'invalid_value', raw, context });
+  }
+
+  const hasPlaceholder = /\$\{[^}]+\}/.test(raw);
+  if (!hasPlaceholder) {
+    if (!/^\d+$/.test(raw)) {
+      throw createPortResolutionError({ issue: 'invalid_value', raw, context });
+    }
+    const numeric = Number.parseInt(raw, 10);
+    if (numeric <= 0) {
+      throw createPortResolutionError({ issue: 'invalid_value', raw, context });
+    }
+    return numeric;
+  }
+
+  const resolved = resolvePortTemplate(raw, commandEnv, context).trim();
+  if (!/^\d+$/.test(resolved)) {
+    throw createPortResolutionError({
+      issue: 'invalid_resolved',
+      raw,
+      resolved,
+      context,
+    });
+  }
+  const numeric = Number.parseInt(resolved, 10);
+  if (numeric <= 0) {
+    throw createPortResolutionError({
+      issue: 'invalid_resolved',
+      raw,
+      resolved,
+      context,
+    });
+  }
+  return numeric;
 }
 
 /**
@@ -387,6 +535,26 @@ export const ConfigManager = {
    */
   resolveCommandEnv(command: string, commandEnv: Record<string, string> = {}): string {
     return resolveEnvVariables(command, commandEnv);
+  },
+
+  /**
+   * Resolve command ports from numbers or env placeholders.
+   *
+   * @param ports Ports defined in the config
+   * @param commandEnv Env definitions within the command
+   * @param context Optional context for error messages
+   * @returns Fully resolved port list
+   */
+  resolveCommandPorts(
+    ports: (number | string)[] | undefined,
+    commandEnv: Record<string, string> = {},
+    context?: PortResolutionContext
+  ): number[] | undefined {
+    if (!ports) {
+      return undefined;
+    }
+
+    return ports.map((port) => resolvePortValue(port, commandEnv, context));
   },
 
   /**

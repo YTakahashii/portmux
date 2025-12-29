@@ -102,6 +102,10 @@ async function restartProcessesForGroup(
       try {
         const resolvedEnv = cmd.env ? ConfigManager.resolveEnvObject(cmd.env) : {};
         const resolvedCommand = ConfigManager.resolveCommandEnv(cmd.command, cmd.env);
+        const resolvedPorts = ConfigManager.resolveCommandPorts(cmd.ports, cmd.env ?? {}, {
+          groupName: targetGroup,
+          commandName: cmd.name,
+        });
 
         console.log(chalk.yellow(`● Restarting process "${cmd.name}"`));
 
@@ -114,7 +118,7 @@ async function restartProcessesForGroup(
           repositoryName: resolvedGroup.name,
           groupDefinitionName: targetGroup,
           worktreePath: resolvedGroup.path,
-          ...(cmd.ports !== undefined && { ports: cmd.ports }),
+          ...(resolvedPorts !== undefined && { ports: resolvedPorts }),
           ...(logMaxBytes !== undefined && { logMaxBytes }),
           ...(disableLogs && { disableLogs }),
         });
