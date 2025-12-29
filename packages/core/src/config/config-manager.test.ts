@@ -1,4 +1,4 @@
-import { ConfigManager } from './config-manager.js';
+import { ConfigManager, PortResolutionError } from './config-manager.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, realpathSync } from 'fs';
 
@@ -86,6 +86,59 @@ describe('ConfigManager', () => {
       TOKEN: '',
     });
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('MISSING'));
+  });
+
+  it('resolveCommandPorts resolves numeric and env-based ports', () => {
+    const previous = process.env.PORT;
+    process.env.PORT = '4000';
+
+    try {
+      const result = ConfigManager.resolveCommandPorts(
+        [3000, '${PORT}', '5000'],
+        { PORT: '3001' },
+        {
+          commandName: 'web',
+        }
+      );
+
+      expect(result).toEqual([3000, 3001, 5000]);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.PORT;
+      } else {
+        process.env.PORT = previous;
+      }
+    }
+  });
+
+  it('resolveCommandPorts throws when a port env var is missing', () => {
+    const previous = process.env.MISSING_PORT;
+    delete process.env.MISSING_PORT;
+
+    try {
+      expect(() => ConfigManager.resolveCommandPorts(['${MISSING_PORT}'], {})).toThrow(PortResolutionError);
+      expect(() => ConfigManager.resolveCommandPorts(['${MISSING_PORT}'], {})).toThrow(/MISSING_PORT/);
+    } finally {
+      if (previous !== undefined) {
+        process.env.MISSING_PORT = previous;
+      }
+    }
+  });
+
+  it('resolveCommandPorts throws when a resolved port is not numeric', () => {
+    const previous = process.env.BAD_PORT;
+    process.env.BAD_PORT = 'not-a-number';
+
+    try {
+      expect(() => ConfigManager.resolveCommandPorts(['${BAD_PORT}'], {})).toThrow(PortResolutionError);
+      expect(() => ConfigManager.resolveCommandPorts(['${BAD_PORT}'], {})).toThrow(/not a positive integer/);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.BAD_PORT;
+      } else {
+        process.env.BAD_PORT = previous;
+      }
+    }
   });
 
   it('findConfigFile walks up parent directories to locate the config file', () => {

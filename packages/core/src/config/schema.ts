@@ -16,7 +16,7 @@ import { z } from 'zod';
 export const CommandSchema = z.object({
   name: z.string().min(1, 'Process name is required'),
   command: z.string().min(1, 'Command is required'),
-  ports: z.array(z.number().int().positive()).optional(),
+  ports: z.array(z.union([z.number().int().positive(), z.string().min(1)])).optional(),
   cwd: z.string().optional(),
   env: z.record(z.string(), z.string()).optional(), // Placeholder for passthrough support handled later
 });

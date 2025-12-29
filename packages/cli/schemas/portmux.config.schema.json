@@ -74,10 +74,22 @@
         "ports": {
           "type": "array",
           "items": {
-            "type": "integer",
-            "minimum": 1
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "string",
+                "pattern": "^\\$\\{[^}]+\\}$"
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              }
+            ]
           },
-          "description": "Ports the command binds to."
+          "description": "Ports the command binds to (supports ${VAR} placeholders)."
         },
         "cwd": {
           "type": "string",

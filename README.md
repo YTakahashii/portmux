@@ -190,7 +190,7 @@ portmux sync --all
   - `description`: Group description.
   - `commands`: Array of processes.
     - `name` / `command` (required): Process name and shell command.
-    - `ports` (optional): Port numbers to reserve; startup fails if a port is in use.
+    - `ports` (optional): Port numbers to reserve; accepts integers or `${VAR}` placeholders resolved from `env` then `process.env` (must resolve to positive integers).
     - `cwd` (optional): Working directory for the process. Defaults to the project root.
     - `env` (optional): String map of environment variables; `${VAR}` expands from `env` then `process.env` (missing values warn and resolve to an empty string).
 
