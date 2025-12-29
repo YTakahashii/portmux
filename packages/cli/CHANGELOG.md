@@ -1,5 +1,16 @@
 # @portmux/cli
 
+## 0.8.0
+
+### Minor Changes
+
+- [#54](https://github.com/YTakahashii/portmux/pull/54) [`0ed20ee`](https://github.com/YTakahashii/portmux/commit/0ed20eeae0e2b232db25d21d1102aff78bf28785) Thanks [@YTakahashii](https://github.com/YTakahashii)! - Add support for resolving port values from environment variable placeholders in config, updating schema validation and CLI start/restart handling.
+
+### Patch Changes
+
+- Updated dependencies [[`0ed20ee`](https://github.com/YTakahashii/portmux/commit/0ed20eeae0e2b232db25d21d1102aff78bf28785)]:
+  - @portmux/core@0.4.0
+
 ## 0.7.0
 
 ### Minor Changes
